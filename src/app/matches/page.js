@@ -412,14 +412,16 @@ export default function MatchesPage() {
                                                     <button
                                                         onClick={() => handleComplete(post.id)}
                                                         className={styles.completePostBtn}
+                                                        title="Mark this post as completed/swapped"
                                                     >
-                                                        ✓
+                                                        ✓ Swapped
                                                     </button>
                                                     <button
                                                         onClick={() => handleDelete(post.id)}
                                                         className={styles.deletePostBtn}
+                                                        title="Cancel and remove this post"
                                                     >
-                                                        ✕
+                                                        ✕ Cancel
                                                     </button>
                                                 </div>
                                             </div>
