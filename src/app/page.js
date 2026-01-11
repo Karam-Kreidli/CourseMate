@@ -69,7 +69,7 @@ export default function HomePage() {
                 .from('posts')
                 .select(`
           *,
-          profile:profiles!posts_user_id_fkey(name, student_id, phone)
+          profile:profiles!posts_user_id_fkey(id, name, student_id)
         `)
                 .in('status', ['active', 'pending'])
                 .order('created_at', { ascending: false });

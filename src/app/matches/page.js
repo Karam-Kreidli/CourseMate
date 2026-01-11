@@ -14,6 +14,7 @@ export default function MatchesPage() {
     const [loading, setLoading] = useState(true);
     const [user, setUser] = useState(null);
     const [courses, setCourses] = useState({});
+    const [contactInfoMap, setContactInfoMap] = useState({});
     const router = useRouter();
     const supabase = createClient();
 
@@ -61,8 +62,8 @@ export default function MatchesPage() {
             .from('matches')
             .select(`
         *,
-        post_a:posts!matches_post_a_id_fkey(*, profile:profiles!posts_user_id_fkey(name, student_id, phone)),
-        post_b:posts!matches_post_b_id_fkey(*, profile:profiles!posts_user_id_fkey(name, student_id, phone))
+        post_a:posts!matches_post_a_id_fkey(*, profile:profiles!posts_user_id_fkey(id, name, student_id)),
+        post_b:posts!matches_post_b_id_fkey(*, profile:profiles!posts_user_id_fkey(id, name, student_id))
       `)
             .or(`user_a_id.eq.${userId},user_b_id.eq.${userId}`)
             .in('status', ['pending', 'accepted'])
@@ -79,6 +80,24 @@ export default function MatchesPage() {
 
         setMatches(activeMatches);
         setLoading(false);
+
+        // Fetch contact info for accepted matches via RPC
+        const acceptedMatches = activeMatches.filter(m => m.status === 'accepted');
+        for (const match of acceptedMatches) {
+            const isUserA = match.user_a_id === userId;
+            const theirProfile = isUserA ? match.post_b?.profile : match.post_a?.profile;
+            if (theirProfile?.id) {
+                const { data } = await supabase.rpc('get_contact_info', {
+                    target_profile_id: theirProfile.id
+                });
+                if (data && data.length > 0) {
+                    setContactInfoMap(prev => ({
+                        ...prev,
+                        [theirProfile.id]: data[0]
+                    }));
+                }
+            }
+        }
     };
 
     const fetchMyPosts = async (userId) => {
@@ -395,11 +414,11 @@ export default function MatchesPage() {
                                                 </div>
 
                                                 {/* Contact Info (only if both accepted) */}
-                                                {bothAccepted && (
+                                                {bothAccepted && contactInfoMap[theirPost?.profile?.id]?.phone && (
                                                     <div className={styles.contactInfo}>
                                                         <span>📞 Contact: </span>
-                                                        <a href={`tel:${theirPost?.profile?.phone}`}>
-                                                            {theirPost?.profile?.phone}
+                                                        <a href={`tel:${contactInfoMap[theirPost?.profile?.id]?.phone}`}>
+                                                            {contactInfoMap[theirPost?.profile?.id]?.phone}
                                                         </a>
                                                     </div>
                                                 )}

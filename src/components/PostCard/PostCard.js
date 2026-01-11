@@ -1,5 +1,7 @@
 'use client';
 
+import { useState, useEffect } from 'react';
+import { createClient } from '@/lib/supabase/client';
 import styles from './PostCard.module.css';
 
 const POST_TYPE_CONFIG = {
@@ -49,6 +51,23 @@ export default function PostCard({
 }) {
     const typeConfig = POST_TYPE_CONFIG[post.type];
     const statusConfig = STATUS_CONFIG[post.status];
+    const [contactInfo, setContactInfo] = useState(null);
+    const supabase = createClient();
+
+    // Fetch contact info via RPC when showContact is true
+    useEffect(() => {
+        const fetchContactInfo = async () => {
+            if (showContact && post.profile?.id) {
+                const { data } = await supabase.rpc('get_contact_info', {
+                    target_profile_id: post.profile.id
+                });
+                if (data && data.length > 0) {
+                    setContactInfo(data[0]);
+                }
+            }
+        };
+        fetchContactInfo();
+    }, [showContact, post.profile?.id]);
 
     return (
         <article className={`${styles.card} ${styles[`card${typeConfig.className}`]}`}>
@@ -105,11 +124,11 @@ export default function PostCard({
             )}
 
             {/* Contact Info (visible for giveaways/requests or matched swaps) */}
-            {showContact && post.profile?.phone && (
+            {showContact && contactInfo?.phone && (
                 <div className={styles.contactInfo}>
                     <span className={styles.contactLabel}>📞 Contact:</span>
-                    <a href={`tel:${post.profile.phone}`} className={styles.contactValue}>
-                        {post.profile.phone}
+                    <a href={`tel:${contactInfo.phone}`} className={styles.contactValue}>
+                        {contactInfo.phone}
                     </a>
                 </div>
             )}
