@@ -18,9 +18,10 @@
 DROP POLICY IF EXISTS "Profiles are viewable by everyone" ON profiles;
 
 -- Policy 1: Users can always read their own full profile
+-- NOTE: profiles.id = auth.uid() (profile id IS the user id)
 CREATE POLICY "Users can read own profile" ON profiles
     FOR SELECT
-    USING (auth.uid() = user_id);
+    USING (auth.uid() = id);
 
 -- Policy 2: Users can read basic info of profiles linked to posts
 -- This allows showing poster names on post cards
@@ -29,7 +30,7 @@ CREATE POLICY "Users can read poster profiles" ON profiles
     USING (
         EXISTS (
             SELECT 1 FROM posts 
-            WHERE posts.user_id = profiles.user_id 
+            WHERE posts.user_id = profiles.id 
             AND posts.status IN ('active', 'pending')
         )
     );
@@ -43,9 +44,9 @@ CREATE POLICY "Users can read matched user profiles" ON profiles
             SELECT 1 FROM matches 
             WHERE matches.status = 'accepted'
             AND (
-                (matches.user_a_id = auth.uid() AND matches.user_b_id = profiles.user_id)
+                (matches.user_a_id = auth.uid() AND matches.user_b_id = profiles.id)
                 OR 
-                (matches.user_b_id = auth.uid() AND matches.user_a_id = profiles.user_id)
+                (matches.user_b_id = auth.uid() AND matches.user_a_id = profiles.id)
             )
         )
     );
