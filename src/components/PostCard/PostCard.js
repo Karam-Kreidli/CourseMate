@@ -58,9 +58,12 @@ export default function PostCard({
     useEffect(() => {
         const fetchContactInfo = async () => {
             if (showContact && post.profile?.id) {
-                const { data } = await supabase.rpc('get_contact_info', {
+                const { data, error } = await supabase.rpc('get_contact_info', {
                     target_profile_id: post.profile.id
                 });
+                if (error) {
+                    console.error('RPC error:', error);
+                }
                 if (data && data.length > 0) {
                     setContactInfo(data[0]);
                 }
