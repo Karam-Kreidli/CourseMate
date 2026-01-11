@@ -106,7 +106,7 @@
 .filterBtnActive {
     background: var(--color-accent);
     border-color: var(--color-accent);
-    color: var(--text-inverse);
+    color: #FFFFFF;
 }
 
 /* Main */
