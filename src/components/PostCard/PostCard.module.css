@@ -155,11 +155,19 @@
     color: var(--text-primary);
 }
 
+.instructor {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    margin-top: 4px;
+    font-weight: 500;
+}
+
 .sectionTime {
     display: block;
     font-size: 0.75rem;
     color: var(--text-muted);
-    margin-top: 4px;
+    margin-top: 2px;
 }
 
 .arrow {

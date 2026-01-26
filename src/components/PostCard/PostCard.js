@@ -60,6 +60,8 @@ function getTimeRemaining(expiresAt) {
 export default function PostCard({
     post,
     courseName,
+    haveInstructor,
+    wantInstructor,
     showContact = false,
     showActions = false,
     onComplete,
@@ -116,6 +118,9 @@ export default function PostCard({
                             post.type === 'request' ? 'Looking For' : 'Have'}
                     </span>
                     <span className={styles.sectionValue}>Section {post.have_section}</span>
+                    {haveInstructor && (
+                        <span className={styles.instructor}>👨‍🏫 {haveInstructor}</span>
+                    )}
                     {post.have_section_time && (
                         <span className={styles.sectionTime}>🕐 {post.have_section_time}</span>
                     )}
@@ -127,6 +132,9 @@ export default function PostCard({
                         <div className={styles.sectionGroup}>
                             <span className={styles.sectionLabel}>Want</span>
                             <span className={styles.sectionValue}>Section {post.want_section}</span>
+                            {wantInstructor && (
+                                <span className={styles.instructor}>👨‍🏫 {wantInstructor}</span>
+                            )}
                             {post.want_section_time && (
                                 <span className={styles.sectionTime}>🕐 {post.want_section_time}</span>
                             )}

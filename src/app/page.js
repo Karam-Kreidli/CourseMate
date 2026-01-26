@@ -206,14 +206,30 @@ export default function HomePage() {
                     </div>
                 ) : (
                     <div className={styles.postList}>
-                        {filteredPosts.map((post) => (
-                            <PostCard
-                                key={post.id}
-                                post={post}
-                                courseName={courses[post.course_code]}
-                                showContact={post.type !== 'swap'}
-                            />
-                        ))}
+                        {filteredPosts.map((post) => {
+                            // Find instructor for "have" section
+                            const haveSectionData = sections.find(s =>
+                                s.course_id === post.course_code &&
+                                s.section_num === post.have_section
+                            );
+
+                            // Find instructor for "want" section (if exists)
+                            const wantSectionData = post.want_section ? sections.find(s =>
+                                s.course_id === post.course_code &&
+                                s.section_num === post.want_section
+                            ) : null;
+
+                            return (
+                                <PostCard
+                                    key={post.id}
+                                    post={post}
+                                    courseName={courses[post.course_code]}
+                                    haveInstructor={haveSectionData?.instructor}
+                                    wantInstructor={wantSectionData?.instructor}
+                                    showContact={post.type !== 'swap'}
+                                />
+                            );
+                        })}
                     </div>
                 )}
             </main>
