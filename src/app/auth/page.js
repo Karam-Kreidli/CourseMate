@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
@@ -16,10 +16,24 @@ export default function AuthPage() {
     const [name, setName] = useState('');
     const [studentId, setStudentId] = useState('');
     const [phone, setPhone] = useState('');
+    const [major, setMajor] = useState('');
+    const [majors, setMajors] = useState([]);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const router = useRouter();
     const supabase = createClient();
+
+    // Fetch available majors on mount
+    useEffect(() => {
+        const fetchMajors = async () => {
+            const { data } = await supabase
+                .from('majors')
+                .select('code, name')
+                .order('name');
+            setMajors(data || []);
+        };
+        fetchMajors();
+    }, []);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -53,6 +67,10 @@ export default function AuthPage() {
                 const phoneRegex = /^[\d\s\-\+\(\)]{10,}$/;
                 if (!phoneRegex.test(phone)) {
                     throw new Error('Please enter a valid phone number');
+                }
+
+                if (!major) {
+                    throw new Error('Please select your major');
                 }
 
                 // Check if University ID is already taken
@@ -106,6 +124,7 @@ export default function AuthPage() {
                         student_id: studentId,
                         phone: phone.trim(),
                         email: email.trim(),
+                        major: major,
                     })
                     .eq('id', data.user.id);
 
@@ -132,6 +151,7 @@ export default function AuthPage() {
         setName('');
         setStudentId('');
         setPhone('');
+        setMajor('');
     };
 
     return (
@@ -230,6 +250,22 @@ export default function AuthPage() {
                                     required
                                     disabled={loading}
                                 />
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label className={styles.label}>Major</label>
+                                <select
+                                    value={major}
+                                    onChange={(e) => setMajor(e.target.value)}
+                                    className={styles.input}
+                                    required
+                                    disabled={loading}
+                                >
+                                    <option value="">Select your major</option>
+                                    {majors.map(m => (
+                                        <option key={m.code} value={m.code}>{m.name}</option>
+                                    ))}
+                                </select>
                             </div>
                         </>
                     )}

@@ -39,6 +39,19 @@ export default function MatchesPage() {
             return;
         }
         setUser(user);
+
+        // Check if user has major set
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('major')
+            .eq('id', user.id)
+            .single();
+
+        if (!profile?.major) {
+            router.push('/profile?selectMajor=true');
+            return;
+        }
+
         fetchMatches(user.id);
         fetchDeclinedMatches(user.id);
         fetchMyPosts(user.id);

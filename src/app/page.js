@@ -13,19 +13,54 @@ export default function HomePage() {
     const [posts, setPosts] = useState([]);
     const [courses, setCourses] = useState({});
     const [sections, setSections] = useState([]);
+    const [majorCourses, setMajorCourses] = useState(null); // null = loading, [] = no major set
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
     const [search, setSearch] = useState('');
     const [user, setUser] = useState(null);
+    const [userMajor, setUserMajor] = useState(null);
     const router = useRouter();
     const supabase = createClient();
 
     useEffect(() => {
-        checkAuth();
-        fetchPosts();
+        initializePage();
+    }, []);
+
+    const initializePage = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            router.push('/auth');
+            return;
+        }
+        setUser(user);
+
+        // Fetch user's profile to get their major
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('major')
+            .eq('id', user.id)
+            .single();
+
+        if (profile?.major) {
+            setUserMajor(profile.major);
+            // Fetch courses for user's major
+            const { data: majorCoursesData } = await supabase
+                .from('major_courses')
+                .select('course_id')
+                .eq('major_code', profile.major);
+
+            const courseIds = majorCoursesData?.map(mc => mc.course_id) || [];
+            setMajorCourses(courseIds);
+        } else {
+            // User has no major set - redirect to profile to select one
+            router.push('/profile?selectMajor=true');
+            return;
+        }
+
         fetchCourses();
         fetchSections();
-    }, []);
+        fetchPosts();
+    };
 
     const checkAuth = async () => {
         const { data: { user } } = await supabase.auth.getUser();
@@ -87,6 +122,12 @@ export default function HomePage() {
     };
 
     const filteredPosts = posts.filter(post => {
+        // Major filter - only show posts for courses in user's major
+        // If majorCourses is null (loading) or empty array with no major, show all
+        if (majorCourses && majorCourses.length > 0) {
+            if (!majorCourses.includes(post.course_code)) return false;
+        }
+
         // Type filter
         if (filter !== 'all' && post.type !== filter) return false;
 

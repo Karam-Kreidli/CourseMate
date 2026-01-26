@@ -56,10 +56,11 @@ export default function PostPage() {
             .eq('id', user.id)
             .single();
 
-        // Check if profile is complete (required fields filled)
+        // Check if profile is complete (required fields filled) and has major
         const isProfileComplete = profileData?.name && profileData?.student_id && profileData?.phone;
-        if (!isProfileComplete) {
-            router.push('/profile?complete=true');
+        const hasMajor = !!profileData?.major;
+        if (!isProfileComplete || !hasMajor) {
+            router.push('/profile?selectMajor=true');
             return;
         }
 
