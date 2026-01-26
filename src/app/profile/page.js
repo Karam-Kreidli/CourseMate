@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import BottomNav from '@/components/BottomNav';
 import ThemeToggle from '@/components/ThemeToggle';
 import styles from './profile.module.css';
 
-export default function ProfilePage() {
+// Inner component that uses useSearchParams
+function ProfileContent() {
     const [profile, setProfile] = useState(null);
     const [majorName, setMajorName] = useState(null);
     const [majors, setMajors] = useState([]);
@@ -226,3 +227,17 @@ export default function ProfilePage() {
     );
 }
 
+// Main export with Suspense wrapper for useSearchParams
+export default function ProfilePage() {
+    return (
+        <Suspense fallback={
+            <div className={styles.page}>
+                <div className={styles.loading}>
+                    <div className={styles.spinner}></div>
+                </div>
+            </div>
+        }>
+            <ProfileContent />
+        </Suspense>
+    );
+}
