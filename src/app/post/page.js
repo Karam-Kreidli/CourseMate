@@ -113,10 +113,16 @@ export default function PostPage() {
     };
 
     const fetchSections = async (courseId) => {
+        // Filter sections by campus based on user gender
+        const allowedCampuses = profile?.gender === 'male'
+            ? ['main', 'men']
+            : ['main', 'women'];
+
         const { data } = await supabase
             .from('sections')
             .select('*')
             .eq('course_id', courseId)
+            .in('campus', allowedCampuses)
             .order('section_num');
         setSections(data || []);
     };

@@ -17,6 +17,7 @@ function ProfileContent() {
     const [saving, setSaving] = useState(false);
     const [myPosts, setMyPosts] = useState([]);
     const [showMajorSelect, setShowMajorSelect] = useState(false);
+    const [selectedGender, setSelectedGender] = useState('');
 
     // Edit mode state
     const [isEditing, setIsEditing] = useState(false);
@@ -24,7 +25,8 @@ function ProfileContent() {
         name: '',
         student_id: '',
         phone: '',
-        major: ''
+        major: '',
+        gender: ''
     });
 
     const router = useRouter();
@@ -73,7 +75,8 @@ function ProfileContent() {
                 name: data.name || '',
                 student_id: data.student_id || '',
                 phone: data.phone || '',
-                major: data.major || ''
+                major: data.major || '',
+                gender: data.gender || ''
             });
             // Fetch major name if user has a major set
             if (data.major) {
@@ -85,6 +88,10 @@ function ProfileContent() {
                 setMajorName(majorData?.name || data.major);
             } else {
                 // Show major select if user has no major
+                setShowMajorSelect(true);
+            }
+            // Also show setup if user has no gender
+            if (!data.gender) {
                 setShowMajorSelect(true);
             }
         }
@@ -133,7 +140,8 @@ function ProfileContent() {
             name: profile?.name || '',
             student_id: profile?.student_id || '',
             phone: profile?.phone || '',
-            major: profile?.major || ''
+            major: profile?.major || '',
+            gender: profile?.gender || ''
         });
         setIsEditing(true);
     };
@@ -144,7 +152,8 @@ function ProfileContent() {
             name: profile?.name || '',
             student_id: profile?.student_id || '',
             phone: profile?.phone || '',
-            major: profile?.major || ''
+            major: profile?.major || '',
+            gender: profile?.gender || ''
         });
     };
 
@@ -160,7 +169,8 @@ function ProfileContent() {
                 name: editForm.name,
                 student_id: editForm.student_id,
                 phone: editForm.phone,
-                major: editForm.major
+                major: editForm.major,
+                gender: editForm.gender
             })
             .eq('id', user.id);
 
@@ -171,7 +181,8 @@ function ProfileContent() {
                 name: editForm.name,
                 student_id: editForm.student_id,
                 phone: editForm.phone,
-                major: editForm.major
+                major: editForm.major,
+                gender: editForm.gender
             });
 
             // Update major name
@@ -200,12 +211,43 @@ function ProfileContent() {
         );
     }
 
-    // Show major selection modal if needed
-    if (showMajorSelect && !profile?.major) {
+    // Show major/gender selection modal if needed
+
+    const handleSaveSetup = async () => {
+        const updates = {};
+        if (!profile?.major && selectedMajor) updates.major = selectedMajor;
+        if (!profile?.gender && selectedGender) updates.gender = selectedGender;
+        if (Object.keys(updates).length === 0) return;
+
+        setSaving(true);
+        const { data: { user } } = await supabase.auth.getUser();
+
+        const { error } = await supabase
+            .from('profiles')
+            .update(updates)
+            .eq('id', user.id);
+
+        if (!error) {
+            if (updates.major) {
+                const majorData = majors.find(m => m.code === updates.major);
+                setMajorName(majorData?.name || updates.major);
+            }
+            setProfile({ ...profile, ...updates });
+            setShowMajorSelect(false);
+            router.push('/');
+        }
+        setSaving(false);
+    };
+
+    const needsMajor = !profile?.major;
+    const needsGender = !profile?.gender;
+
+    if (showMajorSelect && (needsMajor || needsGender)) {
+        const canContinue = (!needsMajor || selectedMajor) && (!needsGender || selectedGender);
         return (
             <div className={styles.page}>
                 <header className={styles.header}>
-                    <h1>🎓 Select Your Major</h1>
+                    <h1>🎓 Complete Your Profile</h1>
                     <ThemeToggle />
                 </header>
 
@@ -213,28 +255,46 @@ function ProfileContent() {
                     <div className={styles.card}>
                         <h2 className={styles.cardTitle}>Complete Your Profile</h2>
                         <p className={styles.cardDesc}>
-                            Please select your major to see relevant course swaps.
+                            Please fill in the missing information to continue.
                         </p>
 
-                        <div className={styles.formGroup}>
-                            <label className={styles.label}>Major</label>
-                            <select
-                                value={selectedMajor}
-                                onChange={(e) => setSelectedMajor(e.target.value)}
-                                className={styles.select}
-                                disabled={saving}
-                            >
-                                <option value="">Select your major</option>
-                                {majors.map(m => (
-                                    <option key={m.code} value={m.code}>{m.name}</option>
-                                ))}
-                            </select>
-                        </div>
+                        {needsMajor && (
+                            <div className={styles.formGroup}>
+                                <label className={styles.label}>Major</label>
+                                <select
+                                    value={selectedMajor}
+                                    onChange={(e) => setSelectedMajor(e.target.value)}
+                                    className={styles.select}
+                                    disabled={saving}
+                                >
+                                    <option value="">Select your major</option>
+                                    {majors.map(m => (
+                                        <option key={m.code} value={m.code}>{m.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
+                        {needsGender && (
+                            <div className={styles.formGroup}>
+                                <label className={styles.label}>Gender</label>
+                                <select
+                                    value={selectedGender}
+                                    onChange={(e) => setSelectedGender(e.target.value)}
+                                    className={styles.select}
+                                    disabled={saving}
+                                >
+                                    <option value="">Select your gender</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                </select>
+                            </div>
+                        )}
 
                         <button
-                            onClick={handleSaveMajor}
+                            onClick={handleSaveSetup}
                             className={styles.saveBtn}
-                            disabled={!selectedMajor || saving}
+                            disabled={!canContinue || saving}
                         >
                             {saving ? 'Saving...' : 'Continue'}
                         </button>
@@ -312,6 +372,18 @@ function ProfileContent() {
                                     ))}
                                 </select>
                             </div>
+                            <div className={styles.formGroup}>
+                                <label className={styles.label}>Gender</label>
+                                <select
+                                    value={editForm.gender}
+                                    onChange={(e) => setEditForm({ ...editForm, gender: e.target.value })}
+                                    className={styles.select}
+                                >
+                                    <option value="">Select your gender</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                </select>
+                            </div>
                             <div className={styles.editActions}>
                                 <button
                                     onClick={handleCancelEdit}
@@ -347,6 +419,10 @@ function ProfileContent() {
                             <div className={styles.infoRow}>
                                 <span className={styles.infoLabel}>Major</span>
                                 <span className={styles.infoValue}>{majorName || 'Not set'}</span>
+                            </div>
+                            <div className={styles.infoRow}>
+                                <span className={styles.infoLabel}>Gender</span>
+                                <span className={styles.infoValue}>{profile?.gender ? (profile.gender === 'male' ? 'Male' : 'Female') : 'Not set'}</span>
                             </div>
                         </div>
                     )}

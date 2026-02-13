@@ -17,6 +17,7 @@ export default function AuthPage() {
     const [studentId, setStudentId] = useState('');
     const [phone, setPhone] = useState('');
     const [major, setMajor] = useState('');
+    const [gender, setGender] = useState('');
     const [majors, setMajors] = useState([]);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -73,6 +74,10 @@ export default function AuthPage() {
                     throw new Error('Please select your major');
                 }
 
+                if (!gender) {
+                    throw new Error('Please select your gender');
+                }
+
                 // Check if University ID is already taken
                 const { data: existingProfile } = await supabase
                     .from('profiles')
@@ -125,6 +130,7 @@ export default function AuthPage() {
                         phone: phone.trim(),
                         email: email.trim(),
                         major: major,
+                        gender: gender,
                     })
                     .eq('id', data.user.id);
 
@@ -152,6 +158,7 @@ export default function AuthPage() {
         setStudentId('');
         setPhone('');
         setMajor('');
+        setGender('');
     };
 
     return (
@@ -265,6 +272,21 @@ export default function AuthPage() {
                                     {majors.map(m => (
                                         <option key={m.code} value={m.code}>{m.name}</option>
                                     ))}
+                                </select>
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label className={styles.label}>Gender</label>
+                                <select
+                                    value={gender}
+                                    onChange={(e) => setGender(e.target.value)}
+                                    className={styles.input}
+                                    required
+                                    disabled={loading}
+                                >
+                                    <option value="">Select your gender</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
                                 </select>
                             </div>
                         </>

@@ -19,6 +19,7 @@ export default function HomePage() {
     const [search, setSearch] = useState('');
     const [user, setUser] = useState(null);
     const [userMajor, setUserMajor] = useState(null);
+    const [userGender, setUserGender] = useState(null);
     const router = useRouter();
     const supabase = createClient();
 
@@ -34,15 +35,16 @@ export default function HomePage() {
         }
         setUser(user);
 
-        // Fetch user's profile to get their major
+        // Fetch user's profile to get their major and gender
         const { data: profile } = await supabase
             .from('profiles')
-            .select('major')
+            .select('major, gender')
             .eq('id', user.id)
             .single();
 
         if (profile?.major) {
             setUserMajor(profile.major);
+            setUserGender(profile.gender);
             // Fetch courses for user's major
             const { data: majorCoursesData } = await supabase
                 .from('major_courses')
@@ -58,7 +60,7 @@ export default function HomePage() {
         }
 
         fetchCourses();
-        fetchSections();
+        fetchSections(profile?.gender);
         fetchPosts();
     };
 
@@ -87,10 +89,16 @@ export default function HomePage() {
         }
     };
 
-    const fetchSections = async () => {
+    const fetchSections = async (gender) => {
+        // Filter sections by campus based on user gender
+        const allowedCampuses = gender === 'male'
+            ? ['main', 'men']
+            : ['main', 'women'];
+
         const { data, error } = await supabase
             .from('sections')
-            .select('*');
+            .select('*')
+            .in('campus', allowedCampuses);
 
         if (!error && data) {
             setSections(data);
