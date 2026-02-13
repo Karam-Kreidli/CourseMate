@@ -327,6 +327,9 @@ export default function SchedulePage() {
     const [results, setResults] = useState(null);
     const [showCount, setShowCount] = useState(3);
     const [error, setError] = useState('');
+    const [savedScheduleIdx, setSavedScheduleIdx] = useState(null);
+    const [showAlternatives, setShowAlternatives] = useState(false);
+    const [restoringFromSave, setRestoringFromSave] = useState(false);
     const router = useRouter();
     const supabase = createClient();
 
@@ -341,6 +344,54 @@ export default function SchedulePage() {
         if (!isComplete || !profileData?.major) { router.push('/profile?selectMajor=true'); return; }
         setProfile(profileData);
         fetchCourses(profileData.major);
+        restoreSavedSchedule(profileData);
+    };
+
+    const restoreSavedSchedule = async (prof) => {
+        try {
+            const saved = localStorage.getItem('schedule_saved');
+            if (!saved) return;
+            const { courseIds, savedIdx } = JSON.parse(saved);
+            if (!courseIds?.length) return;
+
+            // Fetch course info
+            const { data: courseData } = await supabase
+                .from('courses').select('course_id, course_name').in('course_id', courseIds);
+            if (!courseData?.length) return;
+
+            const restoredCourses = courseData.map(c => ({ course_id: c.course_id, name: c.course_name }));
+            setSelectedCourses(restoredCourses);
+            setRestoringFromSave(true);
+
+            // Fetch sections for all courses
+            const allowedCampuses = prof?.gender === 'male' ? ['main', 'men'] : ['main', 'women'];
+            const sectionMap = {};
+            for (const cid of courseIds) {
+                const { data } = await supabase
+                    .from('sections').select('*').eq('course_id', cid)
+                    .in('campus', allowedCampuses).order('section_num');
+                sectionMap[cid] = data || [];
+            }
+            setAllSections(sectionMap);
+
+            // Auto-generate
+            const courseGroups = {};
+            const courseNames = {};
+            for (const c of restoredCourses) {
+                courseNames[c.course_id] = c.name;
+                courseGroups[c.course_id] = buildSectionGroups(sectionMap[c.course_id] || [], c.course_id);
+            }
+
+            const scored = generateSchedules(courseGroups, prefs, courseNames);
+            setResults(scored);
+            if (typeof savedIdx === 'number' && savedIdx < scored.length) {
+                setSavedScheduleIdx(savedIdx);
+            }
+            setRestoringFromSave(false);
+        } catch (e) {
+            console.error('Error restoring saved schedule:', e);
+            setRestoringFromSave(false);
+        }
     };
 
     const fetchCourses = async (userMajor) => {
@@ -441,6 +492,10 @@ export default function SchedulePage() {
 
                 const scored = generateSchedules(courseGroups, prefs, courseNames);
                 setResults(scored);
+                setSavedScheduleIdx(null);
+                setShowAlternatives(false);
+                // Clear saved schedule when regenerating
+                localStorage.removeItem('schedule_saved');
             } catch (e) {
                 setError('Error generating schedules: ' + e.message);
             }
@@ -479,236 +534,310 @@ export default function SchedulePage() {
                 <ThemeToggle />
             </header>
 
-            {error && <div className={styles.error}>{error}</div>}
+            <main className={styles.main}>
+                {error && <div className={styles.error}>{error}</div>}
 
-            {/* Step 1: Course Selection */}
-            <div className={styles.section}>
-                <div className={styles.sectionTitle}>Select Courses</div>
-                <div className={styles.searchWrapper} onClick={e => e.stopPropagation()}>
-                    <input
-                        type="text"
-                        value={courseSearch}
-                        onChange={(e) => { setCourseSearch(e.target.value); setShowDropdown(true); }}
-                        onFocus={() => setShowDropdown(true)}
-                        className={styles.input}
-                        placeholder="Search by course name or ID..."
-                        autoComplete="off"
-                    />
-                    {showDropdown && filteredCourses.length > 0 && (
-                        <div className={styles.dropdown}>
-                            {filteredCourses.map(course => (
-                                <button
-                                    key={course.course_id}
-                                    type="button"
-                                    className={styles.dropdownItem}
-                                    onClick={() => addCourse(course)}
-                                >
-                                    <span className={styles.dropdownId}>{course.course_id}</span>
-                                    <span className={styles.dropdownName}>{course.name}</span>
-                                </button>
+                {/* Step 1: Course Selection — compact when results exist */}
+                {results && results.length > 0 ? (
+                    <div className={styles.compactBar}>
+                        <div className={styles.compactCourses}>
+                            {selectedCourses.map(c => (
+                                <span key={c.course_id} className={styles.compactChip}>{c.course_id}</span>
                             ))}
                         </div>
-                    )}
-                </div>
-
-                {selectedCourses.length > 0 ? (
-                    <div className={styles.selectedCourses}>
-                        {selectedCourses.map(c => (
-                            <div key={c.course_id} className={styles.courseChip}>
-                                <div className={styles.courseChipInfo}>
-                                    <span className={styles.courseChipId}>{c.course_id}</span>
-                                    <span className={styles.courseChipName}>{c.name}</span>
-                                </div>
-                                <button className={styles.removeBtn} onClick={() => removeCourse(c.course_id)}>×</button>
-                            </div>
-                        ))}
+                        <button
+                            className={styles.editCoursesBtn}
+                            onClick={() => setResults(null)}
+                        >Edit Courses</button>
                     </div>
                 ) : (
-                    <div className={styles.emptyCourses}>
-                        Add courses to build your schedule
-                    </div>
-                )}
-            </div>
-
-            {/* Step 2: Preferences */}
-            {selectedCourses.length > 0 && (
-                <div className={styles.section}>
-                    <div className={styles.prefsCard}>
-                        <div className={styles.prefsHeader} onClick={() => setPrefsOpen(!prefsOpen)}>
-                            <span className={styles.prefsHeaderTitle}>⚙️ Preferences</span>
-                            <span className={`${styles.prefsChevron} ${prefsOpen ? styles.prefsChevronOpen : ''}`}>▼</span>
+                    <div className={styles.section}>
+                        <div className={styles.sectionTitle}>Select Courses</div>
+                        <div className={styles.searchWrapper} onClick={e => e.stopPropagation()}>
+                            <input
+                                type="text"
+                                value={courseSearch}
+                                onChange={(e) => { setCourseSearch(e.target.value); setShowDropdown(true); }}
+                                onFocus={() => setShowDropdown(true)}
+                                className={styles.input}
+                                placeholder="Search by course name or ID..."
+                                autoComplete="off"
+                            />
+                            {showDropdown && filteredCourses.length > 0 && (
+                                <div className={styles.dropdown}>
+                                    {filteredCourses.map(course => (
+                                        <button
+                                            key={course.course_id}
+                                            type="button"
+                                            className={styles.dropdownItem}
+                                            onClick={() => addCourse(course)}
+                                        >
+                                            <span className={styles.dropdownId}>{course.course_id}</span>
+                                            <span className={styles.dropdownName}>{course.name}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
-                        {prefsOpen && (
-                            <div className={styles.prefsBody}>
-                                {/* Time Constraints */}
-                                <div className={styles.prefGroup}>
-                                    <span className={styles.prefLabel}>Time Constraints</span>
-                                    <div className={styles.timeRow}>
-                                        <span className={styles.timeSep}>No classes before</span>
-                                        <select
-                                            className={styles.timeInput}
-                                            value={prefs.noClassesBefore}
-                                            onChange={e => setPrefs(p => ({ ...p, noClassesBefore: e.target.value }))}
-                                        >
-                                            <option value="">Any</option>
-                                            <option value="08:00 AM">8:00 AM</option>
-                                            <option value="09:00 AM">9:00 AM</option>
-                                            <option value="09:30 AM">9:30 AM</option>
-                                            <option value="10:00 AM">10:00 AM</option>
-                                            <option value="11:00 AM">11:00 AM</option>
-                                            <option value="12:00 PM">12:00 PM</option>
-                                        </select>
-                                    </div>
-                                    <div className={styles.timeRow}>
-                                        <span className={styles.timeSep}>No classes after</span>
-                                        <select
-                                            className={styles.timeInput}
-                                            value={prefs.noClassesAfter}
-                                            onChange={e => setPrefs(p => ({ ...p, noClassesAfter: e.target.value }))}
-                                        >
-                                            <option value="">Any</option>
-                                            <option value="03:00 PM">3:00 PM</option>
-                                            <option value="04:00 PM">4:00 PM</option>
-                                            <option value="05:00 PM">5:00 PM</option>
-                                            <option value="06:00 PM">6:00 PM</option>
-                                            <option value="07:00 PM">7:00 PM</option>
-                                            <option value="08:00 PM">8:00 PM</option>
-                                        </select>
-                                    </div>
-                                </div>
 
-                                {/* Gap Preference */}
-                                <div className={styles.prefGroup}>
-                                    <span className={styles.prefLabel}>Gap Preference</span>
-                                    <div className={styles.toggleRow}>
-                                        <button
-                                            className={`${styles.toggleBtn} ${prefs.gapPref === 'minimize' ? styles.toggleBtnActive : ''}`}
-                                            onClick={() => setPrefs(p => ({ ...p, gapPref: 'minimize' }))}
-                                        >No gaps</button>
-                                        <button
-                                            className={`${styles.toggleBtn} ${prefs.gapPref === 'prefer' ? styles.toggleBtnActive : ''}`}
-                                            onClick={() => setPrefs(p => ({ ...p, gapPref: 'prefer' }))}
-                                        >Prefer gaps</button>
-                                    </div>
-                                </div>
-
-                                {/* Compactness */}
-                                <div className={styles.prefGroup}>
-                                    <span className={styles.prefLabel}>Day Spread</span>
-                                    <div className={styles.toggleRow}>
-                                        <button
-                                            className={`${styles.toggleBtn} ${prefs.compactPref === 'fewer' ? styles.toggleBtnActive : ''}`}
-                                            onClick={() => setPrefs(p => ({ ...p, compactPref: 'fewer' }))}
-                                        >Fewer days</button>
-                                        <button
-                                            className={`${styles.toggleBtn} ${prefs.compactPref === 'spread' ? styles.toggleBtnActive : ''}`}
-                                            onClick={() => setPrefs(p => ({ ...p, compactPref: 'spread' }))}
-                                        >Spread out</button>
-                                    </div>
-                                </div>
-
-                                {/* Per-course preferences */}
-                                {selectedCourses.map(c => {
-                                    const instructors = getInstructors(c.course_id);
-                                    const mainSections = getMainSections(c.course_id);
-                                    if (instructors.length === 0 && mainSections.length === 0) return null;
-                                    return (
-                                        <div key={c.course_id} className={styles.prefCourseItem}>
-                                            <div className={styles.prefCourseName}>{c.course_id} — {c.name}</div>
-                                            {instructors.length > 0 && (
-                                                <div className={styles.prefGroup}>
-                                                    <span className={styles.prefLabel}>Preferred Instructor</span>
-                                                    <select
-                                                        className={styles.select}
-                                                        value={prefs.preferredInstructors[c.course_id] || ''}
-                                                        onChange={e => setPrefs(p => ({
-                                                            ...p,
-                                                            preferredInstructors: { ...p.preferredInstructors, [c.course_id]: e.target.value }
-                                                        }))}
-                                                    >
-                                                        <option value="">Any instructor</option>
-                                                        {instructors.map(i => <option key={i} value={i}>{i}</option>)}
-                                                    </select>
-                                                </div>
-                                            )}
-                                            {mainSections.length > 1 && (
-                                                <div className={styles.prefGroup}>
-                                                    <span className={styles.prefLabel}>Pin Section</span>
-                                                    <select
-                                                        className={styles.select}
-                                                        value={prefs.pinnedSections[c.course_id] || ''}
-                                                        onChange={e => setPrefs(p => ({
-                                                            ...p,
-                                                            pinnedSections: { ...p.pinnedSections, [c.course_id]: e.target.value }
-                                                        }))}
-                                                    >
-                                                        <option value="">Any section</option>
-                                                        {mainSections.map(s => (
-                                                            <option key={s.section_num} value={s.section_num}>
-                                                                Section {s.section_num} {s.instructor ? `— ${s.instructor}` : ''}
-                                                            </option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-                                            )}
+                        {selectedCourses.length > 0 ? (
+                            <div className={styles.selectedCourses}>
+                                {selectedCourses.map(c => (
+                                    <div key={c.course_id} className={styles.courseChip}>
+                                        <div className={styles.courseChipInfo}>
+                                            <span className={styles.courseChipId}>{c.course_id}</span>
+                                            <span className={styles.courseChipName}>{c.name}</span>
                                         </div>
-                                    );
-                                })}
+                                        <button className={styles.removeBtn} onClick={() => removeCourse(c.course_id)}>×</button>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className={styles.emptyCourses}>
+                                Add courses to build your schedule
                             </div>
                         )}
                     </div>
-                </div>
-            )}
+                )}
 
-            {/* Generate Button */}
-            {selectedCourses.length > 0 && (
-                <button
-                    className={styles.generateBtn}
-                    onClick={handleGenerate}
-                    disabled={generating}
-                >
-                    {generating ? <span className={styles.spinner}></span> : '🚀 Generate Schedules'}
-                </button>
-            )}
+                {/* Step 2: Preferences — hidden when results showing */}
+                {selectedCourses.length > 0 && !results && (
+                    <div className={styles.section}>
+                        <div className={styles.prefsCard}>
+                            <div className={styles.prefsHeader} onClick={() => setPrefsOpen(!prefsOpen)}>
+                                <span className={styles.prefsHeaderTitle}>⚙️ Preferences</span>
+                                <span className={`${styles.prefsChevron} ${prefsOpen ? styles.prefsChevronOpen : ''}`}>▼</span>
+                            </div>
+                            {prefsOpen && (
+                                <div className={styles.prefsBody}>
+                                    {/* Time Constraints */}
+                                    <div className={styles.prefGroup}>
+                                        <span className={styles.prefLabel}>Time Constraints</span>
+                                        <div className={styles.timeRow}>
+                                            <span className={styles.timeSep}>No classes before</span>
+                                            <select
+                                                className={styles.timeInput}
+                                                value={prefs.noClassesBefore}
+                                                onChange={e => setPrefs(p => ({ ...p, noClassesBefore: e.target.value }))}
+                                            >
+                                                <option value="">Any</option>
+                                                <option value="08:00 AM">8:00 AM</option>
+                                                <option value="09:00 AM">9:00 AM</option>
+                                                <option value="09:30 AM">9:30 AM</option>
+                                                <option value="10:00 AM">10:00 AM</option>
+                                                <option value="11:00 AM">11:00 AM</option>
+                                                <option value="12:00 PM">12:00 PM</option>
+                                            </select>
+                                        </div>
+                                        <div className={styles.timeRow}>
+                                            <span className={styles.timeSep}>No classes after</span>
+                                            <select
+                                                className={styles.timeInput}
+                                                value={prefs.noClassesAfter}
+                                                onChange={e => setPrefs(p => ({ ...p, noClassesAfter: e.target.value }))}
+                                            >
+                                                <option value="">Any</option>
+                                                <option value="03:00 PM">3:00 PM</option>
+                                                <option value="04:00 PM">4:00 PM</option>
+                                                <option value="05:00 PM">5:00 PM</option>
+                                                <option value="06:00 PM">6:00 PM</option>
+                                                <option value="07:00 PM">7:00 PM</option>
+                                                <option value="08:00 PM">8:00 PM</option>
+                                            </select>
+                                        </div>
+                                    </div>
 
-            {/* Results */}
-            {results && results.length > 0 && (
-                <>
-                    <div className={styles.resultsHeader}>
-                        <span className={styles.resultsTitle}>Generated Schedules</span>
-                        <span className={styles.resultsCount}>{results.length} found</span>
+                                    {/* Gap Preference */}
+                                    <div className={styles.prefGroup}>
+                                        <span className={styles.prefLabel}>Gap Preference</span>
+                                        <div className={styles.toggleRow}>
+                                            <button
+                                                className={`${styles.toggleBtn} ${prefs.gapPref === 'minimize' ? styles.toggleBtnActive : ''}`}
+                                                onClick={() => setPrefs(p => ({ ...p, gapPref: 'minimize' }))}
+                                            >No gaps</button>
+                                            <button
+                                                className={`${styles.toggleBtn} ${prefs.gapPref === 'prefer' ? styles.toggleBtnActive : ''}`}
+                                                onClick={() => setPrefs(p => ({ ...p, gapPref: 'prefer' }))}
+                                            >Prefer gaps</button>
+                                        </div>
+                                    </div>
+
+                                    {/* Compactness */}
+                                    <div className={styles.prefGroup}>
+                                        <span className={styles.prefLabel}>Day Spread</span>
+                                        <div className={styles.toggleRow}>
+                                            <button
+                                                className={`${styles.toggleBtn} ${prefs.compactPref === 'fewer' ? styles.toggleBtnActive : ''}`}
+                                                onClick={() => setPrefs(p => ({ ...p, compactPref: 'fewer' }))}
+                                            >Fewer days</button>
+                                            <button
+                                                className={`${styles.toggleBtn} ${prefs.compactPref === 'spread' ? styles.toggleBtnActive : ''}`}
+                                                onClick={() => setPrefs(p => ({ ...p, compactPref: 'spread' }))}
+                                            >Spread out</button>
+                                        </div>
+                                    </div>
+
+                                    {/* Per-course preferences */}
+                                    {selectedCourses.map(c => {
+                                        const instructors = getInstructors(c.course_id);
+                                        const mainSections = getMainSections(c.course_id);
+                                        if (instructors.length === 0 && mainSections.length === 0) return null;
+                                        return (
+                                            <div key={c.course_id} className={styles.prefCourseItem}>
+                                                <div className={styles.prefCourseName}>{c.course_id} — {c.name}</div>
+                                                {instructors.length > 0 && (
+                                                    <div className={styles.prefGroup}>
+                                                        <span className={styles.prefLabel}>Preferred Instructor</span>
+                                                        <select
+                                                            className={styles.select}
+                                                            value={prefs.preferredInstructors[c.course_id] || ''}
+                                                            onChange={e => setPrefs(p => ({
+                                                                ...p,
+                                                                preferredInstructors: { ...p.preferredInstructors, [c.course_id]: e.target.value }
+                                                            }))}
+                                                        >
+                                                            <option value="">Any instructor</option>
+                                                            {instructors.map(i => <option key={i} value={i}>{i}</option>)}
+                                                        </select>
+                                                    </div>
+                                                )}
+                                                {mainSections.length > 1 && (
+                                                    <div className={styles.prefGroup}>
+                                                        <span className={styles.prefLabel}>Pin Section</span>
+                                                        <select
+                                                            className={styles.select}
+                                                            value={prefs.pinnedSections[c.course_id] || ''}
+                                                            onChange={e => setPrefs(p => ({
+                                                                ...p,
+                                                                pinnedSections: { ...p.pinnedSections, [c.course_id]: e.target.value }
+                                                            }))}
+                                                        >
+                                                            <option value="">Any section</option>
+                                                            {mainSections.map(s => (
+                                                                <option key={s.section_num} value={s.section_num}>
+                                                                    Section {s.section_num} {s.instructor ? `— ${s.instructor}` : ''}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
                     </div>
+                )}
 
-                    {results.slice(0, showCount).map((result, idx) => (
-                        <ScheduleCard
-                            key={idx}
-                            result={result}
-                            rank={idx + 1}
-                            courseNameMap={courseNameMap}
-                            selectedCourses={selectedCourses}
-                        />
-                    ))}
+                {/* Generate Button — hidden when results showing */}
+                {selectedCourses.length > 0 && !results && (
+                    <button
+                        className={styles.generateBtn}
+                        onClick={handleGenerate}
+                        disabled={generating}
+                    >
+                        {generating ? <span className={styles.spinner}></span> : '🚀 Generate Schedules'}
+                    </button>
+                )}
 
-                    {showCount < results.length && (
-                        <button
-                            className={styles.showMoreBtn}
-                            onClick={() => setShowCount(prev => prev + 3)}
-                        >
-                            Show More ({results.length - showCount} remaining)
-                        </button>
-                    )}
-                </>
-            )}
+                {/* Results */}
+                {results && results.length > 0 && (
+                    <>
+                        {/* Saved schedule display */}
+                        {savedScheduleIdx !== null && results[savedScheduleIdx] && (
+                            <div className={styles.section}>
+                                <ScheduleCard
+                                    result={results[savedScheduleIdx]}
+                                    rank={savedScheduleIdx + 1}
+                                    courseNameMap={courseNameMap}
+                                    selectedCourses={selectedCourses}
+                                    isSaved={true}
+                                    onUnsave={() => {
+                                        setSavedScheduleIdx(null);
+                                        setShowAlternatives(true);
+                                        localStorage.removeItem('schedule_saved');
+                                    }}
+                                />
+                                {!showAlternatives && results.length > 1 && (
+                                    <button
+                                        className={styles.showMoreBtn}
+                                        onClick={() => setShowAlternatives(true)}
+                                    >
+                                        Browse {results.length - 1} other schedule{results.length - 1 > 1 ? 's' : ''}
+                                    </button>
+                                )}
+                                {showAlternatives && (
+                                    <button
+                                        className={styles.showMoreBtn}
+                                        onClick={() => setShowAlternatives(false)}
+                                    >
+                                        Hide other schedules
+                                    </button>
+                                )}
+                            </div>
+                        )}
 
-            {results && results.length === 0 && (
-                <div className={styles.noResults}>
-                    <div className={styles.noResultsIcon}>😔</div>
-                    <div className={styles.noResultsTitle}>No valid schedules found</div>
-                    <div className={styles.noResultsText}>
-                        Try relaxing your time constraints or removing a course
+                        {/* Alternative schedules */}
+                        {(savedScheduleIdx === null || showAlternatives) && (
+                            <>
+                                <div className={styles.resultsHeader}>
+                                    <span className={styles.resultsTitle}>
+                                        {savedScheduleIdx !== null ? 'Other Schedules' : 'Generated Schedules'}
+                                    </span>
+                                    <span className={styles.resultsCount}>
+                                        {savedScheduleIdx !== null ? results.length - 1 : results.length} found
+                                    </span>
+                                </div>
+
+                                {results
+                                    .map((result, idx) => ({ result, idx }))
+                                    .filter(({ idx }) => idx !== savedScheduleIdx)
+                                    .slice(0, showCount)
+                                    .map(({ result, idx }) => (
+                                        <ScheduleCard
+                                            key={idx}
+                                            result={result}
+                                            rank={idx + 1}
+                                            courseNameMap={courseNameMap}
+                                            selectedCourses={selectedCourses}
+                                            onSave={() => {
+                                                setSavedScheduleIdx(idx);
+                                                setShowAlternatives(false);
+                                                localStorage.setItem('schedule_saved', JSON.stringify({
+                                                    courseIds: selectedCourses.map(c => c.course_id),
+                                                    savedIdx: idx,
+                                                }));
+                                            }}
+                                        />
+                                    ))}
+
+                                {(() => {
+                                    const remaining = results.filter((_, i) => i !== savedScheduleIdx).length;
+                                    return showCount < remaining && (
+                                        <button
+                                            className={styles.showMoreBtn}
+                                            onClick={() => setShowCount(prev => prev + 3)}
+                                        >
+                                            Show More ({remaining - showCount} remaining)
+                                        </button>
+                                    );
+                                })()}
+                            </>
+                        )}
+                    </>
+                )}
+
+                {results && results.length === 0 && (
+                    <div className={styles.noResults}>
+                        <div className={styles.noResultsIcon}>😔</div>
+                        <div className={styles.noResultsTitle}>No valid schedules found</div>
+                        <div className={styles.noResultsText}>
+                            Try relaxing your time constraints or removing a course
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
+            </main>
 
             <BottomNav />
         </div>
@@ -717,8 +846,9 @@ export default function SchedulePage() {
 
 // ===== SCHEDULE CARD COMPONENT =====
 
-function ScheduleCard({ result, rank, courseNameMap, selectedCourses }) {
+function ScheduleCard({ result, rank, courseNameMap, selectedCourses, onSave, onUnsave, isSaved }) {
     const { schedule, score, warnings } = result;
+    const [detailsOpen, setDetailsOpen] = useState(false);
 
     // Collect all time blocks for the timetable
     const blocks = [];
@@ -836,20 +966,52 @@ function ScheduleCard({ result, rank, courseNameMap, selectedCourses }) {
                 </div>
             </div>
 
-            {/* Section details */}
-            <div className={styles.scheduleDetails}>
-                {schedule.map((group) => {
-                    const courseIdx = selectedCourses.findIndex(c => c.course_id === group.courseId);
-                    return group.sections.map(sec => (
-                        <div key={sec.crn} className={styles.detailRow}>
-                            <span className={styles.detailDot} style={{ background: colors[courseIdx % 8] }}></span>
-                            <span className={styles.detailCourse}>{sec.course_id}</span>
-                            <span className={styles.detailSection}>§{sec.section_num} — {sec.class_time}</span>
-                            {sec.instructor && <span className={styles.detailProf}>{sec.instructor}</span>}
-                        </div>
-                    ));
-                })}
+            {/* Section details (collapsible) */}
+            <div
+                className={styles.detailsToggle}
+                onClick={() => setDetailsOpen(prev => !prev)}
+            >
+                {detailsOpen ? '▲ Hide details' : '▼ Show details'}
             </div>
+            {detailsOpen && (
+                <div className={styles.scheduleDetails}>
+                    {schedule.map((group) => {
+                        const courseIdx = selectedCourses.findIndex(c => c.course_id === group.courseId);
+                        return group.sections.map(sec => (
+                            <div key={sec.crn} className={styles.detailRow}>
+                                <span className={styles.detailDot} style={{ background: colors[courseIdx % 8] }}></span>
+                                <span className={styles.detailCourse}>{sec.course_id}</span>
+                                <span className={styles.detailSection}>§{sec.section_num} — {sec.class_time}</span>
+                                {sec.instructor && <span className={styles.detailProf}>{sec.instructor}</span>}
+                                {isSaved && (
+                                    <a
+                                        className={styles.requestLink}
+                                        href={`/post?type=request&course=${sec.course_id}&section=${sec.section_num}`}
+                                    >
+                                        Request
+                                    </a>
+                                )}
+                            </div>
+                        ));
+                    })}
+                </div>
+            )}
+
+            {onSave && !isSaved && (
+                <div className={styles.saveFooter}>
+                    <button className={styles.saveBtn} onClick={onSave}>
+                        Save
+                    </button>
+                </div>
+            )}
+
+            {isSaved && onUnsave && (
+                <div className={styles.saveFooter}>
+                    <button className={styles.unsaveBtn} onClick={onUnsave}>
+                        Unsave
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

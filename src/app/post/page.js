@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import BottomNav from '@/components/BottomNav';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -27,6 +27,7 @@ export default function PostPage() {
     const [courses, setCourses] = useState([]);
     const [sections, setSections] = useState([]);
     const router = useRouter();
+    const searchParams = useSearchParams();
     const supabase = createClient();
 
     useEffect(() => {
@@ -107,6 +108,20 @@ export default function PostPage() {
             // Map course_name to name for consistency
             const mappedData = (data || []).map(c => ({ course_id: c.course_id, name: c.course_name }));
             setCourses(mappedData);
+
+            // Pre-fill from URL params
+            const paramType = searchParams.get('type');
+            const paramCourse = searchParams.get('course');
+            const paramSection = searchParams.get('section');
+            if (paramType) setPostType(paramType);
+            if (paramCourse) {
+                const match = mappedData.find(c => c.course_id === paramCourse);
+                if (match) {
+                    setCourseId(match.course_id);
+                    setCourseSearch(`${match.course_id} - ${match.name}`);
+                }
+            }
+            if (paramSection) setHaveSection(paramSection);
         } catch (err) {
             console.error('fetchCourses exception:', err);
         }

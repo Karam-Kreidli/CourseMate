@@ -1,19 +1,26 @@
 .page {
-    max-width: 480px;
-    margin: 0 auto;
-    padding: 16px 16px calc(var(--nav-height) + 24px);
     min-height: 100vh;
+    background: var(--bg-primary);
+    padding-bottom: calc(var(--nav-height) + 24px);
 }
 
 .header {
+    padding: 16px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 20px;
 }
 
 .header h1 {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
+}
+
+.main {
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 16px;
 }
 
 /* ===== Step Indicator ===== */
@@ -189,6 +196,69 @@
     background: var(--bg-secondary);
     border: 1px dashed var(--border-color);
     border-radius: var(--radius-md);
+}
+
+/* Compact course bar (shown when results exist) */
+.compactBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    margin-bottom: 16px;
+    gap: 10px;
+}
+
+.compactCourses {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    flex: 1;
+}
+
+.compactChip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 4px 8px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+}
+
+.editCoursesBtn {
+    padding: 6px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.editCoursesBtn:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}
+
+/* Details toggle */
+.detailsToggle {
+    padding: 10px 16px;
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-top: 1px solid var(--border-color);
+    transition: color var(--transition-fast);
+}
+
+.detailsToggle:hover {
+    color: var(--color-accent);
 }
 
 /* ===== Preferences Panel ===== */
@@ -461,6 +531,70 @@
     font-weight: 500;
 }
 
+/* ===== Save Schedule ===== */
+.saveBtn {
+    padding: 6px 14px;
+    border: 1px solid var(--color-accent);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-accent);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.saveBtn:hover {
+    background: var(--color-accent);
+    color: var(--text-inverse);
+}
+
+.saveFooter {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: center;
+}
+
+.saveFooter .saveBtn {
+    width: 100%;
+}
+
+.saveFooter .unsaveBtn {
+    width: 100%;
+}
+
+.savedHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.savedBadge {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-accent);
+}
+
+.unsaveBtn {
+    padding: 6px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.unsaveBtn:hover {
+    border-color: var(--status-expired);
+    color: var(--status-expired);
+}
+
 /* ===== Timetable ===== */
 .timetable {
     width: 100%;
@@ -654,6 +788,8 @@
     align-items: center;
     gap: 8px;
     font-size: 0.8rem;
+    flex-wrap: nowrap;
+    overflow: hidden;
 }
 
 .detailDot {
@@ -666,16 +802,44 @@
 .detailCourse {
     font-weight: 600;
     color: var(--text-primary);
+    flex-shrink: 0;
 }
 
 .detailSection {
     color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
 }
 
 .detailProf {
     color: var(--text-muted);
-    margin-left: auto;
     font-size: 0.75rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex-shrink: 1;
+}
+
+.requestLink {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--color-accent);
+    text-decoration: none;
+    padding: 2px 8px;
+    border: 1px solid var(--color-accent);
+    border-radius: var(--radius-sm);
+    margin-left: auto;
+    white-space: nowrap;
+    transition: all var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.requestLink:hover {
+    background: var(--color-accent);
+    color: var(--text-inverse);
 }
 
 /* ===== Show More ===== */
