@@ -1,0 +1,855 @@
+'use client';
+
+import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
+import BottomNav from '@/components/BottomNav';
+import ThemeToggle from '@/components/ThemeToggle';
+import styles from './schedule.module.css';
+
+// ===== TIME PARSING UTILITIES =====
+
+function parseDays(dayStr) {
+    const dayMap = {
+        'Mon': 'Mon', 'Tue': 'Tue', 'Wed': 'Wed', 'Thu': 'Thu',
+        'Sun': 'Sun', 'Sat': 'Sat', 'Fri': 'Fri',
+        // Legacy single-letter format
+        'M': 'Mon', 'T': 'Tue', 'W': 'Wed', 'R': 'Thu', 'Su': 'Sun', 'S': 'Sat',
+    };
+    const days = [];
+    // Handle both "Mon/Wed" and "M W" formats
+    const parts = dayStr.trim().split(/[\s\/]+/);
+    for (const p of parts) {
+        if (dayMap[p]) days.push(dayMap[p]);
+    }
+    return days;
+}
+
+function parseTimeToMinutes(timeStr) {
+    const str = timeStr.trim();
+    // Try 12h format first: "08:00 AM"
+    const match12 = str.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (match12) {
+        let hours = parseInt(match12[1]);
+        const minutes = parseInt(match12[2]);
+        const period = match12[3].toUpperCase();
+        if (period === 'PM' && hours !== 12) hours += 12;
+        if (period === 'AM' && hours === 12) hours = 0;
+        return hours * 60 + minutes;
+    }
+    // 24h format: "08:00", "14:50", "09:15"
+    const match24 = str.match(/(\d{1,2}):(\d{2})/);
+    if (match24) {
+        return parseInt(match24[1]) * 60 + parseInt(match24[2]);
+    }
+    return 0;
+}
+
+function parseClassTime(classTimeStr) {
+    // Handles both:
+    //   "Mon/Wed 08:00-09:15"  (current DB format)
+    //   "M W 08:00 AM-09:15 AM" (legacy format)
+    //   "Mon 13:00-14:40" (single day)
+    if (!classTimeStr) return [];
+    // Split into day part and time part
+    // Match: (day names or letters) then (time-time)
+    const match = classTimeStr.match(/^(.+?)\s+(\d{1,2}:\d{2}(?:\s*[AP]M)?)\s*-\s*(\d{1,2}:\d{2}(?:\s*[AP]M)?)$/i);
+    if (!match) return [];
+    const days = parseDays(match[1]);
+    const startMin = parseTimeToMinutes(match[2]);
+    const endMin = parseTimeToMinutes(match[3]);
+    return days.map(day => ({ day, start: startMin, end: endMin }));
+}
+
+
+function getBaseSection(sectionNum) {
+    // Strip trailing letters (X, Y, Z, T, L) to get base section number
+    return sectionNum.replace(/[A-Za-z]+$/, '');
+}
+
+function timeSlotsConflict(slotsA, slotsB) {
+    for (const a of slotsA) {
+        for (const b of slotsB) {
+            if (a.day === b.day && a.start < b.end && b.start < a.end) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// ===== SCHEDULE ALGORITHM =====
+
+function buildSectionGroups(sections, courseId) {
+    // Group sections by base section number
+    const baseGroups = {};
+    for (const sec of sections) {
+        if (sec.course_id !== courseId) continue;
+        const base = getBaseSection(sec.section_num);
+        if (!baseGroups[base]) baseGroups[base] = { base: null, subs: [] };
+        if (sec.section_num === base) {
+            baseGroups[base].base = sec;
+        } else {
+            baseGroups[base].subs.push(sec);
+        }
+    }
+
+    // For each base group, generate one "option" per sub-section choice
+    // e.g. base 01 with subs [01X, 01Y] => two groups: [01+01X], [01+01Y]
+    const result = [];
+    for (const [baseNum, group] of Object.entries(baseGroups)) {
+        const baseSec = group.base;
+        const subs = group.subs;
+
+        if (subs.length === 0) {
+            // Standalone section (no linked sub-sections)
+            const secs = baseSec ? [baseSec] : [];
+            if (secs.length === 0) continue;
+            const allSlots = secs.flatMap(s => parseClassTime(s.class_time));
+            result.push({ sections: secs, slots: allSlots, courseId });
+        } else if (baseSec) {
+            // Linked: base + one sub-section per option
+            for (const sub of subs) {
+                const secs = [baseSec, sub];
+                const allSlots = secs.flatMap(s => parseClassTime(s.class_time));
+                result.push({ sections: secs, slots: allSlots, courseId });
+            }
+        } else {
+            // Sub-sections without a base (unusual) — treat each as standalone
+            for (const sub of subs) {
+                const allSlots = parseClassTime(sub.class_time);
+                result.push({ sections: [sub], slots: allSlots, courseId });
+            }
+        }
+    }
+    return result;
+}
+
+function groupConflicts(groupA, groupB) {
+    return timeSlotsConflict(groupA.slots, groupB.slots);
+}
+
+function generateSchedules(courseGroups, prefs, courseNames) {
+    // courseGroups = { courseId: [group1, group2, ...], ... }
+    const courseIds = Object.keys(courseGroups);
+    if (courseIds.length === 0) return [];
+
+    const beforeMin = prefs.noClassesBefore ? parseTimeToMinutes(prefs.noClassesBefore) : 0;
+    const afterMin = prefs.noClassesAfter ? parseTimeToMinutes(prefs.noClassesAfter) : 24 * 60;
+    const hasTimeConstraints = prefs.noClassesBefore || prefs.noClassesAfter;
+
+    function applyFilters(useTimeConstraint) {
+        const filtered = {};
+        for (const cid of courseIds) {
+            let groups = courseGroups[cid];
+
+            // Pin filter (always hard)
+            if (prefs.pinnedSections[cid]) {
+                groups = groups.filter(g =>
+                    g.sections.some(s => s.section_num === prefs.pinnedSections[cid])
+                );
+            }
+
+            // Time range filter (only when useTimeConstraint is true)
+            if (useTimeConstraint && hasTimeConstraints) {
+                groups = groups.filter(g =>
+                    g.slots.every(s => s.start >= beforeMin && s.end <= afterMin)
+                );
+            }
+
+            filtered[cid] = groups;
+        }
+        return filtered;
+    }
+
+    function solve(filteredGroups) {
+        const results = [];
+        const MAX_RESULTS = 100;
+
+        function backtrack(idx, currentSchedule) {
+            if (results.length >= MAX_RESULTS) return;
+            if (idx === courseIds.length) {
+                results.push([...currentSchedule]);
+                return;
+            }
+            const cid = courseIds[idx];
+            for (const group of filteredGroups[cid]) {
+                let conflict = false;
+                for (const selected of currentSchedule) {
+                    if (groupConflicts(group, selected)) {
+                        conflict = true;
+                        break;
+                    }
+                }
+                if (!conflict) {
+                    currentSchedule.push(group);
+                    backtrack(idx + 1, currentSchedule);
+                    currentSchedule.pop();
+                }
+            }
+        }
+
+        backtrack(0, []);
+        return results;
+    }
+
+    // Try with time constraints first
+    let results = solve(applyFilters(true));
+    let timeRelaxed = false;
+
+    // If no results and we had time constraints, relax them
+    if (results.length === 0 && hasTimeConstraints) {
+        results = solve(applyFilters(false));
+        timeRelaxed = true;
+    }
+
+    // Score each schedule
+    const scored = results.map(schedule => {
+        let score = 100;
+        const warnings = [];
+        const allSlots = schedule.flatMap(g => g.slots);
+
+        // Time constraint violation penalty (when relaxed)
+        if (timeRelaxed && hasTimeConstraints) {
+            let worstBefore = 0; // minutes before constraint
+            let worstAfter = 0;  // minutes after constraint
+            for (const s of allSlots) {
+                if (prefs.noClassesBefore && s.start < beforeMin) {
+                    worstBefore = Math.max(worstBefore, beforeMin - s.start);
+                }
+                if (prefs.noClassesAfter && s.end > afterMin) {
+                    worstAfter = Math.max(worstAfter, s.end - afterMin);
+                }
+            }
+            if (worstBefore > 0) {
+                score -= 20 + worstBefore / 10;
+                const mins = worstBefore;
+                warnings.push(`Class starts ${mins} min before preferred time`);
+            }
+            if (worstAfter > 0) {
+                score -= 20 + worstAfter / 10;
+                const mins = worstAfter;
+                warnings.push(`Class ends ${mins} min after preferred time`);
+            }
+        }
+
+        // Gap preference scoring
+        const daySlots = {};
+        for (const s of allSlots) {
+            if (!daySlots[s.day]) daySlots[s.day] = [];
+            daySlots[s.day].push(s);
+        }
+        let totalGap = 0;
+        for (const day of Object.keys(daySlots)) {
+            const sorted = daySlots[day].sort((a, b) => a.start - b.start);
+            for (let i = 1; i < sorted.length; i++) {
+                totalGap += sorted[i].start - sorted[i - 1].end;
+            }
+        }
+        if (prefs.gapPref === 'minimize') {
+            score -= totalGap / 30;
+        } else if (prefs.gapPref === 'prefer') {
+            score += Math.min(totalGap / 30, 10);
+        }
+
+        // Day compactness scoring
+        const daysUsed = Object.keys(daySlots).length;
+        if (prefs.compactPref === 'fewer') {
+            score -= daysUsed * 3;
+        } else if (prefs.compactPref === 'spread') {
+            score += daysUsed * 2;
+        }
+
+        // Instructor preference scoring
+        for (const group of schedule) {
+            const cid = group.courseId;
+            if (prefs.preferredInstructors[cid]) {
+                const mainSection = group.sections.find(s =>
+                    s.section_num === getBaseSection(s.section_num)
+                ) || group.sections[0];
+                if (mainSection.instructor && mainSection.instructor !== prefs.preferredInstructors[cid]) {
+                    score -= 5;
+                    warnings.push(`Different instructor for ${courseNames[cid] || cid}`);
+                }
+            }
+        }
+
+        return { schedule, score, warnings };
+    });
+
+    // Sort by score descending
+    scored.sort((a, b) => b.score - a.score);
+    return scored;
+}
+
+// ===== TIMETABLE RENDERING =====
+
+const ALL_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu'];
+const TIME_SLOTS = [];
+for (let h = 8; h <= 20; h++) {
+    TIME_SLOTS.push(h * 60); // Every hour from 8 AM to 8 PM
+}
+
+function formatTime(minutes) {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    const period = h >= 12 ? 'PM' : 'AM';
+    const displayH = h > 12 ? h - 12 : h === 0 ? 12 : h;
+    return `${displayH}:${m.toString().padStart(2, '0')} ${period}`;
+}
+
+function formatTimeShort(minutes) {
+    const h = Math.floor(minutes / 60);
+    const period = h >= 12 ? 'p' : 'a';
+    const displayH = h > 12 ? h - 12 : h === 0 ? 12 : h;
+    return `${displayH}${period}`;
+}
+
+// ===== MAIN COMPONENT =====
+
+export default function SchedulePage() {
+    const [profile, setProfile] = useState(null);
+    const [courses, setCourses] = useState([]);
+    const [selectedCourses, setSelectedCourses] = useState([]);
+    const [courseSearch, setCourseSearch] = useState('');
+    const [showDropdown, setShowDropdown] = useState(false);
+    const [allSections, setAllSections] = useState({});
+    const [prefsOpen, setPrefsOpen] = useState(false);
+    const [prefs, setPrefs] = useState({
+        noClassesBefore: '',
+        noClassesAfter: '',
+        gapPref: 'minimize',
+        compactPref: 'fewer',
+        preferredInstructors: {},
+        pinnedSections: {},
+    });
+    const [generating, setGenerating] = useState(false);
+    const [results, setResults] = useState(null);
+    const [showCount, setShowCount] = useState(3);
+    const [error, setError] = useState('');
+    const router = useRouter();
+    const supabase = createClient();
+
+    useEffect(() => { checkAuth(); }, []);
+
+    const checkAuth = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) { router.push('/auth'); return; }
+        const { data: profileData } = await supabase
+            .from('profiles').select('*').eq('id', user.id).single();
+        const isComplete = profileData?.name && profileData?.student_id && profileData?.phone;
+        if (!isComplete || !profileData?.major) { router.push('/profile?selectMajor=true'); return; }
+        setProfile(profileData);
+        fetchCourses(profileData.major);
+    };
+
+    const fetchCourses = async (userMajor) => {
+        if (!userMajor) return;
+        const { data: majorCourses } = await supabase
+            .from('major_courses').select('course_id').eq('major_code', userMajor);
+        if (!majorCourses?.length) return;
+        const courseIds = majorCourses.map(mc => mc.course_id);
+        const { data } = await supabase
+            .from('courses').select('course_id, course_name').in('course_id', courseIds).order('course_id');
+        setCourses((data || []).map(c => ({ course_id: c.course_id, name: c.course_name })));
+    };
+
+    const fetchSectionsForCourse = async (courseId) => {
+        const allowedCampuses = profile?.gender === 'male' ? ['main', 'men'] : ['main', 'women'];
+        const { data } = await supabase
+            .from('sections').select('*').eq('course_id', courseId)
+            .in('campus', allowedCampuses).order('section_num');
+        setAllSections(prev => ({ ...prev, [courseId]: data || [] }));
+    };
+
+    const addCourse = (course) => {
+        if (selectedCourses.find(c => c.course_id === course.course_id)) return;
+        if (selectedCourses.length >= 8) return;
+        setSelectedCourses(prev => [...prev, course]);
+        setCourseSearch('');
+        setShowDropdown(false);
+        setResults(null);
+        fetchSectionsForCourse(course.course_id);
+    };
+
+    const removeCourse = (courseId) => {
+        setSelectedCourses(prev => prev.filter(c => c.course_id !== courseId));
+        setAllSections(prev => { const n = { ...prev }; delete n[courseId]; return n; });
+        setPrefs(prev => {
+            const pi = { ...prev.preferredInstructors }; delete pi[courseId];
+            const ps = { ...prev.pinnedSections }; delete ps[courseId];
+            return { ...prev, preferredInstructors: pi, pinnedSections: ps };
+        });
+        setResults(null);
+    };
+
+    const filteredCourses = courseSearch.length >= 2
+        ? courses.filter(c =>
+            !selectedCourses.find(sc => sc.course_id === c.course_id) && (
+                c.name?.toLowerCase().includes(courseSearch.toLowerCase()) ||
+                c.course_id?.includes(courseSearch)
+            )
+        ).slice(0, 8)
+        : [];
+
+    // Get unique instructors for a course
+    const getInstructors = (courseId) => {
+        const secs = allSections[courseId] || [];
+        const instructors = new Set();
+        secs.forEach(s => { if (s.instructor) instructors.add(s.instructor); });
+        return [...instructors].sort();
+    };
+
+    // Get main sections (no suffix) for pinning
+    const getMainSections = (courseId) => {
+        const secs = allSections[courseId] || [];
+        return secs.filter(s => s.section_num === getBaseSection(s.section_num));
+    };
+
+    const handleGenerate = () => {
+        setError('');
+        if (selectedCourses.length === 0) { setError('Please add at least one course'); return; }
+
+        // Check if all sections are loaded
+        const missing = selectedCourses.filter(c => !allSections[c.course_id]);
+        if (missing.length > 0) { setError('Still loading section data...'); return; }
+
+        setGenerating(true);
+        setResults(null);
+        setShowCount(3);
+
+        // Use setTimeout to avoid blocking the UI
+        setTimeout(() => {
+            try {
+                // Build section groups for each course
+                const courseGroups = {};
+                const courseNames = {};
+                for (const c of selectedCourses) {
+                    courseNames[c.course_id] = c.name;
+                    const sections = allSections[c.course_id] || [];
+                    courseGroups[c.course_id] = buildSectionGroups(sections, c.course_id);
+                }
+
+                // Check if any course has no available groups
+                for (const c of selectedCourses) {
+                    if (courseGroups[c.course_id].length === 0) {
+                        setError(`No available sections found for ${c.name} (${c.course_id})`);
+                        setGenerating(false);
+                        return;
+                    }
+                }
+
+                const scored = generateSchedules(courseGroups, prefs, courseNames);
+                setResults(scored);
+            } catch (e) {
+                setError('Error generating schedules: ' + e.message);
+            }
+            setGenerating(false);
+        }, 50);
+    };
+
+    const courseNameMap = useMemo(() => {
+        const m = {};
+        selectedCourses.forEach(c => { m[c.course_id] = c.name; });
+        return m;
+    }, [selectedCourses]);
+
+    // Close dropdown on outside click
+    useEffect(() => {
+        const handler = () => setShowDropdown(false);
+        document.addEventListener('click', handler);
+        return () => document.removeEventListener('click', handler);
+    }, []);
+
+    if (!profile) {
+        return (
+            <div className={styles.page}>
+                <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '40vh' }}>
+                    <span className={styles.spinner}></span>
+                </div>
+                <BottomNav />
+            </div>
+        );
+    }
+
+    return (
+        <div className={styles.page}>
+            <header className={styles.header}>
+                <h1>📅 Schedule Builder</h1>
+                <ThemeToggle />
+            </header>
+
+            {error && <div className={styles.error}>{error}</div>}
+
+            {/* Step 1: Course Selection */}
+            <div className={styles.section}>
+                <div className={styles.sectionTitle}>Select Courses</div>
+                <div className={styles.searchWrapper} onClick={e => e.stopPropagation()}>
+                    <input
+                        type="text"
+                        value={courseSearch}
+                        onChange={(e) => { setCourseSearch(e.target.value); setShowDropdown(true); }}
+                        onFocus={() => setShowDropdown(true)}
+                        className={styles.input}
+                        placeholder="Search by course name or ID..."
+                        autoComplete="off"
+                    />
+                    {showDropdown && filteredCourses.length > 0 && (
+                        <div className={styles.dropdown}>
+                            {filteredCourses.map(course => (
+                                <button
+                                    key={course.course_id}
+                                    type="button"
+                                    className={styles.dropdownItem}
+                                    onClick={() => addCourse(course)}
+                                >
+                                    <span className={styles.dropdownId}>{course.course_id}</span>
+                                    <span className={styles.dropdownName}>{course.name}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {selectedCourses.length > 0 ? (
+                    <div className={styles.selectedCourses}>
+                        {selectedCourses.map(c => (
+                            <div key={c.course_id} className={styles.courseChip}>
+                                <div className={styles.courseChipInfo}>
+                                    <span className={styles.courseChipId}>{c.course_id}</span>
+                                    <span className={styles.courseChipName}>{c.name}</span>
+                                </div>
+                                <button className={styles.removeBtn} onClick={() => removeCourse(c.course_id)}>×</button>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className={styles.emptyCourses}>
+                        Add courses to build your schedule
+                    </div>
+                )}
+            </div>
+
+            {/* Step 2: Preferences */}
+            {selectedCourses.length > 0 && (
+                <div className={styles.section}>
+                    <div className={styles.prefsCard}>
+                        <div className={styles.prefsHeader} onClick={() => setPrefsOpen(!prefsOpen)}>
+                            <span className={styles.prefsHeaderTitle}>⚙️ Preferences</span>
+                            <span className={`${styles.prefsChevron} ${prefsOpen ? styles.prefsChevronOpen : ''}`}>▼</span>
+                        </div>
+                        {prefsOpen && (
+                            <div className={styles.prefsBody}>
+                                {/* Time Constraints */}
+                                <div className={styles.prefGroup}>
+                                    <span className={styles.prefLabel}>Time Constraints</span>
+                                    <div className={styles.timeRow}>
+                                        <span className={styles.timeSep}>No classes before</span>
+                                        <select
+                                            className={styles.timeInput}
+                                            value={prefs.noClassesBefore}
+                                            onChange={e => setPrefs(p => ({ ...p, noClassesBefore: e.target.value }))}
+                                        >
+                                            <option value="">Any</option>
+                                            <option value="08:00 AM">8:00 AM</option>
+                                            <option value="09:00 AM">9:00 AM</option>
+                                            <option value="09:30 AM">9:30 AM</option>
+                                            <option value="10:00 AM">10:00 AM</option>
+                                            <option value="11:00 AM">11:00 AM</option>
+                                            <option value="12:00 PM">12:00 PM</option>
+                                        </select>
+                                    </div>
+                                    <div className={styles.timeRow}>
+                                        <span className={styles.timeSep}>No classes after</span>
+                                        <select
+                                            className={styles.timeInput}
+                                            value={prefs.noClassesAfter}
+                                            onChange={e => setPrefs(p => ({ ...p, noClassesAfter: e.target.value }))}
+                                        >
+                                            <option value="">Any</option>
+                                            <option value="03:00 PM">3:00 PM</option>
+                                            <option value="04:00 PM">4:00 PM</option>
+                                            <option value="05:00 PM">5:00 PM</option>
+                                            <option value="06:00 PM">6:00 PM</option>
+                                            <option value="07:00 PM">7:00 PM</option>
+                                            <option value="08:00 PM">8:00 PM</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Gap Preference */}
+                                <div className={styles.prefGroup}>
+                                    <span className={styles.prefLabel}>Gap Preference</span>
+                                    <div className={styles.toggleRow}>
+                                        <button
+                                            className={`${styles.toggleBtn} ${prefs.gapPref === 'minimize' ? styles.toggleBtnActive : ''}`}
+                                            onClick={() => setPrefs(p => ({ ...p, gapPref: 'minimize' }))}
+                                        >No gaps</button>
+                                        <button
+                                            className={`${styles.toggleBtn} ${prefs.gapPref === 'prefer' ? styles.toggleBtnActive : ''}`}
+                                            onClick={() => setPrefs(p => ({ ...p, gapPref: 'prefer' }))}
+                                        >Prefer gaps</button>
+                                    </div>
+                                </div>
+
+                                {/* Compactness */}
+                                <div className={styles.prefGroup}>
+                                    <span className={styles.prefLabel}>Day Spread</span>
+                                    <div className={styles.toggleRow}>
+                                        <button
+                                            className={`${styles.toggleBtn} ${prefs.compactPref === 'fewer' ? styles.toggleBtnActive : ''}`}
+                                            onClick={() => setPrefs(p => ({ ...p, compactPref: 'fewer' }))}
+                                        >Fewer days</button>
+                                        <button
+                                            className={`${styles.toggleBtn} ${prefs.compactPref === 'spread' ? styles.toggleBtnActive : ''}`}
+                                            onClick={() => setPrefs(p => ({ ...p, compactPref: 'spread' }))}
+                                        >Spread out</button>
+                                    </div>
+                                </div>
+
+                                {/* Per-course preferences */}
+                                {selectedCourses.map(c => {
+                                    const instructors = getInstructors(c.course_id);
+                                    const mainSections = getMainSections(c.course_id);
+                                    if (instructors.length === 0 && mainSections.length === 0) return null;
+                                    return (
+                                        <div key={c.course_id} className={styles.prefCourseItem}>
+                                            <div className={styles.prefCourseName}>{c.course_id} — {c.name}</div>
+                                            {instructors.length > 0 && (
+                                                <div className={styles.prefGroup}>
+                                                    <span className={styles.prefLabel}>Preferred Instructor</span>
+                                                    <select
+                                                        className={styles.select}
+                                                        value={prefs.preferredInstructors[c.course_id] || ''}
+                                                        onChange={e => setPrefs(p => ({
+                                                            ...p,
+                                                            preferredInstructors: { ...p.preferredInstructors, [c.course_id]: e.target.value }
+                                                        }))}
+                                                    >
+                                                        <option value="">Any instructor</option>
+                                                        {instructors.map(i => <option key={i} value={i}>{i}</option>)}
+                                                    </select>
+                                                </div>
+                                            )}
+                                            {mainSections.length > 1 && (
+                                                <div className={styles.prefGroup}>
+                                                    <span className={styles.prefLabel}>Pin Section</span>
+                                                    <select
+                                                        className={styles.select}
+                                                        value={prefs.pinnedSections[c.course_id] || ''}
+                                                        onChange={e => setPrefs(p => ({
+                                                            ...p,
+                                                            pinnedSections: { ...p.pinnedSections, [c.course_id]: e.target.value }
+                                                        }))}
+                                                    >
+                                                        <option value="">Any section</option>
+                                                        {mainSections.map(s => (
+                                                            <option key={s.section_num} value={s.section_num}>
+                                                                Section {s.section_num} {s.instructor ? `— ${s.instructor}` : ''}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Generate Button */}
+            {selectedCourses.length > 0 && (
+                <button
+                    className={styles.generateBtn}
+                    onClick={handleGenerate}
+                    disabled={generating}
+                >
+                    {generating ? <span className={styles.spinner}></span> : '🚀 Generate Schedules'}
+                </button>
+            )}
+
+            {/* Results */}
+            {results && results.length > 0 && (
+                <>
+                    <div className={styles.resultsHeader}>
+                        <span className={styles.resultsTitle}>Generated Schedules</span>
+                        <span className={styles.resultsCount}>{results.length} found</span>
+                    </div>
+
+                    {results.slice(0, showCount).map((result, idx) => (
+                        <ScheduleCard
+                            key={idx}
+                            result={result}
+                            rank={idx + 1}
+                            courseNameMap={courseNameMap}
+                            selectedCourses={selectedCourses}
+                        />
+                    ))}
+
+                    {showCount < results.length && (
+                        <button
+                            className={styles.showMoreBtn}
+                            onClick={() => setShowCount(prev => prev + 3)}
+                        >
+                            Show More ({results.length - showCount} remaining)
+                        </button>
+                    )}
+                </>
+            )}
+
+            {results && results.length === 0 && (
+                <div className={styles.noResults}>
+                    <div className={styles.noResultsIcon}>😔</div>
+                    <div className={styles.noResultsTitle}>No valid schedules found</div>
+                    <div className={styles.noResultsText}>
+                        Try relaxing your time constraints or removing a course
+                    </div>
+                </div>
+            )}
+
+            <BottomNav />
+        </div>
+    );
+}
+
+// ===== SCHEDULE CARD COMPONENT =====
+
+function ScheduleCard({ result, rank, courseNameMap, selectedCourses }) {
+    const { schedule, score, warnings } = result;
+
+    // Collect all time blocks for the timetable
+    const blocks = [];
+    schedule.forEach((group) => {
+        const courseIdx = selectedCourses.findIndex(c => c.course_id === group.courseId);
+        group.sections.forEach(sec => {
+            const slots = parseClassTime(sec.class_time);
+            slots.forEach(slot => {
+                blocks.push({
+                    ...slot,
+                    courseId: group.courseId,
+                    sectionNum: sec.section_num,
+                    colorIdx: courseIdx % 8,
+                });
+            });
+        });
+    });
+
+    // Find which days are used
+    const usedDays = [...new Set(blocks.map(b => b.day))];
+    const days = ALL_DAYS.filter(d => usedDays.includes(d));
+    if (days.length === 0) return null;
+
+    // Find time range
+    const minTime = Math.min(...blocks.map(b => b.start));
+    const maxTime = Math.max(...blocks.map(b => b.end));
+    const startHour = Math.floor(minTime / 60);
+    const endHour = Math.ceil(maxTime / 60);
+    const totalMinutes = (endHour - startHour) * 60;
+
+    // Hour labels
+    const hours = [];
+    for (let h = startHour; h <= endHour; h++) hours.push(h);
+
+    const HEADER_HEIGHT = 28;
+    const PX_PER_MIN = 0.8; // scale factor
+    const gridHeight = totalMinutes * PX_PER_MIN;
+
+    const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'];
+    const bgColors = [
+        'rgba(59,130,246,0.15)', 'rgba(16,185,129,0.15)', 'rgba(245,158,11,0.15)', 'rgba(239,68,68,0.15)',
+        'rgba(139,92,246,0.15)', 'rgba(236,72,153,0.15)', 'rgba(20,184,166,0.15)', 'rgba(249,115,22,0.15)',
+    ];
+
+    return (
+        <div className={styles.scheduleCard}>
+            <div className={styles.scheduleCardHeader}>
+                <span className={styles.scheduleRank}>Schedule #{rank}</span>
+                <span className={styles.scheduleScore}>Score: {Math.round(score)}</span>
+            </div>
+
+            {warnings.length > 0 && (
+                <div className={styles.prefWarnings}>
+                    {warnings.map((w, i) => <span key={i} className={styles.prefWarning}>⚠ {w}</span>)}
+                </div>
+            )}
+
+            <div className={styles.timetable}>
+                <div className={styles.ttContainer} style={{ height: gridHeight + HEADER_HEIGHT }}>
+                    {/* Time axis labels */}
+                    <div className={styles.ttTimeAxis} style={{ height: gridHeight, top: HEADER_HEIGHT }}>
+                        {hours.map(h => (
+                            <div
+                                key={h}
+                                className={styles.ttTimeLabel}
+                                style={{ top: (h - startHour) * 60 * PX_PER_MIN }}
+                            >
+                                {formatTimeShort(h * 60)}
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Day columns */}
+                    <div className={styles.ttColumns}>
+                        {days.map(day => (
+                            <div key={day} className={styles.ttColumn}>
+                                <div className={styles.ttDayHeader}>{day}</div>
+                                <div className={styles.ttDayBody} style={{ height: gridHeight }}>
+                                    {/* Hour grid lines */}
+                                    {hours.slice(0, -1).map(h => (
+                                        <div
+                                            key={h}
+                                            className={styles.ttGridLine}
+                                            style={{ top: (h - startHour) * 60 * PX_PER_MIN }}
+                                        />
+                                    ))}
+
+                                    {/* Class blocks */}
+                                    {blocks
+                                        .filter(b => b.day === day)
+                                        .map((block, bi) => {
+                                            const top = (block.start - startHour * 60) * PX_PER_MIN;
+                                            const height = (block.end - block.start) * PX_PER_MIN;
+                                            return (
+                                                <div
+                                                    key={bi}
+                                                    className={styles.ttBlock}
+                                                    style={{
+                                                        top,
+                                                        height,
+                                                        background: bgColors[block.colorIdx],
+                                                        borderLeftColor: colors[block.colorIdx],
+                                                        color: colors[block.colorIdx],
+                                                    }}
+                                                >
+                                                    <span className={styles.ttBlockCourse}>{block.courseId}</span>
+                                                    <span className={styles.ttBlockSection}>§{block.sectionNum}</span>
+                                                </div>
+                                            );
+                                        })}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Section details */}
+            <div className={styles.scheduleDetails}>
+                {schedule.map((group) => {
+                    const courseIdx = selectedCourses.findIndex(c => c.course_id === group.courseId);
+                    return group.sections.map(sec => (
+                        <div key={sec.crn} className={styles.detailRow}>
+                            <span className={styles.detailDot} style={{ background: colors[courseIdx % 8] }}></span>
+                            <span className={styles.detailCourse}>{sec.course_id}</span>
+                            <span className={styles.detailSection}>§{sec.section_num} — {sec.class_time}</span>
+                            {sec.instructor && <span className={styles.detailProf}>{sec.instructor}</span>}
+                        </div>
+                    ));
+                })}
+            </div>
+        </div>
+    );
+}
