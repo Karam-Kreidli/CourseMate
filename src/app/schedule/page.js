@@ -623,7 +623,6 @@ export default function SchedulePage() {
                                                 <option value="">Any</option>
                                                 <option value="08:00 AM">8:00 AM</option>
                                                 <option value="09:00 AM">9:00 AM</option>
-                                                <option value="09:30 AM">9:30 AM</option>
                                                 <option value="10:00 AM">10:00 AM</option>
                                                 <option value="11:00 AM">11:00 AM</option>
                                                 <option value="12:00 PM">12:00 PM</option>
@@ -637,12 +636,11 @@ export default function SchedulePage() {
                                                 onChange={e => setPrefs(p => ({ ...p, noClassesAfter: e.target.value }))}
                                             >
                                                 <option value="">Any</option>
+                                                <option value="02:00 PM">2:00 PM</option>
                                                 <option value="03:00 PM">3:00 PM</option>
                                                 <option value="04:00 PM">4:00 PM</option>
                                                 <option value="05:00 PM">5:00 PM</option>
                                                 <option value="06:00 PM">6:00 PM</option>
-                                                <option value="07:00 PM">7:00 PM</option>
-                                                <option value="08:00 PM">8:00 PM</option>
                                             </select>
                                         </div>
                                     </div>
