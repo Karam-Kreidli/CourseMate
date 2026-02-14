@@ -6,19 +6,16 @@ import styles from './PostCard.module.css';
 
 const POST_TYPE_CONFIG = {
     swap: {
-        badge: 'Swap',
-        className: 'swap',
-        icon: '🔄',
+        label: 'Swap',
+        class: styles.badgeSwap,
     },
     giveaway: {
-        badge: 'Giveaway',
-        className: 'giveaway',
-        icon: '🎁',
+        label: 'Giveaway',
+        class: styles.badgeGiveaway,
     },
     request: {
-        badge: 'Request',
-        className: 'request',
-        icon: '🙋',
+        label: 'Request',
+        class: styles.badgeRequest,
     },
 };
 
@@ -95,8 +92,8 @@ export default function PostCard({
         <article className={`${styles.card} ${styles[`card${typeConfig.className}`]}`}>
             {/* Header */}
             <div className={styles.header}>
-                <span className={`${styles.badge} ${styles[`badge${typeConfig.className}`]}`}>
-                    {typeConfig.icon} {typeConfig.badge}
+                <span className={`${styles.badge} ${typeConfig.class}`}>
+                    {typeConfig.label}
                 </span>
                 <div className={styles.status}>
                     <span className={`${styles.statusDot} ${styles[`statusDot${statusConfig.dot}`]}`} />
@@ -119,10 +116,10 @@ export default function PostCard({
                     </span>
                     <span className={styles.sectionValue}>Section {post.have_section}</span>
                     {haveInstructor && (
-                        <span className={styles.instructor}>👨‍🏫 {haveInstructor}</span>
+                        <span className={styles.instructor}>{haveInstructor}</span>
                     )}
                     {post.have_section_time && (
-                        <span className={styles.sectionTime}>🕐 {post.have_section_time}</span>
+                        <span className={styles.sectionTime}>{post.have_section_time}</span>
                     )}
                 </div>
 
@@ -133,10 +130,10 @@ export default function PostCard({
                             <span className={styles.sectionLabel}>Want</span>
                             <span className={styles.sectionValue}>Section {post.want_section}</span>
                             {wantInstructor && (
-                                <span className={styles.instructor}>👨‍🏫 {wantInstructor}</span>
+                                <span className={styles.instructor}>{wantInstructor}</span>
                             )}
                             {post.want_section_time && (
-                                <span className={styles.sectionTime}>🕐 {post.want_section_time}</span>
+                                <span className={styles.sectionTime}>{post.want_section_time}</span>
                             )}
                         </div>
                     </>
@@ -154,10 +151,10 @@ export default function PostCard({
             {/* Contact Info (visible for giveaways/requests or matched swaps) */}
             {showContact && contactInfo?.phone && (
                 <div className={styles.contactInfo}>
-                    <span className={styles.contactLabel}>📞 Contact:</span>
-                    <a href={`tel:${contactInfo.phone}`} className={styles.contactValue}>
+                    <span className={styles.contactLabel}>Contact:</span>
+                    <span className={styles.contactValue}>
                         {contactInfo.phone}
-                    </a>
+                    </span>
                 </div>
             )}
 
@@ -169,7 +166,7 @@ export default function PostCard({
                         const remaining = getTimeRemaining(post.expires_at);
                         return remaining ? (
                             <span className={`${styles.expiryTimer} ${remaining.urgent ? styles.expiryTimerUrgent : ''}`}>
-                                ⏱️ {remaining.text}
+                                {remaining.text}
                             </span>
                         ) : null;
                     })()}
@@ -182,14 +179,14 @@ export default function PostCard({
                             className={`${styles.actionBtn} ${styles.completeBtn}`}
                             title="Mark this swap as completed"
                         >
-                            ✓ Mark as Swapped
+                            Mark as Swapped
                         </button>
                         <button
                             onClick={() => onDelete?.(post.id)}
                             className={`${styles.actionBtn} ${styles.deleteBtn}`}
                             title="Cancel and remove this post"
                         >
-                            ✕ Cancel Post
+                            Cancel Post
                         </button>
                     </div>
                 )}

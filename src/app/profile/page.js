@@ -267,7 +267,7 @@ function ProfileContent() {
         return (
             <div className={styles.page}>
                 <header className={styles.header}>
-                    <h1>🎓 Complete Your Profile</h1>
+                    <h1>Complete Your Profile</h1>
                     <ThemeToggle />
                 </header>
 
@@ -327,7 +327,7 @@ function ProfileContent() {
     return (
         <div className={styles.page}>
             <header className={styles.header}>
-                <h1>👤 Profile</h1>
+                <h1>Profile</h1>
                 <ThemeToggle />
             </header>
 
@@ -465,7 +465,7 @@ function ProfileContent() {
                     {/* Show warning if user has posts */}
                     {!canEdit && !isEditing && (
                         <div className={styles.editWarning}>
-                            ⚠️ Complete or cancel your active posts to edit your profile
+                            Complete or cancel your active posts to edit your profile
                         </div>
                     )}
                 </div>

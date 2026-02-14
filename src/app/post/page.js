@@ -8,9 +8,9 @@ import ThemeToggle from '@/components/ThemeToggle';
 import styles from './post.module.css';
 
 const POST_TYPES = [
-    { value: 'swap', label: '🔄 Swap', description: 'Exchange your section for another' },
-    { value: 'giveaway', label: '🎁 Giveaway', description: 'Drop a section for others' },
-    { value: 'request', label: '🙋 Request', description: 'Looking for a specific section' },
+    { value: 'swap', label: 'Swap', description: 'Exchange your section for another' },
+    { value: 'giveaway', label: 'Giveaway', description: 'Drop a section for others' },
+    { value: 'request', label: 'Request', description: 'Looking for a specific section' },
 ];
 
 function PostContent() {
@@ -303,14 +303,14 @@ function PostContent() {
     return (
         <div className={styles.page}>
             <header className={styles.header}>
-                <h1>➕ Create Post</h1>
+                <h1>Create Post</h1>
                 <ThemeToggle />
             </header>
 
             <main className={styles.main}>
                 {isMaxPosts ? (
                     <div className={styles.maxPostsNotice}>
-                        <span className={styles.noticeIcon}>⚠️</span>
+                        <span className={styles.noticeIcon}></span>
                         <h3>Maximum Posts Reached</h3>
                         <p>You have {activePostCount} active posts. Mark some as completed to create new ones.</p>
                         <button onClick={() => router.push('/matches')} className={styles.manageBtn}>
@@ -413,9 +413,9 @@ function PostContent() {
                         {/* Info Notice */}
                         <div className={styles.infoNotice}>
                             {postType === 'swap' ? (
-                                <>🔒 Contact info will only be shared after both parties accept the match</>
+                                <>Contact info will only be shared after both parties accept the match</>
                             ) : (
-                                <>📞 Your phone number will be visible to everyone</>
+                                <>Your phone number will be visible to everyone</>
                             )}
                         </div>
 

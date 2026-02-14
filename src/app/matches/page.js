@@ -327,7 +327,7 @@ export default function MatchesPage() {
     return (
         <div className={styles.page}>
             <header className={styles.header}>
-                <h1>🔄 Matches & My Posts</h1>
+                <h1>Matches & My Posts</h1>
                 <ThemeToggle />
             </header>
 
@@ -349,7 +349,7 @@ export default function MatchesPage() {
                                     return (
                                         <div key={match.id} className={styles.declineCard}>
                                             <div className={styles.declineContent}>
-                                                <span className={styles.declineIcon}>❌</span>
+                                                <span className={styles.declineIcon}></span>
                                                 <div className={styles.declineText}>
                                                     <strong>{theirPost?.profile?.name || 'Someone'}</strong> declined your swap request
                                                     <span className={styles.declineCourse}>
@@ -392,11 +392,11 @@ export default function MatchesPage() {
                                             <div key={match.id} className={styles.matchCard}>
                                                 <div className={styles.matchHeader}>
                                                     <span className={`${styles.matchBadge} ${bothAccepted ? styles.matchBadgeAccepted : ''}`}>
-                                                        {bothAccepted ? '✅ Matched!' : '⏳ Pending'}
+                                                        {bothAccepted ? 'Matched!' : 'Pending'}
                                                     </span>
                                                     {!bothAccepted && match.expires_at && (
                                                         <span className={styles.matchTimer}>
-                                                            ⏱️ {getTimeRemaining(match.expires_at)}
+                                                            {getTimeRemaining(match.expires_at)}
                                                         </span>
                                                     )}
                                                 </div>
@@ -429,7 +429,7 @@ export default function MatchesPage() {
                                                 {/* Contact Info (only if both accepted) */}
                                                 {bothAccepted && contactInfoMap[theirPost?.profile?.id]?.phone && (
                                                     <div className={styles.contactInfo}>
-                                                        <span>📞 Contact: </span>
+                                                        <span>Contact: </span>
                                                         <a href={`tel:${contactInfoMap[theirPost?.profile?.id]?.phone}`}>
                                                             {contactInfoMap[theirPost?.profile?.id]?.phone}
                                                         </a>
@@ -459,13 +459,13 @@ export default function MatchesPage() {
                                                             onClick={() => handleAccept(match.id, isUserA)}
                                                             className={styles.acceptBtn}
                                                         >
-                                                            ✓ Accept
+                                                            Accept
                                                         </button>
                                                         <button
                                                             onClick={() => handleDecline(match.id)}
                                                             className={styles.declineBtn}
                                                         >
-                                                            ✕ Decline
+                                                            Decline
                                                         </button>
                                                     </div>
                                                 )}
@@ -475,7 +475,7 @@ export default function MatchesPage() {
                                                         onClick={() => handleComplete(myPost.id)}
                                                         className={styles.completeBtn}
                                                     >
-                                                        ✓ Mark as Completed
+                                                        Mark as Completed
                                                     </button>
                                                 )}
                                             </div>
@@ -499,7 +499,6 @@ export default function MatchesPage() {
                                         <div key={post.id} className={`${styles.postCard} ${styles[`postCard${post.type}`]}`}>
                                             <div className={styles.postHeader}>
                                                 <span className={`${styles.postBadge} ${styles[`postBadge${post.type}`]}`}>
-                                                    {post.type === 'swap' ? '🔄' : post.type === 'giveaway' ? '🎁' : '🙋'}
                                                     {post.type?.charAt(0).toUpperCase() + post.type?.slice(1)}
                                                 </span>
                                                 <span className={`${styles.postStatus} ${styles[`postStatus${post.status}`]}`}>
@@ -530,14 +529,14 @@ export default function MatchesPage() {
                                                         className={styles.completePostBtn}
                                                         title="Mark this post as completed/swapped"
                                                     >
-                                                        ✓ Swapped
+                                                        Swapped
                                                     </button>
                                                     <button
                                                         onClick={() => handleDelete(post.id)}
                                                         className={styles.deletePostBtn}
                                                         title="Cancel and remove this post"
                                                     >
-                                                        ✕ Cancel
+                                                        Cancel
                                                     </button>
                                                 </div>
                                             </div>
