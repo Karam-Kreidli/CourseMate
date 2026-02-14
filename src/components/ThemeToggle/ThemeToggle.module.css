@@ -1,17 +1,18 @@
 .toggle {
     position: relative;
-    width: 48px;
+    width: 52px;
     height: 28px;
     background: var(--bg-tertiary);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-full);
     cursor: pointer;
-    transition: background var(--transition-fast);
+    transition: background var(--transition-fast), border-color var(--transition-fast);
     padding: 0;
+    overflow: hidden;
 }
 
 .toggle:hover {
-    background: var(--border-color);
+    border-color: var(--text-muted);
 }
 
 .thumb {
@@ -22,14 +23,40 @@
     height: 22px;
     background: var(--bg-secondary);
     border-radius: 50%;
-    transition: transform var(--transition-fast);
+    transition: transform var(--transition-fast), background-color var(--transition-fast);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
     box-shadow: var(--shadow-sm);
+    z-index: 2;
 }
 
 [data-theme="dark"] .thumb {
-    transform: translateX(20px);
+    transform: translateX(24px);
+    background: var(--bg-primary);
+    /* In dark mode, thumb is dark (or maybe accent color?) */
+    /* User said "black doesn't look good". Let's try making the thumb accent color or just transparent if we want just the icon?
+       Actually, standard toggles have a thumb.
+       Let's keep the thumb but fix the ICON color inside it.
+    */
+    background: var(--color-primary-light);
+    border: 1px solid var(--border-color);
+}
+
+.icon {
+    width: 14px;
+    height: 14px;
+    transition: opacity var(--transition-fast);
+}
+
+.sunIcon {
+    color: #F59E0B;
+    /* Gold/Orange */
+    fill: #F59E0B;
+}
+
+.moonIcon {
+    color: #F8F9FA;
+    /* White */
+    fill: #F8F9FA;
 }
