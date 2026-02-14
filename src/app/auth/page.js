@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import ThemeToggle from '@/components/ThemeToggle';
+import { EyeIcon, EyeOffIcon } from '@/components/Icons';
 import styles from './auth.module.css';
 
 export default function AuthPage() {
@@ -12,6 +13,8 @@ export default function AuthPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     // Profile fields for signup
     const [name, setName] = useState('');
     const [studentId, setStudentId] = useState('');
@@ -191,29 +194,51 @@ export default function AuthPage() {
 
                     <div className={styles.formGroup}>
                         <label className={styles.label}>Password</label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className={styles.input}
-                            placeholder="Enter password"
-                            required
-                            disabled={loading}
-                        />
+                        <div className={styles.passwordWrapper}>
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className={`${styles.input} ${styles.inputPassword}`}
+                                placeholder="Enter password"
+                                required
+                                disabled={loading}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className={styles.passwordToggle}
+                                aria-label={showPassword ? "Hide password" : "Show password"}
+                                tabIndex={-1}
+                            >
+                                {showPassword ? <EyeOffIcon width={20} height={20} /> : <EyeIcon width={20} height={20} />}
+                            </button>
+                        </div>
                     </div>
 
                     {!isLogin && (
                         <div className={styles.formGroup}>
                             <label className={styles.label}>Confirm Password</label>
-                            <input
-                                type="password"
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                className={styles.input}
-                                placeholder="Confirm password"
-                                required
-                                disabled={loading}
-                            />
+                            <div className={styles.passwordWrapper}>
+                                <input
+                                    type={showConfirmPassword ? 'text' : 'password'}
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    className={`${styles.input} ${styles.inputPassword}`}
+                                    placeholder="Confirm password"
+                                    required
+                                    disabled={loading}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                    className={styles.passwordToggle}
+                                    aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                                    tabIndex={-1}
+                                >
+                                    {showConfirmPassword ? <EyeOffIcon width={20} height={20} /> : <EyeIcon width={20} height={20} />}
+                                </button>
+                            </div>
                         </div>
                     )}
 
