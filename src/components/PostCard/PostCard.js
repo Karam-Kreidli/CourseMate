@@ -89,7 +89,7 @@ export default function PostCard({
     }, [showContact, post.profile?.id]);
 
     return (
-        <article className={`${styles.card} ${styles[`card${typeConfig.className}`]}`}>
+        <article className={`${styles.card} ${styles[`card${post.type}`]}`}>
             {/* Header */}
             <div className={styles.header}>
                 <span className={`${styles.badge} ${typeConfig.class}`}>
