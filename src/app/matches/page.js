@@ -11,6 +11,7 @@ export default function MatchesPage() {
     const [matches, setMatches] = useState([]);
     const [declinedMatches, setDeclinedMatches] = useState([]);
     const [myPosts, setMyPosts] = useState([]);
+    const [activeTab, setActiveTab] = useState('matches');
     const [loading, setLoading] = useState(true);
     const [user, setUser] = useState(null);
     const [courses, setCourses] = useState({});
@@ -327,9 +328,30 @@ export default function MatchesPage() {
     return (
         <div className={styles.page}>
             <header className={styles.header}>
-                <h1>Matches & My Posts</h1>
+                <h1>Activity</h1>
                 <ThemeToggle />
             </header>
+
+            <div className={styles.tabs}>
+                <button
+                    className={`${styles.tab} ${activeTab === 'matches' ? styles.activeTab : ''}`}
+                    onClick={() => setActiveTab('matches')}
+                >
+                    Matches
+                    {matches.filter(m => m.status === 'pending' && ((m.user_a_id === user?.id && !m.user_a_accepted) || (m.user_b_id === user?.id && !m.user_b_accepted))).length > 0 && (
+                        <span className={styles.countBadge}>
+                            {matches.filter(m => m.status === 'pending' && ((m.user_a_id === user?.id && !m.user_a_accepted) || (m.user_b_id === user?.id && !m.user_b_accepted))).length}
+                        </span>
+                    )}
+                </button>
+                <button
+                    className={`${styles.tab} ${activeTab === 'posts' ? styles.activeTab : ''}`}
+                    onClick={() => setActiveTab('posts')}
+                >
+                    Posts
+                    {myPosts.length > 0 && <span className={styles.countBadge}>{myPosts.length}</span>}
+                </button>
+            </div>
 
             <main className={styles.main}>
                 {loading ? (
@@ -370,181 +392,185 @@ export default function MatchesPage() {
                         )}
 
                         {/* Active Matches */}
-                        <section className={styles.section}>
-                            <h2 className={styles.sectionTitle}>Active Matches</h2>
+                        {activeTab === 'matches' && (
+                            <section className={styles.section}>
+                                <h2 className={styles.sectionTitle}>Active Matches</h2>
 
-                            {matches.length === 0 ? (
-                                <div className={styles.empty}>
-                                    <p>No active matches yet</p>
-                                    <p className={styles.hint}>When someone wants to swap sections with you, it'll appear here</p>
-                                </div>
-                            ) : (
-                                <div className={styles.matchList}>
-                                    {matches.map((match) => {
-                                        const isUserA = match.user_a_id === user?.id;
-                                        const myPost = isUserA ? match.post_a : match.post_b;
-                                        const theirPost = isUserA ? match.post_b : match.post_a;
-                                        const myAccepted = isUserA ? match.user_a_accepted : match.user_b_accepted;
-                                        const theirAccepted = isUserA ? match.user_b_accepted : match.user_a_accepted;
-                                        const bothAccepted = match.status === 'accepted';
+                                {matches.length === 0 ? (
+                                    <div className={styles.empty}>
+                                        <p>No active matches yet</p>
+                                        <p className={styles.hint}>When someone wants to swap sections with you, it'll appear here</p>
+                                    </div>
+                                ) : (
+                                    <div className={styles.matchList}>
+                                        {matches.map((match) => {
+                                            const isUserA = match.user_a_id === user?.id;
+                                            const myPost = isUserA ? match.post_a : match.post_b;
+                                            const theirPost = isUserA ? match.post_b : match.post_a;
+                                            const myAccepted = isUserA ? match.user_a_accepted : match.user_b_accepted;
+                                            const theirAccepted = isUserA ? match.user_b_accepted : match.user_a_accepted;
+                                            const bothAccepted = match.status === 'accepted';
 
-                                        return (
-                                            <div key={match.id} className={styles.matchCard}>
-                                                <div className={styles.matchHeader}>
-                                                    <span className={`${styles.matchBadge} ${bothAccepted ? styles.matchBadgeAccepted : ''}`}>
-                                                        {bothAccepted ? 'Matched!' : 'Pending'}
-                                                    </span>
-                                                    {!bothAccepted && match.expires_at && (
-                                                        <span className={styles.matchTimer}>
-                                                            {getTimeRemaining(match.expires_at)}
+                                            return (
+                                                <div key={match.id} className={styles.matchCard}>
+                                                    <div className={styles.matchHeader}>
+                                                        <span className={`${styles.matchBadge} ${bothAccepted ? styles.matchBadgeAccepted : ''}`}>
+                                                            {bothAccepted ? 'Matched!' : 'Pending'}
                                                         </span>
+                                                        {!bothAccepted && match.expires_at && (
+                                                            <span className={styles.matchTimer}>
+                                                                {getTimeRemaining(match.expires_at)}
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    <div className={styles.matchContent}>
+                                                        <div className={styles.matchSide}>
+                                                            <span className={styles.matchLabel}>You have</span>
+                                                            <span className={styles.matchSection}>Section {myPost?.have_section}</span>
+                                                        </div>
+                                                        <span className={styles.matchArrow}>⇄</span>
+                                                        <div className={styles.matchSide}>
+                                                            <span className={styles.matchLabel}>They have</span>
+                                                            <span className={styles.matchSection}>Section {theirPost?.have_section}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className={styles.matchCourse}>
+                                                        <span className={styles.courseId}>{myPost?.course_code}</span>
+                                                        <span className={styles.courseName}>{myPost?.course_name || courses[myPost?.course_code]}</span>
+                                                    </div>
+
+                                                    {/* User Info */}
+                                                    <div className={styles.matchUser}>
+                                                        <span className={styles.userName}>{theirPost?.profile?.name}</span>
+                                                        <span className={styles.userMeta}>
+                                                            {theirPost?.profile?.student_id}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Contact Info (only if both accepted) */}
+                                                    {bothAccepted && contactInfoMap[theirPost?.profile?.id]?.phone && (
+                                                        <div className={styles.contactInfo}>
+                                                            <span>Contact: </span>
+                                                            <a href={`tel:${contactInfoMap[theirPost?.profile?.id]?.phone}`}>
+                                                                {contactInfoMap[theirPost?.profile?.id]?.phone}
+                                                            </a>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Status */}
+                                                    {!bothAccepted && (
+                                                        <div className={styles.matchStatus}>
+                                                            {theirAccepted && !myAccepted && (
+                                                                <span className={styles.waitingYou}>
+                                                                    {theirPost?.profile?.name} accepted! Waiting for you
+                                                                </span>
+                                                            )}
+                                                            {myAccepted && !theirAccepted && (
+                                                                <span className={styles.waitingThem}>
+                                                                    You accepted! Waiting for {theirPost?.profile?.name} to accept
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Actions */}
+                                                    {!myAccepted && match.status === 'pending' && (
+                                                        <div className={styles.matchActions}>
+                                                            <button
+                                                                onClick={() => handleAccept(match.id, isUserA)}
+                                                                className={styles.acceptBtn}
+                                                            >
+                                                                Accept
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDecline(match.id)}
+                                                                className={styles.declineBtn}
+                                                            >
+                                                                Decline
+                                                            </button>
+                                                        </div>
+                                                    )}
+
+                                                    {bothAccepted && (
+                                                        <button
+                                                            onClick={() => handleComplete(myPost.id)}
+                                                            className={styles.completeBtn}
+                                                        >
+                                                            Mark as Completed
+                                                        </button>
                                                     )}
                                                 </div>
-
-                                                <div className={styles.matchContent}>
-                                                    <div className={styles.matchSide}>
-                                                        <span className={styles.matchLabel}>You have</span>
-                                                        <span className={styles.matchSection}>Section {myPost?.have_section}</span>
-                                                    </div>
-                                                    <span className={styles.matchArrow}>⇄</span>
-                                                    <div className={styles.matchSide}>
-                                                        <span className={styles.matchLabel}>They have</span>
-                                                        <span className={styles.matchSection}>Section {theirPost?.have_section}</span>
-                                                    </div>
-                                                </div>
-
-                                                <div className={styles.matchCourse}>
-                                                    <span className={styles.courseId}>{myPost?.course_code}</span>
-                                                    <span className={styles.courseName}>{myPost?.course_name || courses[myPost?.course_code]}</span>
-                                                </div>
-
-                                                {/* User Info */}
-                                                <div className={styles.matchUser}>
-                                                    <span className={styles.userName}>{theirPost?.profile?.name}</span>
-                                                    <span className={styles.userMeta}>
-                                                        {theirPost?.profile?.student_id}
-                                                    </span>
-                                                </div>
-
-                                                {/* Contact Info (only if both accepted) */}
-                                                {bothAccepted && contactInfoMap[theirPost?.profile?.id]?.phone && (
-                                                    <div className={styles.contactInfo}>
-                                                        <span>Contact: </span>
-                                                        <a href={`tel:${contactInfoMap[theirPost?.profile?.id]?.phone}`}>
-                                                            {contactInfoMap[theirPost?.profile?.id]?.phone}
-                                                        </a>
-                                                    </div>
-                                                )}
-
-                                                {/* Status */}
-                                                {!bothAccepted && (
-                                                    <div className={styles.matchStatus}>
-                                                        {theirAccepted && !myAccepted && (
-                                                            <span className={styles.waitingYou}>
-                                                                {theirPost?.profile?.name} accepted! Waiting for you
-                                                            </span>
-                                                        )}
-                                                        {myAccepted && !theirAccepted && (
-                                                            <span className={styles.waitingThem}>
-                                                                You accepted! Waiting for {theirPost?.profile?.name} to accept
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                )}
-
-                                                {/* Actions */}
-                                                {!myAccepted && match.status === 'pending' && (
-                                                    <div className={styles.matchActions}>
-                                                        <button
-                                                            onClick={() => handleAccept(match.id, isUserA)}
-                                                            className={styles.acceptBtn}
-                                                        >
-                                                            Accept
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDecline(match.id)}
-                                                            className={styles.declineBtn}
-                                                        >
-                                                            Decline
-                                                        </button>
-                                                    </div>
-                                                )}
-
-                                                {bothAccepted && (
-                                                    <button
-                                                        onClick={() => handleComplete(myPost.id)}
-                                                        className={styles.completeBtn}
-                                                    >
-                                                        Mark as Completed
-                                                    </button>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </section>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </section>
+                        )}
 
                         {/* My Posts */}
-                        <section className={styles.section}>
-                            <h2 className={styles.sectionTitle}>My Active Posts ({myPosts.length}/5)</h2>
+                        {activeTab === 'posts' && (
+                            <section className={styles.section}>
+                                <h2 className={styles.sectionTitle}>My Active Posts ({myPosts.length}/5)</h2>
 
-                            {myPosts.length === 0 ? (
-                                <div className={styles.empty}>
-                                    <p>No active posts</p>
-                                </div>
-                            ) : (
-                                <div className={styles.postList}>
-                                    {myPosts.map((post) => (
-                                        <div key={post.id} className={`${styles.postCard} ${styles[`postCard${post.type}`]}`}>
-                                            <div className={styles.postHeader}>
-                                                <span className={`${styles.postBadge} ${styles[`postBadge${post.type}`]}`}>
-                                                    {post.type?.charAt(0).toUpperCase() + post.type?.slice(1)}
-                                                </span>
-                                                <span className={`${styles.postStatus} ${styles[`postStatus${post.status}`]}`}>
-                                                    {post.status}
-                                                </span>
-                                            </div>
+                                {myPosts.length === 0 ? (
+                                    <div className={styles.empty}>
+                                        <p>No active posts</p>
+                                    </div>
+                                ) : (
+                                    <div className={styles.postList}>
+                                        {myPosts.map((post) => (
+                                            <div key={post.id} className={`${styles.postCard} ${styles[`postCard${post.type}`]}`}>
+                                                <div className={styles.postHeader}>
+                                                    <span className={`${styles.postBadge} ${styles[`postBadge${post.type}`]}`}>
+                                                        {post.type?.charAt(0).toUpperCase() + post.type?.slice(1)}
+                                                    </span>
+                                                    <span className={`${styles.postStatus} ${styles[`postStatus${post.status}`]}`}>
+                                                        {post.status}
+                                                    </span>
+                                                </div>
 
-                                            <div className={styles.postDetails}>
-                                                <span className={styles.courseId}>{post.course_code}</span>
-                                                <span className={styles.courseName}>
-                                                    {post.course_name || courses[post.course_code] || `Course: ${Object.keys(courses).length} loaded`}
-                                                </span>
-                                                <div className={styles.sections}>
-                                                    <span>Section {post.have_section}</span>
-                                                    {post.want_section && (
-                                                        <>
-                                                            <span className={styles.arrow}>→</span>
-                                                            <span>Section {post.want_section}</span>
-                                                        </>
-                                                    )}
+                                                <div className={styles.postDetails}>
+                                                    <span className={styles.courseId}>{post.course_code}</span>
+                                                    <span className={styles.courseName}>
+                                                        {post.course_name || courses[post.course_code] || `Course: ${Object.keys(courses).length} loaded`}
+                                                    </span>
+                                                    <div className={styles.sections}>
+                                                        <span>Section {post.have_section}</span>
+                                                        {post.want_section && (
+                                                            <>
+                                                                <span className={styles.arrow}>→</span>
+                                                                <span>Section {post.want_section}</span>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <div className={styles.postFooter}>
+                                                    <div className={styles.postActions}>
+                                                        <button
+                                                            onClick={() => handleComplete(post.id)}
+                                                            className={styles.completePostBtn}
+                                                            title="Mark this post as completed/swapped"
+                                                        >
+                                                            Swapped
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDelete(post.id)}
+                                                            className={styles.deletePostBtn}
+                                                            title="Cancel and remove this post"
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
-
-                                            <div className={styles.postFooter}>
-                                                <div className={styles.postActions}>
-                                                    <button
-                                                        onClick={() => handleComplete(post.id)}
-                                                        className={styles.completePostBtn}
-                                                        title="Mark this post as completed/swapped"
-                                                    >
-                                                        Swapped
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDelete(post.id)}
-                                                        className={styles.deletePostBtn}
-                                                        title="Cancel and remove this post"
-                                                    >
-                                                        Cancel
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </section>
+                                        ))}
+                                    </div>
+                                )}
+                            </section>
+                        )}
                     </>
                 )}
             </main>

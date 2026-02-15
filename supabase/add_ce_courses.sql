@@ -33,6 +33,7 @@ INSERT INTO major_courses (major_code, course_id) VALUES
 ('CE', '1420102'),
 
 -- Computer Science
+('CE', '1501100'),
 ('CE', '1501116'),
 ('CE', '1501212'),
 ('CE', '1501215'),

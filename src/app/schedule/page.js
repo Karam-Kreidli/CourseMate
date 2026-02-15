@@ -843,6 +843,13 @@ export default function SchedulePage() {
                         <div className={styles.noResultsText}>
                             Try relaxing your time constraints or removing a course
                         </div>
+                        <button
+                            className={styles.generateBtn}
+                            onClick={() => setResults(null)}
+                            style={{ width: 'auto', padding: '10px 20px', marginTop: '16px' }}
+                        >
+                            Modify Preferences
+                        </button>
                     </div>
                 )}
             </main>
