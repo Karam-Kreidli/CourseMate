@@ -38,6 +38,7 @@ INSERT INTO courses (course_id, college_code, college_name, course_number, cours
 ('1450453', '1450', 'Department of Biology', '453', 'Protein Biochemistry & Eng.'),
 
 -- Computer Science - Biomedical Informatics specific
+('1501100', '1501', 'Department of Computer Science', '100', 'Introduction to IT(English)'),
 ('1501250', '1501', 'Department of Computer Science', '250', 'Networking Fundamentals'),
 ('1501279', '1501', 'Department of Computer Science', '279', 'Discrete Structures'),
 ('1501318', '1501', 'Department of Computer Science', '318', 'Programming for Bioinformatics'),
@@ -120,6 +121,7 @@ INSERT INTO major_courses (major_code, course_id) VALUES
 ('BI', '1602100'),
 
 -- Computer Science Core
+('BI', '1501100'),
 ('BI', '1501116'),
 ('BI', '1501211'),
 ('BI', '1501215'),

@@ -958,3 +958,36 @@
     border-color: var(--color-accent);
     color: var(--color-accent);
 }
+
+/* ===== Basket Buttons ===== */
+.basketButtons {
+    display: flex;
+    gap: 12px;
+    margin: 16px 0;
+}
+
+.basketBtn {
+    flex: 1;
+    padding: 14px 16px;
+    border: none;
+    border-radius: var(--radius-md);
+    background: #374151;
+    /* Dark gray for contrast with white text */
+    color: white;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.basketBtn:hover {
+    background: #4B5563;
+    /* Slightly lighter gray */
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.basketBtn:active {
+    transform: translateY(0);
+}

@@ -157,6 +157,17 @@ function generateSchedules(courseGroups, prefs, courseNames) {
                 );
             }
 
+            // Language filter
+            if (prefs.languagePref === 'english') {
+                groups = groups.filter(g =>
+                    g.sections.every(s => !s.section_num.endsWith('A'))
+                );
+            } else if (prefs.languagePref === 'arabic') {
+                groups = groups.filter(g =>
+                    g.sections.every(s => !s.section_num.endsWith('E'))
+                );
+            }
+
             filtered[cid] = groups;
         }
         return filtered;
@@ -327,14 +338,17 @@ export default function SchedulePage() {
         noClassesBefore: '',
         noClassesAfter: '',
         gapPref: 'none',
+
         compactPref: 'none',
-        preferredInstructors: {},
         preferredInstructors: {},
         pinnedSections: {},
         strictTime: false,
+        languagePref: 'any',
     });
     const [generating, setGenerating] = useState(false);
     const [results, setResults] = useState(null);
+    const [extraCourseNames, setExtraCourseNames] = useState({});
+    const [loadingCourseIds, setLoadingCourseIds] = useState(new Set());
     const [showCount, setShowCount] = useState(3);
     const [error, setError] = useState('');
     const [savedScheduleIdx, setSavedScheduleIdx] = useState(null);
@@ -416,11 +430,53 @@ export default function SchedulePage() {
     };
 
     const fetchSectionsForCourse = async (courseId) => {
+        setLoadingCourseIds(prev => new Set([...prev, courseId]));
         const allowedCampuses = profile?.gender === 'male' ? ['main', 'men'] : ['main', 'women'];
-        const { data } = await supabase
-            .from('sections').select('*').eq('course_id', courseId)
-            .in('campus', allowedCampuses).order('section_num');
-        setAllSections(prev => ({ ...prev, [courseId]: data || [] }));
+
+        try {
+            // Handle Basket Wildcards
+            if (courseId.startsWith('BASKET_')) {
+                const basketName = courseId === 'BASKET_1' ? 'Basket 1' : 'Basket 2';
+                // 1. Get courses in this basket
+                const { data: basketCourses } = await supabase
+                    .from('courses')
+                    .select('course_id, course_name')
+                    .eq('university_elective_basket', basketName);
+
+                if (!basketCourses?.length) {
+                    setAllSections(prev => ({ ...prev, [courseId]: [] }));
+                    return;
+                }
+
+                const newExtraNames = {};
+                basketCourses.forEach(c => newExtraNames[c.course_id] = c.course_name);
+                setExtraCourseNames(prev => ({ ...prev, ...newExtraNames }));
+
+                const courseIds = basketCourses.map(c => c.course_id);
+
+                // 2. Get sections for these courses
+                const { data } = await supabase
+                    .from('sections')
+                    .select('*')
+                    .in('course_id', courseIds)
+                    .in('campus', allowedCampuses)
+                    .order('section_num');
+
+                setAllSections(prev => ({ ...prev, [courseId]: data || [] }));
+                return;
+            }
+
+            const { data } = await supabase
+                .from('sections').select('*').eq('course_id', courseId)
+                .in('campus', allowedCampuses).order('section_num');
+            setAllSections(prev => ({ ...prev, [courseId]: data || [] }));
+        } finally {
+            setLoadingCourseIds(prev => {
+                const next = new Set(prev);
+                next.delete(courseId);
+                return next;
+            });
+        }
     };
 
     const addCourse = (course) => {
@@ -488,7 +544,26 @@ export default function SchedulePage() {
                 for (const c of selectedCourses) {
                     courseNames[c.course_id] = c.name;
                     const sections = allSections[c.course_id] || [];
-                    courseGroups[c.course_id] = buildSectionGroups(sections, c.course_id);
+
+                    if (c.course_id.startsWith('BASKET_')) {
+                        const sectionsByCourse = {};
+                        for (const sec of sections) {
+                            if (!sectionsByCourse[sec.course_id]) sectionsByCourse[sec.course_id] = [];
+                            sectionsByCourse[sec.course_id].push(sec);
+                        }
+
+                        let basketOptions = [];
+                        for (const [subCourseId, subSections] of Object.entries(sectionsByCourse)) {
+                            // Treating each sub-course as a valid option for this slot
+                            const subGroups = buildSectionGroups(subSections, subCourseId);
+                            // Attach original basket ID for consistent coloring
+                            subGroups.forEach(g => g.originalCourseId = c.course_id);
+                            basketOptions = basketOptions.concat(subGroups);
+                        }
+                        courseGroups[c.course_id] = basketOptions;
+                    } else {
+                        courseGroups[c.course_id] = buildSectionGroups(sections, c.course_id);
+                    }
                 }
 
                 // Check if any course has no available groups
@@ -514,10 +589,10 @@ export default function SchedulePage() {
     };
 
     const courseNameMap = useMemo(() => {
-        const m = {};
+        const m = { ...extraCourseNames };
         selectedCourses.forEach(c => { m[c.course_id] = c.name; });
         return m;
-    }, [selectedCourses]);
+    }, [selectedCourses, extraCourseNames]);
 
     // Close dropdown on outside click
     useEffect(() => {
@@ -590,6 +665,8 @@ export default function SchedulePage() {
                             )}
                         </div>
 
+
+
                         {selectedCourses.length > 0 ? (
                             <div className={styles.selectedCourses}>
                                 {selectedCourses.map(c => (
@@ -597,6 +674,7 @@ export default function SchedulePage() {
                                         <div className={styles.courseChipInfo}>
                                             <span className={styles.courseChipId}>{c.course_id}</span>
                                             <span className={styles.courseChipName}>{c.name}</span>
+                                            {loadingCourseIds.has(c.course_id) && <span className={styles.spinner} style={{ width: 12, height: 12, borderWidth: 2, marginLeft: 8 }}></span>}
                                         </div>
                                         <button className={styles.removeBtn} onClick={() => removeCourse(c.course_id)}>×</button>
                                     </div>
@@ -607,6 +685,21 @@ export default function SchedulePage() {
                                 Add courses to build your schedule
                             </div>
                         )}
+
+                        <div className={styles.basketButtons}>
+                            <button
+                                className={styles.basketBtn}
+                                onClick={() => addCourse({ course_id: 'BASKET_1', name: 'University Elective (Basket 1)', is_basket: true, basket_name: 'Basket 1' })}
+                            >
+                                + Add Basket 1 Elective
+                            </button>
+                            <button
+                                className={styles.basketBtn}
+                                onClick={() => addCourse({ course_id: 'BASKET_2', name: 'University Elective (Basket 2)', is_basket: true, basket_name: 'Basket 2' })}
+                            >
+                                + Add Basket 2 Elective
+                            </button>
+                        </div>
                     </div>
                 )}
 
@@ -654,6 +747,24 @@ export default function SchedulePage() {
                                                 <option value="05:00 PM">5:00 PM</option>
                                                 <option value="06:30 PM">6:30 PM</option>
                                             </select>
+                                        </div>
+                                    </div>
+
+                                    <div className={styles.prefGroup}>
+                                        <span className={styles.prefLabel}>Section Language</span>
+                                        <div className={styles.toggleRow}>
+                                            <button
+                                                className={`${styles.toggleBtn} ${prefs.languagePref === 'any' ? styles.toggleBtnActive : ''}`}
+                                                onClick={() => setPrefs(p => ({ ...p, languagePref: 'any' }))}
+                                            >Any</button>
+                                            <button
+                                                className={`${styles.toggleBtn} ${prefs.languagePref === 'english' ? styles.toggleBtnActive : ''}`}
+                                                onClick={() => setPrefs(p => ({ ...p, languagePref: 'english' }))}
+                                            >English</button>
+                                            <button
+                                                className={`${styles.toggleBtn} ${prefs.languagePref === 'arabic' ? styles.toggleBtnActive : ''}`}
+                                                onClick={() => setPrefs(p => ({ ...p, languagePref: 'arabic' }))}
+                                            >Arabic</button>
                                         </div>
                                     </div>
 
@@ -765,9 +876,10 @@ export default function SchedulePage() {
                     <button
                         className={styles.generateBtn}
                         onClick={handleGenerate}
-                        disabled={generating}
+                        disabled={generating || loadingCourseIds.size > 0}
+                        style={loadingCourseIds.size > 0 ? { opacity: 0.7, cursor: 'not-allowed' } : {}}
                     >
-                        {generating ? <span className={styles.spinner}></span> : 'Generate Schedules'}
+                        {generating ? <span className={styles.spinner}></span> : (loadingCourseIds.size > 0 ? 'Loading course data...' : 'Generate Schedules')}
                     </button>
                 )}
 
@@ -890,7 +1002,7 @@ function ScheduleCard({ result, rank, courseNameMap, selectedCourses, onSave, on
     // Collect all time blocks for the timetable
     const blocks = [];
     schedule.forEach((group) => {
-        const courseIdx = selectedCourses.findIndex(c => c.course_id === group.courseId);
+        const courseIdx = selectedCourses.findIndex(c => c.course_id === (group.originalCourseId || group.courseId));
         group.sections.forEach(sec => {
             const slots = parseClassTime(sec.class_time);
             slots.forEach(slot => {
@@ -1013,7 +1125,7 @@ function ScheduleCard({ result, rank, courseNameMap, selectedCourses, onSave, on
             {detailsOpen && (
                 <div className={styles.scheduleDetails}>
                     {schedule.map((group) => {
-                        const courseIdx = selectedCourses.findIndex(c => c.course_id === group.courseId);
+                        const courseIdx = selectedCourses.findIndex(c => c.course_id === (group.originalCourseId || group.courseId));
                         return group.sections.map((sec, secIdx) => (
                             <div key={sec.crn || `${sec.course_id}-${sec.section_num}-${secIdx}`} className={styles.detailRow}>
                                 <div className={styles.detailColorBar} style={{ background: colors[courseIdx % 8] }}></div>

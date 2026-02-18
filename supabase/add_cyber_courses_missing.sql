@@ -18,6 +18,7 @@ INSERT INTO courses (course_id, college_code, college_name, course_number, cours
 ('1440261', '1440', 'Department of Mathematics', '261', 'Diff. Equs for Engs'),
 
 -- Computer Engineering (Cybersecurity Core)
+('1501100', '1501', 'Department of Computer Science', '100', 'Introduction to IT(English)'),
 ('1502111', '1502', 'Department of Computer Engineering', '111', 'Discrete Mathematics for Eng.'),
 ('1502170', '1502', 'Department of Computer Engineering', '170', 'Introduction to Cybersecurity'),
 ('1502214', '1502', 'Department of Computer Engineering', '214', 'Adv. Discrete Math. for Eng.'),
