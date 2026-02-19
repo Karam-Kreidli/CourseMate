@@ -21,8 +21,14 @@ export async function GET(request) {
         const data = await resend.emails.send({
             from: 'CourseMate <noreply@course-mate.me>',
             to: targetEmail,
-            subject: 'Test Email from CourseMate',
-            html: '<p>If you confirm receiving this, the email system is working!</p>'
+            subject: 'Test Email - CourseMate Verification',
+            html: `
+                <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; color: #333;">
+                    <h2 style="color: #0a2540;">CourseMate Email Verification</h2>
+                    <p>This is a confirmation that your email system is configured correctly.</p>
+                    <p>You can ignore this message.</p>
+                </div>
+            `
         });
 
         return NextResponse.json({

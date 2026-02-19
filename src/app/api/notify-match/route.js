@@ -48,40 +48,50 @@ export async function POST(request) {
 
         // Email HTML template
         const createEmailHtml = (recipientName, theirSection, otherUserName, otherSection) => `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                <div style="background: linear-gradient(135deg, #1a2a4a 0%, #0d1929 100%); padding: 20px; border-radius: 10px; text-align: center;">
-                    <h1 style="color: #c9a227; margin: 0;">🎉 You Have a Match!</h1>
+            <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 0; background-color: #ffffff; color: #333333;">
+                <div style="background-color: #0a2540; padding: 24px; text-align: center; border-radius: 8px 8px 0 0;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">Match Available</h1>
                 </div>
                 
-                <div style="padding: 20px; background: #f8f9fa; border-radius: 10px; margin-top: 20px;">
-                    <h2 style="color: #333; margin-bottom: 20px;">CourseMate Match Found</h2>
-                    
-                    <p style="color: #666; font-size: 16px;">
-                        Great news, <strong>${recipientName || 'Student'}</strong>! Someone wants to swap sections with you.
+                <div style="padding: 32px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 8px 8px;">
+                    <p style="font-size: 16px; line-height: 1.5; margin: 0 0 24px 0;">
+                        Hello <strong>${recipientName || 'Student'}</strong>,
+                    </p>
+                    <p style="font-size: 16px; line-height: 1.5; margin: 0 0 24px 0;">
+                        A potential course swap match has been found for you.
                     </p>
                     
-                    <div style="background: white; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #c9a227;">
-                        <p style="margin: 0 0 10px 0; color: #333;"><strong>Course:</strong> ${courseCode} - ${courseName || ''}</p>
-                        <p style="margin: 0 0 10px 0; color: #333;"><strong>You have:</strong> Section ${theirSection}</p>
-                        <p style="margin: 0 0 10px 0; color: #333;"><strong>They have:</strong> Section ${otherSection}</p>
-                        <p style="margin: 0; color: #333;"><strong>Match with:</strong> ${otherUserName || 'A student'}</p>
+                    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 24px; border: 1px solid #eaeaea;">
+                        <h3 style="margin: 0 0 16px 0; color: #0a2540; font-size: 18px;">${courseCode} ${courseName ? '- ' + courseName : ''}</h3>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span style="color: #666;">Your Section:</span>
+                            <span style="font-weight: 600; color: #333;">${theirSection}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span style="color: #666;">Their Section:</span>
+                            <span style="font-weight: 600; color: #333;">${otherSection}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: #666;">Matched With:</span>
+                            <span style="font-weight: 600; color: #333;">${otherUserName || 'Student'}</span>
+                        </div>
                     </div>
                     
-                    <p style="color: #666; font-size: 14px;">
-                        Log in to CourseMate to accept or decline this match.
+                    <p style="font-size: 16px; line-height: 1.5; margin: 0 0 32px 0;">
+                        Please log in to review and respond to this match request.
                     </p>
                     
-                    <div style="text-align: center; margin-top: 30px;">
+                    <div style="text-align: center;">
                         <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/matches" 
-                           style="background: #c9a227; color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: bold;">
-                            View Match
+                           style="background-color: #c9a227; color: #ffffff; padding: 12px 32px; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 16px; display: inline-block;">
+                            View Match Details
                         </a>
                     </div>
+                    
+                    <p style="margin-top: 40px; font-size: 12px; color: #888888; text-align: center; border-top: 1px solid #eaeaea; padding-top: 20px;">
+                        CourseMate - University Section Exchange Platform
+                    </p>
                 </div>
-                
-                <p style="color: #999; font-size: 12px; text-align: center; margin-top: 20px;">
-                    CourseMate - University Section Exchange Platform
-                </p>
             </div>
         `;
 
@@ -94,7 +104,7 @@ export async function POST(request) {
                 await getResend().emails.send({
                     from: 'CourseMate <noreply@course-mate.me>',
                     to: userAEmail,
-                    subject: `🔄 Match Found for ${courseCode}!`,
+                    subject: `Match Found: ${courseCode}`,
                     html: createEmailHtml(userAName || userAProfile?.name, userASection, userBName || userBProfile?.name, userBSection),
                 });
                 emailsSent.push(userAEmail);
@@ -110,7 +120,7 @@ export async function POST(request) {
                 await getResend().emails.send({
                     from: 'CourseMate <noreply@course-mate.me>',
                     to: userBEmail,
-                    subject: `🔄 Match Found for ${courseCode}!`,
+                    subject: `Match Found: ${courseCode}`,
                     html: createEmailHtml(userBName || userBProfile?.name, userBSection, userAName || userAProfile?.name, userASection),
                 });
                 emailsSent.push(userBEmail);
