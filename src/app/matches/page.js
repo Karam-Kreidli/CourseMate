@@ -459,19 +459,19 @@ export default function MatchesPage() {
                                                         </div>
                                                     )}
 
-                                                    {/* Status */}
-                                                    {!bothAccepted && (
+                                                    {/* Status - only show when one party accepted */}
+                                                    {!bothAccepted && theirAccepted && !myAccepted && (
                                                         <div className={styles.matchStatus}>
-                                                            {theirAccepted && !myAccepted && (
-                                                                <span className={styles.waitingYou}>
-                                                                    {theirPost?.profile?.name} accepted! Waiting for you
-                                                                </span>
-                                                            )}
-                                                            {myAccepted && !theirAccepted && (
-                                                                <span className={styles.waitingThem}>
-                                                                    You accepted! Waiting for {theirPost?.profile?.name} to accept
-                                                                </span>
-                                                            )}
+                                                            <span className={styles.waitingYou}>
+                                                                {theirPost?.profile?.name} accepted! Waiting for you
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    {!bothAccepted && myAccepted && !theirAccepted && (
+                                                        <div className={styles.matchStatus}>
+                                                            <span className={styles.waitingThem}>
+                                                                You accepted! Waiting for {theirPost?.profile?.name} to accept
+                                                            </span>
                                                         </div>
                                                     )}
 
