@@ -11,9 +11,18 @@ ON CONFLICT (code) DO NOTHING;
 -- STEP 2: Add missing courses that don't exist yet
 INSERT INTO courses (course_id, college_code, college_name, course_number, course_name) VALUES
 
--- Computer Science - ITM specific courses not yet in DB
+-- Mathematics
+('1440182', '1440', 'Department of Mathematics', '182', 'Statistics for Science Lab'),
+
+-- Business Information Systems
+('1503431', '1503', 'Department of Business Information Systems', '431', 'Project Management'),
+
+-- Computer Science - ITM specific
+('1501114', '1501', 'Department of Computer Science', '114', 'Problem Solving'),
+('1501214', '1501', 'Department of Computer Science', '214', 'Programming with Data Str.'),
 ('1501242', '1501', 'Department of Computer Science', '242', 'Interactive Multimedia'),
-('1501246', '1501', 'Department of Computer Science', '246', 'Digital Animation'),
+('1501247', '1501', 'Department of Computer Science', '247', 'Digital Animation'),
+('1501249', '1501', 'Department of Computer Science', '249', 'Graphic Design'),
 ('1501330', '1501', 'Department of Computer Science', '330', 'Introduction to Artif.Intelig.'),
 ('1501341', '1501', 'Department of Computer Science', '341', 'Multimedia Prog.and Design'),
 ('1501342', '1501', 'Department of Computer Science', '342', '2d/3d Animation'),
@@ -24,7 +33,7 @@ INSERT INTO courses (course_id, college_code, college_name, course_number, cours
 ('1501396', '1501', 'Department of Computer Science', '396', 'Web Design and Programming'),
 ('1501444', '1501', 'Department of Computer Science', '444', 'Game Design and Development'),
 ('1501445', '1501', 'Department of Computer Science', '445', 'IT Application in E.Comm.'),
-('1501460', '1501', 'Department of Computer Science', '460', 'Development of Web Applica.'),
+('1501465', '1501', 'Department of Computer Science', '465', 'Development of Web Applica.'),
 ('1501494', '1501', 'Department of Computer Science', '494', 'Multimedia Senior Project'),
 ('1501496', '1501', 'Department of Computer Science', '496', 'Multimedia Senior Project')
 
@@ -89,25 +98,36 @@ INSERT INTO major_courses (major_code, course_id) VALUES
 -- Mathematics
 ('ITM', '1440131'),
 ('ITM', '1440132'),
-('ITM', '1440211'),
-('ITM', '1440281'),
+('ITM', '1440182'),
+
+-- Chemistry
+('ITM', '1420101'),
+('ITM', '1420102'),
+
+-- Physics
+('ITM', '1430101'),
+('ITM', '1430116'),
+
+-- Biology
+('ITM', '1450101'),
+('ITM', '1450107'),
 
 -- Management
 ('ITM', '0302170'),
 
+-- Business Information Systems
+('ITM', '1503431'),
+
 -- Computer Science / IT Core
 ('ITM', '1501100'),
-('ITM', '1501116'),
-('ITM', '1501211'),
-('ITM', '1501215'),
+('ITM', '1501114'),
+('ITM', '1501214'),
 ('ITM', '1501242'),
-('ITM', '1501246'),
+('ITM', '1501247'),
+('ITM', '1501249'),
 ('ITM', '1501250'),
-('ITM', '1501252'),
 ('ITM', '1501263'),
-('ITM', '1501279'),
 ('ITM', '1501319'),
-('ITM', '1501322'),
 ('ITM', '1501330'),
 ('ITM', '1501341'),
 ('ITM', '1501342'),
@@ -134,7 +154,6 @@ INSERT INTO major_courses (major_code, course_id) VALUES
 ('ITM', '1501457'),
 ('ITM', '1501458'),
 ('ITM', '1501459'),
-('ITM', '1501460'),
 ('ITM', '1501465'),
 ('ITM', '1501490'),
 ('ITM', '1501491'),
