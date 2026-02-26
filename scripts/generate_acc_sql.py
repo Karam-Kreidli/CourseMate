@@ -203,7 +203,7 @@ sql_lines.append("ON CONFLICT (major_code, course_id) DO NOTHING;")
 final_sql = "\n".join(sql_lines)
 
 # Write directly to the supabase file instead of printing
-with open(r'c:\Users\karoo\University\Course Swap\supabase\add_accounting_courses.sql', 'w', encoding='utf-8') as f:
+with open(r'c:\Users\karoo\University\CourseMate\supabase\add_accounting_courses.sql', 'w', encoding='utf-8') as f:
     f.write(final_sql)
 
 print("SQL file generated successfully.")

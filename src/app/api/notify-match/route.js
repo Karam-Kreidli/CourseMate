@@ -58,7 +58,7 @@ export async function POST(request) {
                         Hello <strong>${recipientName || 'Student'}</strong>,
                     </p>
                     <p style="font-size: 16px; line-height: 1.5; margin: 0 0 24px 0;">
-                        A potential course swap match has been found for you.
+                        A potential CourseMate match has been found for you.
                     </p>
                     
                     <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 24px; border: 1px solid #eaeaea;">
