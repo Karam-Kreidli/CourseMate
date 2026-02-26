@@ -24,3 +24,6 @@ npm-debug.log*
 # Data files
 data_202520.json
 extract-sections.js
+
+# Database scripts
+supabase/
