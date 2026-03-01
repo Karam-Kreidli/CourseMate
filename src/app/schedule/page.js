@@ -1078,12 +1078,14 @@ export default function SchedulePage() {
                             >
                                 + Group 2 Elective
                             </button>
-                            <button
-                                className={`${styles.basketBtn} ${styles.basketBtnFull}`}
-                                onClick={addDeptElective}
-                            >
-                                + Department Elective
-                            </button>
+                            {majorInfo?.dept_electives_count > 0 && (
+                                <button
+                                    className={`${styles.basketBtn} ${styles.basketBtnFull}`}
+                                    onClick={addDeptElective}
+                                >
+                                    + Department Elective
+                                </button>
+                            )}
                         </div>
                     </div>
                 )}
