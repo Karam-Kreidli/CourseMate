@@ -1,6 +1,6 @@
 # CourseMate 🎓
 
-CourseMate (formerly Course Swap) is a centralized platform created specifically for University of Sharjah (UoS) students to solve the chaos and frustration of course registration. 
+CourseMate is a centralized platform created specifically for University of Sharjah (UoS) students to solve the chaos and frustration of course registration. 
 
 ## The Problem
 During registration periods, getting into the right course sections with preferred timings or instructors can be incredibly difficult. Students often resort to constantly refreshing the registration portal hoping a seat opens up, or they turn to social media groups trying to arrange manual "swaps" with other students. This process is uncoordinated, relies heavily on luck, and requires tedious manual communication.
