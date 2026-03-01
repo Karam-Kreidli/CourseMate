@@ -445,6 +445,7 @@ export default function SchedulePage() {
     const [savedScheduleIdx, setSavedScheduleIdx] = useState(null);
     const [showAlternatives, setShowAlternatives] = useState(false);
     const [restoringFromSave, setRestoringFromSave] = useState(false);
+    const [xorCourseIds, setXorCourseIds] = useState(new Set());
     const router = useRouter();
     const supabase = createClient();
 
@@ -682,6 +683,25 @@ export default function SchedulePage() {
             const hf = { ...prev.hardElectiveFilter }; delete hf[courseId];
             return { ...prev, preferredInstructors: pi, pinnedSections: ps, pinnedLabs: pl, preferredElectives: pe, hardElectiveFilter: hf };
         });
+        // Clean up XOR set
+        setXorCourseIds(prev => {
+            const next = new Set(prev);
+            next.delete(courseId);
+            return next;
+        });
+        setResults(null);
+    };
+
+    const toggleXor = (courseId) => {
+        setXorCourseIds(prev => {
+            const next = new Set(prev);
+            if (next.has(courseId)) {
+                next.delete(courseId);
+            } else {
+                next.add(courseId);
+            }
+            return next;
+        });
         setResults(null);
     };
 
@@ -748,48 +768,185 @@ export default function SchedulePage() {
         // Use setTimeout to avoid blocking the UI
         setTimeout(() => {
             try {
-                // Build section groups for each course
-                const courseGroups = {};
-                const courseNames = {};
-                for (const c of selectedCourses) {
-                    courseNames[c.course_id] = c.name;
+                // Helper to build groups for a single course
+                const buildGroupsForCourse = (c) => {
                     const sections = allSections[c.course_id] || [];
-
                     if (c.course_id.startsWith('BASKET_')) {
                         const sectionsByCourse = {};
                         for (const sec of sections) {
                             if (!sectionsByCourse[sec.course_id]) sectionsByCourse[sec.course_id] = [];
                             sectionsByCourse[sec.course_id].push(sec);
                         }
-
                         let basketOptions = [];
                         for (const [subCourseId, subSections] of Object.entries(sectionsByCourse)) {
-                            // Treating each sub-course as a valid option for this slot
                             const subGroups = buildSectionGroups(subSections, subCourseId);
-                            // Attach original basket ID for consistent coloring
                             subGroups.forEach(g => g.originalCourseId = c.course_id);
                             basketOptions = basketOptions.concat(subGroups);
                         }
-                        courseGroups[c.course_id] = basketOptions;
+                        return basketOptions;
                     } else {
-                        courseGroups[c.course_id] = buildSectionGroups(sections, c.course_id);
+                        return buildSectionGroups(sections, c.course_id);
                     }
+                };
+
+                // Build course name map
+                const courseNames = {};
+                for (const c of selectedCourses) {
+                    courseNames[c.course_id] = c.name;
                 }
 
-                // Check if any course has no available groups
-                for (const c of selectedCourses) {
-                    if (courseGroups[c.course_id].length === 0) {
+                // Split courses into normal and XOR
+                const activeXor = selectedCourses.filter(c => xorCourseIds.has(c.course_id));
+                const normalCourses = selectedCourses.filter(c => !xorCourseIds.has(c.course_id));
+
+                // Build groups for normal courses
+                const baseCourseGroups = {};
+                for (const c of normalCourses) {
+                    baseCourseGroups[c.course_id] = buildGroupsForCourse(c);
+                }
+
+                // Check if any normal course has no available groups
+                for (const c of normalCourses) {
+                    if (baseCourseGroups[c.course_id].length === 0) {
                         setError(`No available sections found for ${c.name} (${c.course_id})`);
                         setGenerating(false);
                         return;
                     }
                 }
 
-                const scored = generateSchedules(courseGroups, prefs, courseNames);
-                setResults(scored);
+                let allScored;
+
+                if (activeXor.length <= 1) {
+                    // No XOR logic needed (0 or 1 XOR course = normal behavior)
+                    const courseGroups = { ...baseCourseGroups };
+                    for (const c of activeXor) {
+                        courseGroups[c.course_id] = buildGroupsForCourse(c);
+                    }
+                    // Check XOR course groups too
+                    for (const c of activeXor) {
+                        if (courseGroups[c.course_id].length === 0) {
+                            setError(`No available sections found for ${c.name} (${c.course_id})`);
+                            setGenerating(false);
+                            return;
+                        }
+                    }
+                    allScored = generateSchedules(courseGroups, prefs, courseNames);
+                } else {
+                    // XOR logic: generate schedules for each XOR course individually,
+                    // combined with all normal courses, then merge results
+                    allScored = [];
+                    for (const xorCourse of activeXor) {
+                        const groups = buildGroupsForCourse(xorCourse);
+                        if (groups.length === 0) continue; // Skip XOR courses with no sections
+
+                        const courseGroups = { ...baseCourseGroups, [xorCourse.course_id]: groups };
+                        const scored = generateSchedules(courseGroups, prefs, courseNames);
+                        scored.forEach(r => {
+                            r.xorSelected = { id: xorCourse.course_id, name: xorCourse.name };
+                        });
+                        allScored = allScored.concat(scored);
+                    }
+                    // Re-sort merged results by score and cap at 100
+                    allScored.sort((a, b) => b.score - a.score);
+                    allScored = allScored.slice(0, 100);
+                }
+
+                setResults(allScored);
                 setSavedScheduleIdx(null);
                 setShowAlternatives(false);
                 // Clear saved schedule when regenerating
+                localStorage.removeItem('schedule_saved');
+            } catch (e) {
+                setError('Error generating schedules: ' + e.message);
+            }
+            setGenerating(false);
+        }, 50);
+    };
+
+    const handleGenerateBestEffort = () => {
+        setError('');
+        setGenerating(true);
+        setResults(null);
+        setShowCount(3);
+
+        setTimeout(() => {
+            try {
+                const buildGroupsForCourse = (c) => {
+                    const sections = allSections[c.course_id] || [];
+                    if (c.course_id.startsWith('BASKET_')) {
+                        const sectionsByCourse = {};
+                        for (const sec of sections) {
+                            if (!sectionsByCourse[sec.course_id]) sectionsByCourse[sec.course_id] = [];
+                            sectionsByCourse[sec.course_id].push(sec);
+                        }
+                        let basketOptions = [];
+                        for (const [subCourseId, subSections] of Object.entries(sectionsByCourse)) {
+                            const subGroups = buildSectionGroups(subSections, subCourseId);
+                            subGroups.forEach(g => g.originalCourseId = c.course_id);
+                            basketOptions = basketOptions.concat(subGroups);
+                        }
+                        return basketOptions;
+                    } else {
+                        return buildSectionGroups(sections, c.course_id);
+                    }
+                };
+
+                const courseNames = {};
+                const allCourseGroups = {};
+                for (const c of selectedCourses) {
+                    courseNames[c.course_id] = c.name;
+                    const groups = buildGroupsForCourse(c);
+                    if (groups.length > 0) {
+                        allCourseGroups[c.course_id] = groups;
+                    }
+                }
+
+                const courseIds = Object.keys(allCourseGroups);
+
+                // Generate all combinations of a given size
+                const getCombinations = (arr, size) => {
+                    if (size === 0) return [[]];
+                    if (arr.length < size) return [];
+                    const results = [];
+                    for (let i = 0; i <= arr.length - size; i++) {
+                        const rest = getCombinations(arr.slice(i + 1), size - 1);
+                        for (const combo of rest) {
+                            results.push([arr[i], ...combo]);
+                        }
+                    }
+                    return results;
+                };
+
+                // Try subsets from largest (N-1) to smallest (1)
+                let allScored = [];
+                for (let size = courseIds.length - 1; size >= 1; size--) {
+                    const combos = getCombinations(courseIds, size);
+                    for (const combo of combos) {
+                        const subGroups = {};
+                        for (const cid of combo) {
+                            subGroups[cid] = allCourseGroups[cid];
+                        }
+                        const scored = generateSchedules(subGroups, prefs, courseNames);
+                        // Tag each result with which courses were dropped
+                        const dropped = courseIds.filter(id => !combo.includes(id));
+                        const droppedNames = dropped.map(id => courseNames[id] || id);
+                        scored.forEach(r => {
+                            r.warnings = [
+                                `Excluded: ${droppedNames.join(', ')}`,
+                                ...r.warnings
+                            ];
+                        });
+                        allScored = allScored.concat(scored);
+                    }
+                    if (allScored.length > 0) break; // Found results at this size, stop
+                }
+
+                allScored.sort((a, b) => b.score - a.score);
+                allScored = allScored.slice(0, 100);
+
+                setResults(allScored);
+                setSavedScheduleIdx(null);
+                setShowAlternatives(false);
                 localStorage.removeItem('schedule_saved');
             } catch (e) {
                 setError('Error generating schedules: ' + e.message);
@@ -880,15 +1037,27 @@ export default function SchedulePage() {
                         {selectedCourses.length > 0 ? (
                             <div className={styles.selectedCourses}>
                                 {selectedCourses.map(c => (
-                                    <div key={c.course_id} className={styles.courseChip}>
+                                    <div key={c.course_id} className={`${styles.courseChip} ${xorCourseIds.has(c.course_id) ? styles.courseChipXor : ''}`}>
                                         <div className={styles.courseChipInfo}>
                                             <span className={styles.courseChipId}>{c.course_id}</span>
                                             <span className={styles.courseChipName}>{c.name}</span>
                                             {loadingCourseIds.has(c.course_id) && <span className={styles.spinner} style={{ width: 12, height: 12, borderWidth: 2, marginLeft: 8 }}></span>}
                                         </div>
-                                        <button className={styles.removeBtn} onClick={() => removeCourse(c.course_id)}>×</button>
+                                        <div className={styles.courseChipActions}>
+                                            <button
+                                                className={`${styles.xorToggle} ${xorCourseIds.has(c.course_id) ? styles.xorToggleActive : ''}`}
+                                                onClick={() => toggleXor(c.course_id)}
+                                                title="Exclusive Or — only one XOR course will appear per schedule"
+                                            >XOR</button>
+                                            <button className={styles.removeBtn} onClick={() => removeCourse(c.course_id)}>×</button>
+                                        </div>
                                     </div>
                                 ))}
+                                {xorCourseIds.size >= 1 && (
+                                    <div className={styles.xorInfo}>
+                                        Schedules will include only one of the XOR courses at a time.
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <div className={styles.emptyCourses}>
@@ -1306,15 +1475,29 @@ export default function SchedulePage() {
                         <div className={styles.noResultsIcon}></div>
                         <div className={styles.noResultsTitle}>No valid schedules found</div>
                         <div className={styles.noResultsText}>
-                            Try relaxing your time constraints or removing a course
+                            All {selectedCourses.length} courses could not fit into a single schedule without conflicts.
                         </div>
-                        <button
-                            className={styles.generateBtn}
-                            onClick={() => setResults(null)}
-                            style={{ width: 'auto', padding: '10px 20px', marginTop: '16px' }}
-                        >
-                            Modify Preferences
-                        </button>
+                        <div className={styles.noResultsButtons}>
+                            <button
+                                className={styles.generateBtn}
+                                onClick={handleGenerateBestEffort}
+                                disabled={generating}
+                                style={{ width: 'auto', padding: '10px 20px', marginTop: '12px' }}
+                            >
+                                {generating ? <span className={styles.spinner}></span> : 'Generate Best Fit'}
+                            </button>
+                            <button
+                                className={styles.secondaryBtn}
+                                onClick={() => setResults(null)}
+                                style={{ width: 'auto', padding: '10px 20px', marginTop: '8px' }}
+                            >
+                                Modify Preferences
+                            </button>
+                        </div>
+                        <div className={styles.noResultsHint}>
+                            Best Fit will generate schedules with as many courses as possible,
+                            excluding the ones that cause conflicts.
+                        </div>
                     </div>
                 )}
             </main>
@@ -1380,6 +1563,24 @@ function ScheduleCard({ result, rank, courseNameMap, selectedCourses, onSave, on
                 <span className={styles.scheduleRank}>Schedule #{rank}</span>
                 <span className={styles.scheduleScore}>Score: {Math.round(score)}</span>
             </div>
+
+            {result.xorSelected && (() => {
+                let displayName = result.xorSelected.name;
+                let displayId = result.xorSelected.id;
+                // For baskets, find the actual course from the schedule
+                if (result.xorSelected.id.startsWith('BASKET_')) {
+                    const basketGroup = schedule.find(g => g.originalCourseId === result.xorSelected.id);
+                    if (basketGroup) {
+                        displayId = basketGroup.courseId;
+                        displayName = courseNameMap[basketGroup.courseId] || displayId;
+                    }
+                }
+                return (
+                    <div className={styles.xorSelectedInfo}>
+                        Includes: {displayName} ({displayId})
+                    </div>
+                );
+            })()}
 
             {warnings.length > 0 && (
                 <div className={styles.prefWarnings}>
