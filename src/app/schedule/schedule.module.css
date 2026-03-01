@@ -220,6 +220,10 @@
     color: var(--text-inverse);
 }
 
+.xorToggleActive:hover {
+    color: var(--text-inverse);
+}
+
 .courseChipXor {
     border-color: var(--color-accent);
     box-shadow: 0 0 0 1px rgba(0, 195, 137, 0.2);
