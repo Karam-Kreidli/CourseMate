@@ -6,7 +6,7 @@ export async function GET(request) {
     const code = searchParams.get('code');
     const token_hash = searchParams.get('token_hash');
     const type = searchParams.get('type');
-    const next = searchParams.get('next') || '/';
+    const next = searchParams.get('next');
 
     const supabase = await createClient();
 
@@ -14,7 +14,9 @@ export async function GET(request) {
     if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
         if (!error) {
-            return NextResponse.redirect(new URL(next, request.url));
+            // Default to reset-password page for recovery flows
+            const redirectPath = next || '/auth/reset-password';
+            return NextResponse.redirect(new URL(redirectPath, request.url));
         }
     }
 
@@ -25,7 +27,8 @@ export async function GET(request) {
             type,
         });
         if (!error) {
-            return NextResponse.redirect(new URL(next, request.url));
+            const redirectPath = type === 'recovery' ? '/auth/reset-password' : (next || '/');
+            return NextResponse.redirect(new URL(redirectPath, request.url));
         }
     }
 
