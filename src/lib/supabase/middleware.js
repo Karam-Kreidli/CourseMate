@@ -43,5 +43,18 @@ export async function updateSession(request) {
         // Ignore auth errors during middleware
     }
 
+    // Handle auth callback code from any page (Supabase may redirect to root)
+    const code = request.nextUrl.searchParams.get('code');
+    if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (!error) {
+            // Redirect to reset-password page after successful code exchange
+            const url = request.nextUrl.clone();
+            url.pathname = '/auth/reset-password';
+            url.searchParams.delete('code');
+            return NextResponse.redirect(url);
+        }
+    }
+
     return supabaseResponse;
 }
