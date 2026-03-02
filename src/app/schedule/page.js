@@ -466,7 +466,14 @@ export default function SchedulePage() {
         setMajorInfo(majorData || { dept_electives_count: 0 });
         setProfile(profileData);
         fetchCourses(profileData.major);
-        restoreSavedSchedule(profileData);
+
+        // Restore: prioritize saved schedule, then just selected courses
+        const hasSavedSchedule = localStorage.getItem('schedule_saved');
+        if (hasSavedSchedule) {
+            restoreSavedSchedule(profileData);
+        } else {
+            restoreSelectedCourses(profileData);
+        }
     };
 
     const restoreSavedSchedule = async (prof) => {
@@ -515,6 +522,59 @@ export default function SchedulePage() {
             setRestoringFromSave(false);
         }
     };
+
+    const restoreSelectedCourses = async (prof) => {
+        try {
+            const saved = localStorage.getItem('schedule_selectedCourses');
+            if (!saved) return;
+            const { courses: savedCourses, xor: savedXor } = JSON.parse(saved);
+            if (!savedCourses?.length) return;
+
+            // Separate basket/special courses from real course IDs
+            const realCourseIds = savedCourses.filter(c => !c.course_id.startsWith('BASKET_')).map(c => c.course_id);
+            const basketCourses = savedCourses.filter(c => c.course_id.startsWith('BASKET_'));
+
+            let restoredCourses = [...basketCourses];
+
+            if (realCourseIds.length > 0) {
+                const { data: courseData } = await supabase
+                    .from('courses').select('course_id, course_name').in('course_id', realCourseIds);
+                if (courseData) {
+                    restoredCourses = restoredCourses.concat(
+                        courseData.map(c => ({ course_id: c.course_id, name: c.course_name }))
+                    );
+                }
+            }
+
+            if (restoredCourses.length === 0) return;
+
+            setSelectedCourses(restoredCourses);
+            if (savedXor?.length) {
+                setXorCourseIds(new Set(savedXor));
+            }
+
+            // Fetch sections for all restored courses
+            for (const c of restoredCourses) {
+                fetchSectionsForCourse(c.course_id);
+            }
+        } catch (e) {
+            console.error('Error restoring selected courses:', e);
+        }
+    };
+
+    // Persist selected courses and XOR state whenever they change
+    // Skip until profile is loaded to avoid clearing localStorage on initial mount
+    useEffect(() => {
+        if (!profile) return;
+        if (selectedCourses.length > 0) {
+            localStorage.setItem('schedule_selectedCourses', JSON.stringify({
+                courses: selectedCourses,
+                xor: [...xorCourseIds],
+            }));
+        } else {
+            localStorage.removeItem('schedule_selectedCourses');
+        }
+    }, [selectedCourses, xorCourseIds, profile]);
 
     const fetchCourses = async (userMajor) => {
         if (!userMajor) return;
@@ -967,6 +1027,13 @@ export default function SchedulePage() {
         document.addEventListener('click', handler);
         return () => document.removeEventListener('click', handler);
     }, []);
+
+    // Scroll to top when an error appears
+    useEffect(() => {
+        if (error) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }, [error]);
 
     if (!profile) {
         return (
