@@ -61,6 +61,25 @@ function parseClassTime(classTimeStr) {
     return days.map(day => ({ day, start: startMin, end: endMin }));
 }
 
+function decodeHtmlEntities(text) {
+    if (!text) return text;
+    return text
+        .replace(/&#39;/g, "'")
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>');
+}
+
+function mapSectionsData(data) {
+    if (!data) return [];
+    return data.map(sec => ({
+        ...sec,
+        instructor: decodeHtmlEntities(sec.instructor)
+    }));
+}
+
+
 
 function getBaseSection(sectionNum) {
     // Strip trailing lab/tutorial letters, but preserve language indicators (A, E)
@@ -526,7 +545,7 @@ export default function SchedulePage() {
                 const { data } = await supabase
                     .from('sections').select('*').eq('course_id', cid)
                     .in('campus', allowedCampuses).order('section_num');
-                sectionMap[cid] = data || [];
+                sectionMap[cid] = mapSectionsData(data) || [];
             }
             setAllSections(sectionMap);
 
@@ -662,7 +681,7 @@ export default function SchedulePage() {
                     .in('campus', allowedCampuses)
                     .order('section_num');
 
-                setAllSections(prev => ({ ...prev, [courseId]: data || [] })); // Assign to specific slot
+                setAllSections(prev => ({ ...prev, [courseId]: mapSectionsData(data) || [] })); // Assign to specific slot
                 return;
             }
 
@@ -694,14 +713,14 @@ export default function SchedulePage() {
                     .in('campus', allowedCampuses)
                     .order('section_num');
 
-                setAllSections(prev => ({ ...prev, [courseId]: data || [] }));
+                setAllSections(prev => ({ ...prev, [courseId]: mapSectionsData(data) || [] }));
                 return;
             }
 
             const { data } = await supabase
                 .from('sections').select('*').eq('course_id', courseId)
                 .in('campus', allowedCampuses).order('section_num');
-            setAllSections(prev => ({ ...prev, [courseId]: data || [] }));
+            setAllSections(prev => ({ ...prev, [courseId]: mapSectionsData(data) || [] }));
         } finally {
             setLoadingCourseIds(prev => {
                 const next = new Set(prev);
