@@ -581,8 +581,9 @@ export default function SchedulePage() {
             }
 
             // Fetch sections for all restored courses
+            // Pass prof directly to avoid stale state (profile may not be set yet)
             for (const c of restoredCourses) {
-                fetchSectionsForCourse(c.course_id);
+                fetchSectionsForCourse(c.course_id, prof);
             }
         } catch (e) {
             console.error('Error restoring selected courses:', e);
@@ -614,14 +615,15 @@ export default function SchedulePage() {
         setCourses((data || []).map(c => ({ course_id: c.course_id, name: c.course_name })));
     };
 
-    const fetchSectionsForCourse = async (courseId) => {
+    const fetchSectionsForCourse = async (courseId, profileOverride) => {
         setLoadingCourseIds(prev => new Set([...prev, courseId]));
-        const allowedCampuses = profile?.gender === 'male' ? ['main', 'men'] : ['main', 'women'];
+        const prof = profileOverride || profile;
+        const allowedCampuses = prof?.gender === 'male' ? ['main', 'men'] : ['main', 'women'];
 
         try {
             // Handle Department Electives
             if (courseId.startsWith('BASKET_DEPT')) {
-                if (!profile?.major) {
+                if (!prof?.major) {
                     setAllSections(prev => ({ ...prev, [courseId]: [] })); // Use passed courseId (e.g. BASKET_DEPT_1)
                     return;
                 }
@@ -630,7 +632,7 @@ export default function SchedulePage() {
                 const { data: majorElectives } = await supabase
                     .from('major_courses')
                     .select('course_id')
-                    .eq('major_code', profile.major)
+                    .eq('major_code', prof.major)
                     .eq('category', 'Major Elective');
 
                 if (!majorElectives?.length) {
