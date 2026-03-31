@@ -20,7 +20,23 @@ export default function ResetPasswordPage() {
     const supabase = createClient();
 
     useEffect(() => {
-        const checkSession = async () => {
+        const setup = async () => {
+            // Check if there's a code to exchange (redirected from root page)
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+
+            if (code) {
+                // Exchange the code for a session
+                const { error } = await supabase.auth.exchangeCodeForSession(code);
+                if (!error) {
+                    // Clean up URL
+                    window.history.replaceState({}, '', '/auth/reset-password');
+                    setReady(true);
+                    return;
+                }
+            }
+
+            // No code — check if we already have a session
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
                 setReady(true);
@@ -29,7 +45,7 @@ export default function ResetPasswordPage() {
                 setReady(true);
             }
         };
-        checkSession();
+        setup();
     }, []);
 
     const handleReset = async (e) => {

@@ -33,13 +33,9 @@ export default function HomePage() {
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
         if (code) {
-            const { error } = await supabase.auth.exchangeCodeForSession(code);
-            if (!error) {
-                // Clean up URL and redirect to reset-password page
-                window.history.replaceState({}, '', '/');
-                router.push('/auth/reset-password');
-                return;
-            }
+            // Redirect to reset-password page with the code — let it handle the exchange
+            router.replace(`/auth/reset-password?code=${code}`);
+            return;
         }
 
         const { data: { user } } = await supabase.auth.getUser();
