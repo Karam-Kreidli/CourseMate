@@ -175,7 +175,7 @@ export default function HomePage() {
                 <div className={styles.headerTop}>
                     <div className={styles.logoContainer}>
                         <div className={styles.logoFrame}>
-                            <Image src="/logo-v2.png" alt="CourseMate" width={36} height={36} className={styles.logoImage} />
+                            <Image src="/logo.png" alt="CourseMate" width={256} height={256} className={styles.logoImage} />
                         </div>
                         <span className={styles.logoText}>CourseMate</span>
                     </div>
