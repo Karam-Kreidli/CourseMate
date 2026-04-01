@@ -89,7 +89,7 @@ export default function ResetPasswordPage() {
                 <div className={styles.card}>
                     <div className={styles.logoWrapper}>
                         <div className={styles.logoFrame}>
-                            <Image src="/logo-v2.png" alt="CourseMate" width={72} height={72} className={styles.logo} />
+                            <Image src="/logo.png" alt="CourseMate" width={256} height={256} className={styles.logo} />
                         </div>
                         <h1 className={styles.title}>CourseMate</h1>
                         <p className={styles.subtitle}>Verifying reset link...</p>
@@ -107,7 +107,7 @@ export default function ResetPasswordPage() {
             <div className={styles.card}>
                 <div className={styles.logoWrapper}>
                     <div className={styles.logoFrame}>
-                        <Image src="/logo-v2.png" alt="CourseMate" width={72} height={72} className={styles.logo} />
+                        <Image src="/logo.png" alt="CourseMate" width={256} height={256} className={styles.logo} />
                     </div>
                     <h1 className={styles.title}>CourseMate</h1>
                     <p className={styles.subtitle}>Reset your password</p>

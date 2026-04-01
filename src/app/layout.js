@@ -5,9 +5,9 @@ export const metadata = {
     title: 'CourseMate',
     description: 'University course section swap platform',
     icons: {
-        icon: '/logo-v2.png',
-        shortcut: '/logo-v2.png',
-        apple: '/logo-v2.png',
+        icon: '/logo.png',
+        shortcut: '/logo.png',
+        apple: '/logo.png',
     },
 };
 
