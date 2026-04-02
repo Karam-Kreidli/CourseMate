@@ -12,12 +12,12 @@ export async function GET(request) {
 
     // Handle PKCE flow (code-based)
     if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (!error) {
-            // Default to reset-password page for recovery flows
-            const redirectPath = next || '/auth/reset-password';
-            return NextResponse.redirect(new URL(redirectPath, request.url));
-        }
+        // Do NOT exchange code on the server. The PKCE verifier cookie might be out of sync.
+        // Instead, pass the code to the client-side reset-password page to exchange it there.
+        const redirectPath = next || '/auth/reset-password';
+        const redirectUrl = new URL(redirectPath, request.url);
+        redirectUrl.searchParams.set('code', code);
+        return NextResponse.redirect(redirectUrl);
     }
 
     // Handle magic link / recovery flow (token_hash-based)
