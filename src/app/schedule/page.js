@@ -408,7 +408,8 @@ function generateSchedules(courseGroups, prefs, courseNames) {
             const basketId = group.originalCourseId;
             if (basketId?.startsWith('BASKET_')) {
                 const isDept = basketId.startsWith('BASKET_DEPT_');
-                const prefsKey = isDept ? 'BASKET_DEPT' : basketId;
+                const isSupport = basketId.startsWith('BASKET_SUPPORT_');
+                const prefsKey = isDept ? 'BASKET_DEPT' : isSupport ? 'BASKET_SUPPORT' : basketId;
 
                 if (!prefs.hardElectiveFilter?.[prefsKey]) {
                     const preferred = prefs.preferredElectives?.[prefsKey] || [];
@@ -416,6 +417,9 @@ function generateSchedules(courseGroups, prefs, courseNames) {
                         if (isDept) {
                             const deptCount = schedule.filter(g => g.originalCourseId?.startsWith('BASKET_DEPT_')).length;
                             score += (20 / deptCount);
+                        } else if (isSupport) {
+                            const supportCount = schedule.filter(g => g.originalCourseId?.startsWith('BASKET_SUPPORT_')).length;
+                            score += (20 / supportCount);
                         } else {
                             score += 20;
                         }
@@ -506,8 +510,19 @@ export default function SchedulePage() {
         if (!isComplete || !profileData?.major) { router.push('/profile?selectMajor=true'); return; }
 
         // Fetch major info
-        const { data: majorData } = await supabase
-            .from('majors').select('dept_electives_count').eq('code', profileData.major).single();
+        let majorData;
+        {
+            const { data, error } = await supabase
+                .from('majors').select('dept_electives_count, support_electives_count').eq('code', profileData.major).single();
+            if (error) {
+                // Fallback: support_electives_count column might not exist yet
+                const { data: fallback } = await supabase
+                    .from('majors').select('dept_electives_count').eq('code', profileData.major).single();
+                majorData = fallback ? { ...fallback, support_electives_count: 0 } : null;
+            } else {
+                majorData = data;
+            }
+        }
 
         setMajorInfo(majorData || { dept_electives_count: 0 });
         setProfile(profileData);
@@ -685,6 +700,49 @@ export default function SchedulePage() {
                 return;
             }
 
+            // Handle Support Electives
+            if (courseId.startsWith('BASKET_SUPPORT')) {
+                if (!prof?.major) {
+                    setAllSections(prev => ({ ...prev, [courseId]: [] }));
+                    return;
+                }
+
+                // Get courses in this major marked as 'Support Elective'
+                const { data: supportElectives } = await supabase
+                    .from('major_courses')
+                    .select('course_id')
+                    .eq('major_code', prof.major)
+                    .eq('category', 'Support Elective');
+
+                if (!supportElectives?.length) {
+                    setAllSections(prev => ({ ...prev, [courseId]: [] }));
+                    return;
+                }
+
+                const electiveIds = supportElectives.map(mc => mc.course_id);
+
+                const { data: courseData } = await supabase
+                    .from('courses')
+                    .select('course_id, course_name')
+                    .in('course_id', electiveIds);
+
+                const newExtraNames = {};
+                if (courseData) {
+                    courseData.forEach(c => newExtraNames[c.course_id] = c.course_name);
+                    setExtraCourseNames(prev => ({ ...prev, ...newExtraNames }));
+                }
+
+                const { data } = await supabase
+                    .from('sections')
+                    .select('*')
+                    .in('course_id', electiveIds)
+                    .in('campus', allowedCampuses)
+                    .order('section_num');
+
+                setAllSections(prev => ({ ...prev, [courseId]: mapSectionsData(data) || [] }));
+                return;
+            }
+
             // Handle Basket Wildcards
             if (courseId.startsWith('BASKET_')) {
                 const basketName = courseId === 'BASKET_1' ? 'Basket 1' : 'Basket 2';
@@ -742,9 +800,11 @@ export default function SchedulePage() {
 
     const addDeptElective = () => {
         const maxElectives = majorInfo?.dept_electives_count || 0;
+        const hasSupportElectives = majorInfo?.support_electives_count > 0;
+        const label = hasSupportElectives ? 'Major Elective' : 'Department Elective';
 
         if (maxElectives === 0) {
-            setError('Your major does not have department electives configured.');
+            setError(`Your major does not have ${label.toLowerCase()}s configured.`);
             return;
         }
 
@@ -756,15 +816,41 @@ export default function SchedulePage() {
 
         // Max based on major
         if (nextIndex > maxElectives) {
-            setError(`Maximum of ${maxElectives} department electives allowed for your major.`);
+            setError(`Maximum of ${maxElectives} ${label.toLowerCase()}s allowed for your major.`);
             return;
         }
 
         addCourse({
             course_id: `BASKET_DEPT_${nextIndex}`,
-            name: `Department Elective ${nextIndex}`,
+            name: `${label} ${nextIndex}`,
             is_basket: true,
-            basket_name: 'Department Elective'
+            basket_name: label
+        });
+    };
+
+    const addSupportElective = () => {
+        const maxElectives = majorInfo?.support_electives_count || 0;
+
+        if (maxElectives === 0) {
+            setError('Your major does not have support electives configured.');
+            return;
+        }
+
+        let nextIndex = 1;
+        while (selectedCourses.find(c => c.course_id === `BASKET_SUPPORT_${nextIndex}`)) {
+            nextIndex++;
+        }
+
+        if (nextIndex > maxElectives) {
+            setError(`Maximum of ${maxElectives} support electives allowed for your major.`);
+            return;
+        }
+
+        addCourse({
+            course_id: `BASKET_SUPPORT_${nextIndex}`,
+            name: `Support Elective ${nextIndex}`,
+            is_basket: true,
+            basket_name: 'Support Elective'
         });
     };
 
@@ -777,6 +863,14 @@ export default function SchedulePage() {
                 setPrefs(p => {
                     const pe = { ...p.preferredElectives }; delete pe['BASKET_DEPT'];
                     const hf = { ...p.hardElectiveFilter }; delete hf['BASKET_DEPT'];
+                    return { ...p, preferredElectives: pe, hardElectiveFilter: hf };
+                });
+            }
+            // Cleanup shared BASKET_SUPPORT preferences if the last one was removed
+            if (courseId.startsWith('BASKET_SUPPORT_') && !next.some(c => c.course_id.startsWith('BASKET_SUPPORT_'))) {
+                setPrefs(p => {
+                    const pe = { ...p.preferredElectives }; delete pe['BASKET_SUPPORT'];
+                    const hf = { ...p.hardElectiveFilter }; delete hf['BASKET_SUPPORT'];
                     return { ...p, preferredElectives: pe, hardElectiveFilter: hf };
                 });
             }
@@ -1173,11 +1267,20 @@ export default function SchedulePage() {
                             <button className={styles.basketBtn} onClick={() => addCourse({ course_id: 'BASKET_2', name: 'University Elective (Basket 2)', is_basket: true, basket_name: 'Basket 2' })}>
                                 + Group 2 Elective
                             </button>
-                            {majorInfo?.dept_electives_count > 0 && (
+                            {majorInfo?.dept_electives_count > 0 && majorInfo?.support_electives_count > 0 ? (
+                                <>
+                                    <button className={styles.basketBtn} onClick={addDeptElective}>
+                                        + Major Elective
+                                    </button>
+                                    <button className={styles.basketBtn} onClick={addSupportElective}>
+                                        + Support Elective
+                                    </button>
+                                </>
+                            ) : majorInfo?.dept_electives_count > 0 ? (
                                 <button className={`${styles.basketBtn} ${styles.basketBtnFull}`} onClick={addDeptElective}>
                                     + Department Elective
                                 </button>
-                            )}
+                            ) : null}
                         </div>
                     </div>
                 )}
@@ -1266,16 +1369,21 @@ export default function SchedulePage() {
                                     {selectedCourses.map(c => {
                                         const isBasket = c.course_id.startsWith('BASKET_');
                                         const isDeptBasket = c.course_id.startsWith('BASKET_DEPT_');
+                                        const isSupportBasket = c.course_id.startsWith('BASKET_SUPPORT_');
 
                                         // If it's a department basket, only show preferences for the FIRST one added
                                         if (isDeptBasket) {
                                             const firstDeptBasket = selectedCourses.find(sc => sc.course_id.startsWith('BASKET_DEPT_'));
                                             if (c.course_id !== firstDeptBasket.course_id) return null;
                                         }
+                                        if (isSupportBasket) {
+                                            const firstSupportBasket = selectedCourses.find(sc => sc.course_id.startsWith('BASKET_SUPPORT_'));
+                                            if (c.course_id !== firstSupportBasket.course_id) return null;
+                                        }
 
                                         if (isBasket) {
-                                            const prefsKey = isDeptBasket ? 'BASKET_DEPT' : c.course_id;
-                                            const displayName = isDeptBasket ? 'Department Electives' : c.name;
+                                            const prefsKey = isDeptBasket ? 'BASKET_DEPT' : isSupportBasket ? 'BASKET_SUPPORT' : c.course_id;
+                                            const displayName = isDeptBasket ? (majorInfo?.support_electives_count > 0 ? 'Major Electives' : 'Department Electives') : isSupportBasket ? 'Support Electives' : c.name;
 
                                             const basketSections = allSections[c.course_id] || [];
                                             const subCourseIds = [...new Set(basketSections.map(s => s.course_id))].sort();
