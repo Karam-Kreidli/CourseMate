@@ -1093,9 +1093,7 @@ export default function SchedulePage() {
     if (!profile) {
         return (
             <div className={styles.page}>
-                <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '40vh' }}>
-                    <span className={styles.spinner}></span>
-                </div>
+                <div className={styles.spinner} style={{ margin: '60px auto' }}></div>
                 <BottomNav />
             </div>
         );
@@ -1103,6 +1101,7 @@ export default function SchedulePage() {
 
     return (
         <div className={styles.page}>
+            <div className={styles.pageInner}>
             <header className={styles.header}>
                 <h1>Schedule Builder</h1>
                 <ThemeToggle />
@@ -1122,7 +1121,7 @@ export default function SchedulePage() {
                         <button className={styles.editCoursesBtn} onClick={() => setResults(null)}>Edit Courses</button>
                     </div>
                 ) : (
-                    <div className={styles.section}>
+                    <div className={`${styles.card} ${styles.section}`}>
                         <div className={styles.sectionTitle}>Select Courses</div>
                         <div className={styles.searchWrapper} onClick={e => e.stopPropagation()}>
                             <input type="text" value={courseSearch} onChange={(e) => { setCourseSearch(e.target.value); setShowDropdown(true); }} onFocus={() => setShowDropdown(true)} className={styles.input} placeholder="Search by course name or ID..." autoComplete="off" />
@@ -1486,6 +1485,7 @@ export default function SchedulePage() {
                     </div>
                 )}
             </main>
+            </div>
 
             <BottomNav />
         </div>

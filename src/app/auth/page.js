@@ -26,8 +26,17 @@ export default function AuthPage() {
     const [loading, setLoading] = useState(false);
     const [isForgotPassword, setIsForgotPassword] = useState(false);
     const [resetSent, setResetSent] = useState(false);
+    const [transitioning, setTransitioning] = useState(false);
     const router = useRouter();
     const supabase = createClient();
+
+    const navigateWithTransition = (path) => {
+        setTransitioning(true);
+        setTimeout(() => {
+            router.push(path);
+            router.refresh();
+        }, 420);
+    };
 
     // Fetch available majors on mount
     useEffect(() => {
@@ -55,8 +64,7 @@ export default function AuthPage() {
                 });
 
                 if (error) throw error;
-                router.push('/');
-                router.refresh();
+                navigateWithTransition('/');
             } else {
                 // Signup - validate all fields
                 if (!name.trim()) {
@@ -157,8 +165,7 @@ export default function AuthPage() {
                     console.error('Profile update error:', profileError);
                 }
 
-                router.push('/');
-                router.refresh();
+                navigateWithTransition('/');
             }
         } catch (err) {
             setError(err.message);
@@ -208,7 +215,7 @@ export default function AuthPage() {
 
     return (
         <div className={styles.container}>
-            <div className={styles.card}>
+            <div className={`${styles.card} ${transitioning ? styles.cardFadeOut : ''}`}>
                 <div className={styles.themeToggleWrapper}>
                     <ThemeToggle />
                 </div>

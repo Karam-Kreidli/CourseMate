@@ -1,3 +1,4 @@
+/* ===== Auth Page Container ===== */
 .container {
     min-height: 100vh;
     min-height: 100dvh;
@@ -5,9 +6,10 @@
     align-items: center;
     justify-content: center;
     padding: 20px;
-    background: var(--color-primary-dark);
+    background: var(--auth-bg);
     position: relative;
     overflow: hidden;
+    transition: background var(--transition-normal);
 }
 
 /* ===== Aceternity-style Animated Grid Background ===== */
@@ -16,11 +18,11 @@
     position: absolute;
     inset: 0;
     background-image:
-        linear-gradient(rgba(0, 195, 137, 0.07) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 195, 137, 0.07) 1px, transparent 1px);
+        linear-gradient(var(--auth-grid-color) 1px, transparent 1px),
+        linear-gradient(90deg, var(--auth-grid-color) 1px, transparent 1px);
     background-size: 60px 60px;
-    mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 20%, transparent 70%);
-    -webkit-mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 20%, transparent 70%);
+    mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 20%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 20%, transparent 75%);
     animation: gridPulse 8s ease-in-out infinite;
 }
 
@@ -30,7 +32,7 @@
     width: 600px;
     height: 600px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(0, 195, 137, 0.12) 0%, rgba(0, 195, 137, 0.04) 40%, transparent 70%);
+    background: radial-gradient(circle, var(--auth-orb-color) 0%, rgba(0, 195, 137, 0.03) 40%, transparent 70%);
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
@@ -50,11 +52,19 @@
     }
     50% {
         transform: translate(-50%, -50%) scale(1.15);
-        opacity: 0.8;
+        opacity: 0.85;
     }
 }
 
-/* Floating ambient particles */
+/* ===== Card Fade Out Transition ===== */
+.cardFadeOut {
+    opacity: 0 !important;
+    transform: translateY(-20px) scale(0.96) !important;
+    pointer-events: none;
+    transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* ===== Card ===== */
 .container .card {
     position: relative;
     z-index: 2;
@@ -64,8 +74,8 @@
     width: 100%;
     max-width: 420px;
     background: var(--glass-bg-dense);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
     border-radius: var(--radius-xl);
     padding: 36px 28px;
     box-shadow: var(--shadow-xl);
@@ -104,7 +114,7 @@
     z-index: 5;
 }
 
-/* Logo */
+/* ===== Logo ===== */
 .logoWrapper {
     text-align: center;
     margin-bottom: 36px;
@@ -152,7 +162,7 @@
     letter-spacing: 0.01em;
 }
 
-/* Form */
+/* ===== Form ===== */
 .form {
     margin-bottom: 24px;
 }
@@ -198,6 +208,7 @@
     cursor: not-allowed;
 }
 
+/* ===== Error ===== */
 .error {
     padding: 12px 16px;
     background: rgba(239, 68, 68, 0.08);
@@ -210,6 +221,7 @@
     animation: fadeInScale 0.2s var(--ease-out-expo);
 }
 
+/* ===== Submit Button ===== */
 .submitBtn {
     width: 100%;
     padding: 14px 24px;
@@ -270,6 +282,7 @@
     cursor: not-allowed;
 }
 
+/* ===== Spinner ===== */
 .spinner {
     width: 20px;
     height: 20px;
@@ -288,7 +301,7 @@
     to { opacity: 1; transform: scale(1); }
 }
 
-/* Toggle */
+/* ===== Toggle ===== */
 .toggle {
     text-align: center;
     display: flex;
@@ -337,7 +350,7 @@
     cursor: not-allowed;
 }
 
-/* Password Visibility Toggle */
+/* ===== Password ===== */
 .passwordWrapper {
     position: relative;
     width: 100%;
@@ -375,7 +388,7 @@
     display: none;
 }
 
-/* Forgot Password */
+/* ===== Forgot Password ===== */
 .forgotPassword {
     text-align: right;
     margin-bottom: 14px;
@@ -396,7 +409,7 @@
     color: var(--color-accent);
 }
 
-/* Reset Sent Message */
+/* ===== Reset Sent Message ===== */
 .resetSentMessage {
     text-align: center;
     padding: 16px 0;
