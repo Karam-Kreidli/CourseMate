@@ -23,6 +23,7 @@ npm-debug.log*
 
 # Data files
 data_202520.json
+data_202610.json
 extract-sections.js
 
 # Database scripts

@@ -99,7 +99,7 @@ export default function AuthPage() {
                     .single();
 
                 if (existingProfile) {
-                    throw new Error('This University ID is already registered.wha');
+                    throw new Error('This University ID is already registered.');
                 }
 
                 if (password !== confirmPassword) {
