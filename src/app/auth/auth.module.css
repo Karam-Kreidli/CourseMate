@@ -56,20 +56,12 @@
     }
 }
 
-/* ===== Page Transition Overlay ===== */
-.transitionOverlay {
-    position: fixed;
-    inset: 0;
-    background: var(--color-primary-dark);
-    z-index: 9999;
-    opacity: 0;
+/* ===== Card Fade Out Transition ===== */
+.cardFadeOut {
+    opacity: 0 !important;
+    transform: translateY(-20px) scale(0.96) !important;
     pointer-events: none;
-    transition: opacity 0.5s ease;
-}
-
-.transitionOverlay.active {
-    opacity: 1;
-    pointer-events: all;
+    transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 /* ===== Card ===== */

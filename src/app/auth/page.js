@@ -215,9 +215,7 @@ export default function AuthPage() {
 
     return (
         <div className={styles.container}>
-            {/* Transition overlay */}
-            <div className={`${styles.transitionOverlay} ${transitioning ? styles.active : ''}`} />
-            <div className={styles.card}>
+            <div className={`${styles.card} ${transitioning ? styles.cardFadeOut : ''}`}>
                 <div className={styles.themeToggleWrapper}>
                     <ThemeToggle />
                 </div>
