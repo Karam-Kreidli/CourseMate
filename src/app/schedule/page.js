@@ -659,7 +659,7 @@ export default function SchedulePage() {
 
     const handleSaveSchedule = async (resultToSave) => {
         if (isSavingSchedule) return;
-        
+
         const newSig = getScheduleSignature(resultToSave.schedule);
         if (savedSignatures.has(newSig)) {
             setError('This exact schedule is already saved.');
@@ -1715,14 +1715,14 @@ export default function SchedulePage() {
                                     const isSaved = savedSignatures.has(sig);
                                     const dbId = savedSignatures.get(sig);
                                     return (
-                                        <ScheduleCard 
-                                            key={idx} 
-                                            result={result} 
-                                            rank={idx + 1} 
-                                            courseNameMap={courseNameMap} 
-                                            courseCreditsMap={courseCreditsMap} 
-                                            selectedCourses={selectedCourses} 
-                                            onSave={isSaved ? null : () => handleSaveSchedule(result)} 
+                                        <ScheduleCard
+                                            key={idx}
+                                            result={result}
+                                            rank={idx + 1}
+                                            courseNameMap={courseNameMap}
+                                            courseCreditsMap={courseCreditsMap}
+                                            selectedCourses={selectedCourses}
+                                            onSave={isSaved ? null : () => handleSaveSchedule(result)}
                                             onUnsave={isSaved ? () => handleDeleteSavedSchedule(dbId) : null}
                                             isSaved={isSaved}
                                             initiallyCollapsed={false}
@@ -1842,128 +1842,127 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
             </div>
 
             {cardOpen && (<>
-            {result.xorSelected && (() => {
-                let displayName = result.xorSelected.name;
-                let displayId = result.xorSelected.id;
-                // For baskets, find the actual course from the schedule
-                if (result.xorSelected.id.startsWith('BASKET_')) {
-                    const basketGroup = schedule.find(g => g.originalCourseId === result.xorSelected.id);
-                    if (basketGroup) {
-                        displayId = basketGroup.courseId;
-                        displayName = courseNameMap[basketGroup.courseId] || displayId;
+                {result.xorSelected && (() => {
+                    let displayName = result.xorSelected.name;
+                    let displayId = result.xorSelected.id;
+                    // For baskets, find the actual course from the schedule
+                    if (result.xorSelected.id.startsWith('BASKET_')) {
+                        const basketGroup = schedule.find(g => g.originalCourseId === result.xorSelected.id);
+                        if (basketGroup) {
+                            displayId = basketGroup.courseId;
+                            displayName = courseNameMap[basketGroup.courseId] || displayId;
+                        }
                     }
-                }
-                return (
-                    <div className={styles.xorSelectedInfo}>
-                        Includes: {displayName} ({displayId})
+                    return (
+                        <div className={styles.xorSelectedInfo}>
+                            Includes: {displayName} ({displayId})
+                        </div>
+                    );
+                })()}
+
+                {warnings.length > 0 && (
+                    <div className={styles.prefWarnings}>
+                        {warnings.map((w, i) => <span key={i} className={styles.prefWarning}>{w}</span>)}
                     </div>
-                );
-            })()}
+                )}
 
-            {warnings.length > 0 && (
-                <div className={styles.prefWarnings}>
-                    {warnings.map((w, i) => <span key={i} className={styles.prefWarning}>{w}</span>)}
-                </div>
-            )}
-
-            <div className={styles.timetable}>
-                <div className={styles.ttContainer} style={{ height: gridHeight + HEADER_HEIGHT }}>
-                    {/* Time axis labels */}
-                    <div className={styles.ttTimeAxis} style={{ height: gridHeight, top: HEADER_HEIGHT }}>
-                        {hours.map(h => (
-                            <div key={h} className={styles.ttTimeLabel} style={{ top: (h - startHour) * 60 * PX_PER_MIN }}>
-                                {formatTimeShort(h * 60)}
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Day columns */}
-                    <div className={styles.ttColumns}>
-                        {days.map(day => (
-                            <div key={day} className={styles.ttColumn}>
-                                <div className={styles.ttDayHeader}>{day}</div>
-                                <div className={styles.ttDayBody} style={{ height: gridHeight }}>
-                                    {/* Hour grid lines */}
-                                    {hours.slice(0, -1).map(h => (
-                                        <div key={h} className={styles.ttGridLine} style={{ top: (h - startHour) * 60 * PX_PER_MIN }} />
-                                    ))}
-
-                                    {/* Class blocks */}
-                                    {blocks
-                                        .filter(b => b.day === day)
-                                        .map((block, bi) => {
-                                            const top = (block.start - startHour * 60) * PX_PER_MIN;
-                                            const height = (block.end - block.start) * PX_PER_MIN;
-                                            return (
-                                                <div key={bi} className={styles.ttBlock} style={{ top, height, background: bgColors[block.colorIdx], borderLeftColor: colors[block.colorIdx], color: colors[block.colorIdx] }}>
-                                                    <span className={styles.ttBlockCourse}>{block.courseId}</span>
-                                                    {block.courseName && <span className={styles.ttBlockName}>{block.courseName}</span>}
-                                                    <span className={styles.ttBlockSection}>{block.sectionNum}</span>
-                                                </div>
-                                            );
-                                        })}
+                <div className={styles.timetable}>
+                    <div className={styles.ttContainer} style={{ height: gridHeight + HEADER_HEIGHT }}>
+                        {/* Time axis labels */}
+                        <div className={styles.ttTimeAxis} style={{ height: gridHeight, top: HEADER_HEIGHT }}>
+                            {hours.map(h => (
+                                <div key={h} className={styles.ttTimeLabel} style={{ top: (h - startHour) * 60 * PX_PER_MIN }}>
+                                    {formatTimeShort(h * 60)}
                                 </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
+                            ))}
+                        </div>
 
-            {/* Section details (collapsible) */}
-            <div
-                className={styles.detailsToggle}
-                onClick={() => setDetailsOpen(prev => !prev)}
-            >
-                {detailsOpen ? 'Hide details' : 'Show details'}
-            </div>
-            {detailsOpen && (
-                <div className={styles.scheduleDetails}>
-                    {schedule.map((group) => {
-                        const courseIdx = selectedCourses.findIndex(c => c.course_id === (group.originalCourseId || group.courseId));
-                        return group.sections.map((sec, secIdx) => (
-                            <div key={sec.crn || `${sec.course_id}-${sec.section_num}-${secIdx}`} className={styles.detailRow}>
-                                <div className={styles.detailColorBar} style={{ background: colors[courseIdx % 8] }}></div>
-                                <div className={styles.detailContent}>
-                                    <div className={styles.detailHeader}>
-                                        <span className={styles.detailCourseName}>{courseNameMap[sec.course_id] || sec.course_id}</span>
-                                        {isSaved && (
-                                            <a className={styles.requestLink} href={`/post?type=request&course=${sec.course_id}&section=${sec.section_num}`}>Request</a>
-                                        )}
-                                    </div>
-                                    <div className={styles.detailMeta}>
-                                        <span className={styles.detailSection}>{sec.section_num}</span>
-                                        <span className={styles.detailSep}>•</span>
-                                        <span className={styles.detailTime}>{sec.class_time}</span>
-                                        {sec.instructor && (
-                                            <>
-                                                <span className={styles.detailSep}>•</span>
-                                                <span className={styles.detailProf}>{sec.instructor}</span>
-                                            </>
-                                        )}
+                        {/* Day columns */}
+                        <div className={styles.ttColumns}>
+                            {days.map(day => (
+                                <div key={day} className={styles.ttColumn}>
+                                    <div className={styles.ttDayHeader}>{day}</div>
+                                    <div className={styles.ttDayBody} style={{ height: gridHeight }}>
+                                        {/* Hour grid lines */}
+                                        {hours.slice(0, -1).map(h => (
+                                            <div key={h} className={styles.ttGridLine} style={{ top: (h - startHour) * 60 * PX_PER_MIN }} />
+                                        ))}
+
+                                        {/* Class blocks */}
+                                        {blocks
+                                            .filter(b => b.day === day)
+                                            .map((block, bi) => {
+                                                const top = (block.start - startHour * 60) * PX_PER_MIN;
+                                                const height = (block.end - block.start) * PX_PER_MIN;
+                                                return (
+                                                    <div key={bi} className={styles.ttBlock} style={{ top, height, background: bgColors[block.colorIdx], borderLeftColor: colors[block.colorIdx], color: colors[block.colorIdx] }}>
+                                                        <span className={styles.ttBlockCourse}>{block.courseId}</span>
+                                                        {block.courseName && <span className={styles.ttBlockName}>{block.courseName}</span>}
+                                                        <span className={styles.ttBlockSection}>{block.sectionNum}</span>
+                                                    </div>
+                                                );
+                                            })}
                                     </div>
                                 </div>
-                            </div>
-                        ));
-                    })}
+                            ))}
+                        </div>
+                    </div>
                 </div>
-            )}
 
-            {onSave && !isSaved && (
-                <div className={styles.saveFooter}>
-                    <button className={styles.saveBtn} onClick={onSave} disabled={isSavingSchedule}>
-                        {isSavingSchedule ? <span className={styles.spinner} style={{ width: 14, height: 14, borderWidth: 2, borderColor: '#fff', borderTopColor: 'transparent' }}></span> : 'Save Schedule'}
-                    </button>
+                {/* Section details (collapsible) */}
+                <div
+                    className={styles.detailsToggle}
+                    onClick={() => setDetailsOpen(prev => !prev)}
+                >
+                    {detailsOpen ? 'Hide details' : 'Show details'}
                 </div>
-            )}
+                {detailsOpen && (
+                    <div className={styles.scheduleDetails}>
+                        {schedule.map((group) => {
+                            const courseIdx = selectedCourses.findIndex(c => c.course_id === (group.originalCourseId || group.courseId));
+                            return group.sections.map((sec, secIdx) => (
+                                <div key={sec.crn || `${sec.course_id}-${sec.section_num}-${secIdx}`} className={styles.detailRow}>
+                                    <div className={styles.detailColorBar} style={{ background: colors[courseIdx % 8] }}></div>
+                                    <div className={styles.detailContent}>
+                                        <div className={styles.detailHeader}>
+                                            <span className={styles.detailCourseName}>{courseNameMap[sec.course_id] || sec.course_id}</span>
+                                            {isSaved && (
+                                                <a className={styles.requestLink} href={`/post?type=request&course=${sec.course_id}&section=${sec.section_num}`}>Request</a>
+                                            )}
+                                        </div>
+                                        <div className={styles.detailMeta}>
+                                            <span className={styles.detailSection}>{sec.section_num}</span>
+                                            <span className={styles.detailSep}>•</span>
+                                            <span className={styles.detailTime}>{sec.class_time}</span>
+                                            {sec.instructor && (
+                                                <>
+                                                    <span className={styles.detailSep}>•</span>
+                                                    <span className={styles.detailProf}>{sec.instructor}</span>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ));
+                        })}
+                    </div>
+                )}
 
-            {isSaved && onUnsave && (
-                <div className={styles.saveFooter}>
-                    <button className={styles.unsaveBtn} onClick={onUnsave} disabled={isSavingSchedule} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                        Saved
-                    </button>
-                </div>
-            )}
+                {onSave && !isSaved && (
+                    <div className={styles.saveFooter}>
+                        <button className={styles.saveBtn} onClick={onSave} disabled={isSavingSchedule}>
+                            {isSavingSchedule ? <span className={styles.spinner} style={{ width: 14, height: 14, borderWidth: 2, borderColor: '#fff', borderTopColor: 'transparent' }}></span> : 'Save Schedule'}
+                        </button>
+                    </div>
+                )}
+
+                {isSaved && onUnsave && (
+                    <div className={styles.saveFooter}>
+                        <button className={styles.unsaveBtn} onClick={onUnsave} disabled={isSavingSchedule} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                            Unsave
+                        </button>
+                    </div>
+                )}
             </>)}
         </div>
     );
