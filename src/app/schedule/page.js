@@ -682,10 +682,17 @@ export default function SchedulePage() {
 
     const restoreSelectedCourses = async (prof) => {
         try {
-            const saved = localStorage.getItem('schedule_selectedCourses');
-            if (!saved) return;
-            const { courses: savedCourses, xor: savedXor } = JSON.parse(saved);
-            if (!savedCourses?.length) return;
+            const { data: cartData } = await supabase
+                .from('profiles')
+                .select('schedule_cart')
+                .eq('id', prof.id)
+                .single();
+
+            const cart = cartData?.schedule_cart;
+            if (!cart?.courses?.length) return;
+
+            const savedCourses = cart.courses;
+            const savedXor = cart.xor || [];
 
             // Separate basket/special courses from real course IDs
             const realCourseIds = savedCourses.filter(c => !c.course_id.startsWith('BASKET_')).map(c => c.course_id);
@@ -706,32 +713,31 @@ export default function SchedulePage() {
             if (restoredCourses.length === 0) return;
 
             setSelectedCourses(restoredCourses);
-            if (savedXor?.length) {
+            if (savedXor.length) {
                 setXorCourseIds(new Set(savedXor));
             }
 
-            // Fetch sections for all restored courses
-            // Pass prof directly to avoid stale state (profile may not be set yet)
             for (const c of restoredCourses) {
                 fetchSectionsForCourse(c.course_id, prof);
             }
         } catch (e) {
-            console.error('Error restoring selected courses:', e);
+            console.error('Error restoring cart from DB:', e);
         }
     };
 
-    // Persist selected courses and XOR state whenever they change
-    // Skip until profile is loaded to avoid clearing localStorage on initial mount
+    // Persist selected courses to Supabase (debounced)
     useEffect(() => {
         if (!profile) return;
-        if (selectedCourses.length > 0) {
-            localStorage.setItem('schedule_selectedCourses', JSON.stringify({
-                courses: selectedCourses,
-                xor: [...xorCourseIds],
-            }));
-        } else {
-            localStorage.removeItem('schedule_selectedCourses');
-        }
+        const timer = setTimeout(async () => {
+            const cartPayload = selectedCourses.length > 0
+                ? { courses: selectedCourses, xor: [...xorCourseIds] }
+                : null;
+            await supabase
+                .from('profiles')
+                .update({ schedule_cart: cartPayload })
+                .eq('id', profile.id);
+        }, 1000);
+        return () => clearTimeout(timer);
     }, [selectedCourses, xorCourseIds, profile]);
 
     const fetchCourses = async (userMajor) => {
@@ -1328,16 +1334,16 @@ export default function SchedulePage() {
                                 <h2 className={styles.sectionTitle}>Your Saved Schedules ({dbSavedSchedules.length}/3)</h2>
                             </div>
                             {dbSavedSchedules.map((savedObj, i) => (
-                                <ScheduleCard 
-                                    key={savedObj.dbId} 
-                                    result={savedObj} 
-                                    rank={i + 1} 
-                                    courseNameMap={courseNameMap} 
-                                    courseCreditsMap={courseCreditsMap} 
-                                    selectedCourses={savedObj.storedSelectedCourses} 
-                                    onSave={null} 
-                                    onUnsave={() => handleDeleteSavedSchedule(savedObj.dbId)} 
-                                    isSaved={true} 
+                                <ScheduleCard
+                                    key={savedObj.dbId}
+                                    result={savedObj}
+                                    rank={i + 1}
+                                    courseNameMap={courseNameMap}
+                                    courseCreditsMap={courseCreditsMap}
+                                    selectedCourses={savedObj.storedSelectedCourses}
+                                    onSave={null}
+                                    onUnsave={() => handleDeleteSavedSchedule(savedObj.dbId)}
+                                    isSaved={true}
                                     initiallyCollapsed={true}
                                 />
                             ))}
@@ -1775,9 +1781,7 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
         <div className={styles.scheduleCard}>
             <div className={styles.scheduleCardHeader} onClick={() => setCardOpen(!cardOpen)} style={{ cursor: 'pointer', userSelect: 'none' }}>
                 <span className={styles.scheduleRank}>
-                    <span style={{ display: 'inline-block', width: '16px', textAlign: 'center', marginRight: '6px', transform: cardOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', fontSize: '12px' }}>
-                        ▶
-                    </span>
+                    <span style={{ display: 'inline-block', width: '16px', textAlign: 'center', marginRight: '6px', transform: cardOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', fontSize: '12px' }}>▶</span>
                     {Number.isInteger(rank) ? `Schedule #${rank}` : rank}
                 </span>
                 <div className={styles.scheduleCardMeta}>
@@ -1786,131 +1790,129 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                 </div>
             </div>
 
-            {cardOpen && (
-                <>
-                    {result.xorSelected && (() => {
-                        let displayName = result.xorSelected.name;
-                        let displayId = result.xorSelected.id;
-                        // For baskets, find the actual course from the schedule
-                        if (result.xorSelected.id.startsWith('BASKET_')) {
-                            const basketGroup = schedule.find(g => g.originalCourseId === result.xorSelected.id);
-                            if (basketGroup) {
-                                displayId = basketGroup.courseId;
-                                displayName = courseNameMap[basketGroup.courseId] || displayId;
-                            }
-                        }
-                        return (
-                            <div className={styles.xorSelectedInfo}>
-                                Includes: {displayName} ({displayId})
-                            </div>
-                        );
-                    })()}
-
-                    {warnings.length > 0 && (
-                        <div className={styles.prefWarnings}>
-                            {warnings.map((w, i) => <span key={i} className={styles.prefWarning}>{w}</span>)}
-                        </div>
-                    )}
-
-                    <div className={styles.timetable}>
-                        <div className={styles.ttContainer} style={{ height: gridHeight + HEADER_HEIGHT }}>
-                            {/* Time axis labels */}
-                            <div className={styles.ttTimeAxis} style={{ height: gridHeight, top: HEADER_HEIGHT }}>
-                                {hours.map(h => (
-                                    <div key={h} className={styles.ttTimeLabel} style={{ top: (h - startHour) * 60 * PX_PER_MIN }}>
-                                        {formatTimeShort(h * 60)}
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Day columns */}
-                            <div className={styles.ttColumns}>
-                                {days.map(day => (
-                                    <div key={day} className={styles.ttColumn}>
-                                        <div className={styles.ttDayHeader}>{day}</div>
-                                        <div className={styles.ttDayBody} style={{ height: gridHeight }}>
-                                            {/* Hour grid lines */}
-                                            {hours.slice(0, -1).map(h => (
-                                                <div key={h} className={styles.ttGridLine} style={{ top: (h - startHour) * 60 * PX_PER_MIN }} />
-                                            ))}
-
-                                            {/* Class blocks */}
-                                            {blocks
-                                                .filter(b => b.day === day)
-                                                .map((block, bi) => {
-                                                    const top = (block.start - startHour * 60) * PX_PER_MIN;
-                                                    const height = (block.end - block.start) * PX_PER_MIN;
-                                                    return (
-                                                        <div key={bi} className={styles.ttBlock} style={{ top, height, background: bgColors[block.colorIdx], borderLeftColor: colors[block.colorIdx], color: colors[block.colorIdx] }}>
-                                                            <span className={styles.ttBlockCourse}>{block.courseId}</span>
-                                                            {block.courseName && <span className={styles.ttBlockName}>{block.courseName}</span>}
-                                                            <span className={styles.ttBlockSection}>{block.sectionNum}</span>
-                                                        </div>
-                                                    );
-                                                })}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
+            {cardOpen && (<>
+            {result.xorSelected && (() => {
+                let displayName = result.xorSelected.name;
+                let displayId = result.xorSelected.id;
+                // For baskets, find the actual course from the schedule
+                if (result.xorSelected.id.startsWith('BASKET_')) {
+                    const basketGroup = schedule.find(g => g.originalCourseId === result.xorSelected.id);
+                    if (basketGroup) {
+                        displayId = basketGroup.courseId;
+                        displayName = courseNameMap[basketGroup.courseId] || displayId;
+                    }
+                }
+                return (
+                    <div className={styles.xorSelectedInfo}>
+                        Includes: {displayName} ({displayId})
                     </div>
+                );
+            })()}
 
-                    {/* Section details (collapsible) */}
-                    <div
-                        className={styles.detailsToggle}
-                        onClick={() => setDetailsOpen(prev => !prev)}
-                    >
-                        {detailsOpen ? 'Hide details' : 'Show details'}
-                    </div>
-                    {detailsOpen && (
-                        <div className={styles.scheduleDetails}>
-                            {schedule.map((group) => {
-                                const courseIdx = selectedCourses.findIndex(c => c.course_id === (group.originalCourseId || group.courseId));
-                                return group.sections.map((sec, secIdx) => (
-                                    <div key={sec.crn || `${sec.course_id}-${sec.section_num}-${secIdx}`} className={styles.detailRow}>
-                                        <div className={styles.detailColorBar} style={{ background: colors[courseIdx % 8] }}></div>
-                                        <div className={styles.detailContent}>
-                                            <div className={styles.detailHeader}>
-                                                <span className={styles.detailCourseName}>{courseNameMap[sec.course_id] || sec.course_id}</span>
-                                                {isSaved && (
-                                                    <a className={styles.requestLink} href={`/post?type=request&course=${sec.course_id}&section=${sec.section_num}`}>Request</a>
-                                                )}
-                                            </div>
-                                            <div className={styles.detailMeta}>
-                                                <span className={styles.detailSection}>{sec.section_num}</span>
-                                                <span className={styles.detailSep}>•</span>
-                                                <span className={styles.detailTime}>{sec.class_time}</span>
-                                                {sec.instructor && (
-                                                    <>
-                                                        <span className={styles.detailSep}>•</span>
-                                                        <span className={styles.detailProf}>{sec.instructor}</span>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ));
-                            })}
-                        </div>
-                    )}
-
-                    {onSave && !isSaved && (
-                        <div className={styles.saveFooter}>
-                            <button className={styles.saveBtn} onClick={onSave}>
-                                Save
-                            </button>
-                        </div>
-                    )}
-
-                    {isSaved && onUnsave && (
-                        <div className={styles.saveFooter}>
-                            <button className={styles.unsaveBtn} onClick={onUnsave}>
-                                Unsave
-                            </button>
-                        </div>
-                    )}
-                </>
+            {warnings.length > 0 && (
+                <div className={styles.prefWarnings}>
+                    {warnings.map((w, i) => <span key={i} className={styles.prefWarning}>{w}</span>)}
+                </div>
             )}
+
+            <div className={styles.timetable}>
+                <div className={styles.ttContainer} style={{ height: gridHeight + HEADER_HEIGHT }}>
+                    {/* Time axis labels */}
+                    <div className={styles.ttTimeAxis} style={{ height: gridHeight, top: HEADER_HEIGHT }}>
+                        {hours.map(h => (
+                            <div key={h} className={styles.ttTimeLabel} style={{ top: (h - startHour) * 60 * PX_PER_MIN }}>
+                                {formatTimeShort(h * 60)}
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Day columns */}
+                    <div className={styles.ttColumns}>
+                        {days.map(day => (
+                            <div key={day} className={styles.ttColumn}>
+                                <div className={styles.ttDayHeader}>{day}</div>
+                                <div className={styles.ttDayBody} style={{ height: gridHeight }}>
+                                    {/* Hour grid lines */}
+                                    {hours.slice(0, -1).map(h => (
+                                        <div key={h} className={styles.ttGridLine} style={{ top: (h - startHour) * 60 * PX_PER_MIN }} />
+                                    ))}
+
+                                    {/* Class blocks */}
+                                    {blocks
+                                        .filter(b => b.day === day)
+                                        .map((block, bi) => {
+                                            const top = (block.start - startHour * 60) * PX_PER_MIN;
+                                            const height = (block.end - block.start) * PX_PER_MIN;
+                                            return (
+                                                <div key={bi} className={styles.ttBlock} style={{ top, height, background: bgColors[block.colorIdx], borderLeftColor: colors[block.colorIdx], color: colors[block.colorIdx] }}>
+                                                    <span className={styles.ttBlockCourse}>{block.courseId}</span>
+                                                    {block.courseName && <span className={styles.ttBlockName}>{block.courseName}</span>}
+                                                    <span className={styles.ttBlockSection}>{block.sectionNum}</span>
+                                                </div>
+                                            );
+                                        })}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Section details (collapsible) */}
+            <div
+                className={styles.detailsToggle}
+                onClick={() => setDetailsOpen(prev => !prev)}
+            >
+                {detailsOpen ? 'Hide details' : 'Show details'}
+            </div>
+            {detailsOpen && (
+                <div className={styles.scheduleDetails}>
+                    {schedule.map((group) => {
+                        const courseIdx = selectedCourses.findIndex(c => c.course_id === (group.originalCourseId || group.courseId));
+                        return group.sections.map((sec, secIdx) => (
+                            <div key={sec.crn || `${sec.course_id}-${sec.section_num}-${secIdx}`} className={styles.detailRow}>
+                                <div className={styles.detailColorBar} style={{ background: colors[courseIdx % 8] }}></div>
+                                <div className={styles.detailContent}>
+                                    <div className={styles.detailHeader}>
+                                        <span className={styles.detailCourseName}>{courseNameMap[sec.course_id] || sec.course_id}</span>
+                                        {isSaved && (
+                                            <a className={styles.requestLink} href={`/post?type=request&course=${sec.course_id}&section=${sec.section_num}`}>Request</a>
+                                        )}
+                                    </div>
+                                    <div className={styles.detailMeta}>
+                                        <span className={styles.detailSection}>{sec.section_num}</span>
+                                        <span className={styles.detailSep}>•</span>
+                                        <span className={styles.detailTime}>{sec.class_time}</span>
+                                        {sec.instructor && (
+                                            <>
+                                                <span className={styles.detailSep}>•</span>
+                                                <span className={styles.detailProf}>{sec.instructor}</span>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        ));
+                    })}
+                </div>
+            )}
+
+            {onSave && !isSaved && (
+                <div className={styles.saveFooter}>
+                    <button className={styles.saveBtn} onClick={onSave}>
+                        Save
+                    </button>
+                </div>
+            )}
+
+            {isSaved && onUnsave && (
+                <div className={styles.saveFooter}>
+                    <button className={styles.unsaveBtn} onClick={onUnsave}>
+                        Unsave
+                    </button>
+                </div>
+            )}
+            </>)}
         </div>
     );
 }
