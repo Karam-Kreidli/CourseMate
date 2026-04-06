@@ -506,6 +506,7 @@ export default function SchedulePage() {
     const [showAlternatives, setShowAlternatives] = useState(false);
     const [restoringFromSave, setRestoringFromSave] = useState(false);
     const [xorCourseIds, setXorCourseIds] = useState(new Set());
+    const [isSavingSchedule, setIsSavingSchedule] = useState(false);
     const router = useRouter();
     const supabase = createClient();
 
@@ -642,42 +643,55 @@ export default function SchedulePage() {
     };
 
     const handleSaveSchedule = async (resultToSave) => {
+        if (isSavingSchedule) return;
+        
         if (dbSavedSchedules.length >= 3) {
             setError('You can only store up to 3 saved schedules at a time. Please delete one first.');
             return;
         }
 
-        const { schedule, score, warnings } = resultToSave;
-        const scheduleData = {
-            score,
-            warnings,
-            courseGroups: schedule.map(g => ({
-                courseId: g.courseId,
-                originalCourseId: g.originalCourseId,
-                sections: g.sections.map(s => s.crn)
-            })),
-            selectedCourses: selectedCourses.map(c => ({ course_id: c.course_id, name: c.name }))
-        };
+        setIsSavingSchedule(true);
+        try {
+            const { schedule, score, warnings } = resultToSave;
+            const scheduleData = {
+                score,
+                warnings,
+                courseGroups: schedule.map(g => ({
+                    courseId: g.courseId,
+                    originalCourseId: g.originalCourseId,
+                    sections: g.sections.map(s => s.crn)
+                })),
+                selectedCourses: selectedCourses.map(c => ({ course_id: c.course_id, name: c.name }))
+            };
 
-        const { error: saveError } = await supabase
-            .from('saved_schedules')
-            .insert([{ user_id: profile.id, schedule_data: scheduleData }]);
+            const { error: saveError } = await supabase
+                .from('saved_schedules')
+                .insert([{ user_id: profile.id, schedule_data: scheduleData }]);
 
-        if (saveError) {
-            setError('Database Error: ' + saveError.message);
-            return;
+            if (saveError) {
+                setError('Database Error: ' + saveError.message);
+                return;
+            }
+
+            await fetchDbSavedSchedules(profile);
+        } finally {
+            setIsSavingSchedule(false);
         }
-
-        await fetchDbSavedSchedules(profile);
     };
 
     const handleDeleteSavedSchedule = async (dbId) => {
-        const { error: delError } = await supabase.from('saved_schedules').delete().eq('id', dbId);
-        if (delError) {
-            setError('Failed to delete schedule: ' + delError.message);
-            return;
+        if (isSavingSchedule) return;
+        setIsSavingSchedule(true);
+        try {
+            const { error: delError } = await supabase.from('saved_schedules').delete().eq('id', dbId);
+            if (delError) {
+                setError('Failed to delete schedule: ' + delError.message);
+                return;
+            }
+            setDbSavedSchedules(prev => prev.filter(s => s.dbId !== dbId));
+        } finally {
+            setIsSavingSchedule(false);
         }
-        setDbSavedSchedules(prev => prev.filter(s => s.dbId !== dbId));
     };
 
     const restoreSelectedCourses = async (prof) => {
@@ -1345,6 +1359,7 @@ export default function SchedulePage() {
                                     onUnsave={() => handleDeleteSavedSchedule(savedObj.dbId)}
                                     isSaved={true}
                                     initiallyCollapsed={true}
+                                    isSavingSchedule={isSavingSchedule}
                                 />
                             ))}
                         </div>
@@ -1722,7 +1737,7 @@ export default function SchedulePage() {
 
 // ===== SCHEDULE CARD COMPONENT =====
 
-function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedCourses, onSave, onUnsave, isSaved, initiallyCollapsed = false }) {
+function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedCourses, onSave, onUnsave, isSaved, initiallyCollapsed = false, isSavingSchedule = false }) {
     const { schedule, score, warnings } = result;
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [cardOpen, setCardOpen] = useState(!initiallyCollapsed);
@@ -1899,7 +1914,7 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
 
             {onSave && !isSaved && (
                 <div className={styles.saveFooter}>
-                    <button className={styles.saveBtn} onClick={onSave}>
+                    <button className={styles.saveBtn} onClick={onSave} disabled={isSavingSchedule}>
                         Save
                     </button>
                 </div>
@@ -1907,7 +1922,7 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
 
             {isSaved && onUnsave && (
                 <div className={styles.saveFooter}>
-                    <button className={styles.unsaveBtn} onClick={onUnsave}>
+                    <button className={styles.unsaveBtn} onClick={onUnsave} disabled={isSavingSchedule}>
                         Unsave
                     </button>
                 </div>
