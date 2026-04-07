@@ -1885,7 +1885,12 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                                     <div className={styles.ttDayBody} style={{ height: gridHeight }}>
                                         {/* Hour grid lines */}
                                         {hours.slice(0, -1).map(h => (
-                                            <div key={h} className={styles.ttGridLine} style={{ top: (h - startHour) * 60 * PX_PER_MIN }} />
+                                            <div key={`h-${h}`} className={styles.ttGridLine} style={{ top: (h - startHour) * 60 * PX_PER_MIN }} />
+                                        ))}
+
+                                        {/* Half hour grid lines */}
+                                        {hours.slice(0, -1).map(h => (
+                                            <div key={`half-${h}`} className={`${styles.ttGridLine} ${styles.ttGridLineHalf}`} style={{ top: ((h - startHour) * 60 + 30) * PX_PER_MIN }} />
                                         ))}
 
                                         {/* Class blocks */}

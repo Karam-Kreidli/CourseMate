@@ -970,8 +970,15 @@
     right: 0;
     height: 1px;
     background: var(--border-color);
-    opacity: 0.3;
+    opacity: 0.8;
 }
+
+.ttGridLineHalf {
+    opacity: 0.6;
+    background: transparent;
+    border-top: 1px dashed var(--border-color);
+}
+
 
 .ttBlock {
     position: absolute;
