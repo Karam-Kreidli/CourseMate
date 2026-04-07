@@ -26,9 +26,13 @@ export async function GET(request) {
             token_hash,
             type,
         });
+        
         if (!error) {
             const redirectPath = type === 'recovery' ? '/auth/reset-password' : (next || '/');
             return NextResponse.redirect(new URL(redirectPath, request.url));
+        } else if (type === 'recovery') {
+            // Send failed recovery attempts to the reset page so they see the proper error message
+            return NextResponse.redirect(new URL('/auth/reset-password', request.url));
         }
     }
 
