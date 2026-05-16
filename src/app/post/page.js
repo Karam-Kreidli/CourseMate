@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { useSemester } from '@/lib/SemesterContext';
 import BottomNav from '@/components/BottomNav';
 import ThemeToggle from '@/components/ThemeToggle';
 import styles from './post.module.css';
@@ -29,10 +30,23 @@ function PostContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const supabase = createClient();
+    const { selectedTerm } = useSemester();
 
     useEffect(() => {
         checkAuth();
     }, []);
+
+    // Re-fetch courses when semester changes
+    useEffect(() => {
+        if (!selectedTerm || !profile) return;
+        fetchCourses(profile.major, profile.gender);
+        // Reset selected course/sections since they may not exist in new term
+        setCourseId('');
+        setCourseSearch('');
+        setSections([]);
+        setHaveSection('');
+        setWantSection('');
+    }, [selectedTerm]);
 
     useEffect(() => {
         if (courseId) {
@@ -67,9 +81,9 @@ function PostContent() {
         setProfile(profileData);
 
         // Fetch courses for user's major
-        fetchCourses(profileData.major);
+        fetchCourses(profileData.major, profileData.gender);
 
-        // Count active posts
+        // Count active posts across all semesters
         const { count } = await supabase
             .from('posts')
             .select('*', { count: 'exact', head: true })
@@ -79,7 +93,7 @@ function PostContent() {
         setActivePostCount(count || 0);
     };
 
-    const fetchCourses = async (userMajor) => {
+    const fetchCourses = async (userMajor, gender) => {
         if (!userMajor) return;
 
         try {
@@ -105,8 +119,27 @@ function PostContent() {
                 .in('course_id', courseIds)
                 .order('course_id');
 
-            // Map course_name to name for consistency
-            const mappedData = (data || []).map(c => ({ course_id: c.course_id, name: c.course_name }));
+            let mappedData = (data || []).map(c => ({ course_id: c.course_id, name: c.course_name }));
+
+            // Filter to only courses that have sections in the selected term AND on allowed campuses
+            const activeTerm = selectedTerm || localStorage.getItem('selectedTerm');
+            const userGender = gender || profile?.gender;
+            const allowedCampuses = userGender === 'male'
+                ? ['main', 'men']
+                : ['main', 'women'];
+
+            if (activeTerm) {
+                const { data: termSections } = await supabase
+                    .from('sections')
+                    .select('course_id')
+                    .eq('term_code', activeTerm)
+                    .in('course_id', courseIds)
+                    .in('campus', allowedCampuses);
+
+                const termCourseIds = new Set((termSections || []).map(s => s.course_id));
+                mappedData = mappedData.filter(c => termCourseIds.has(c.course_id));
+            }
+
             setCourses(mappedData);
 
             // Pre-fill from URL params
@@ -133,12 +166,16 @@ function PostContent() {
             ? ['main', 'men']
             : ['main', 'women'];
 
-        const { data } = await supabase
+        let query = supabase
             .from('sections')
             .select('*')
             .eq('course_id', courseId)
             .in('campus', allowedCampuses)
             .order('section_num');
+
+        if (selectedTerm) query = query.eq('term_code', selectedTerm);
+
+        const { data } = await query;
         setSections(data || []);
     };
 
@@ -177,13 +214,17 @@ function PostContent() {
 
             // Check for duplicate posts from this user only
             const currentUser = (await supabase.auth.getUser()).data.user;
-            const { data: existingPosts } = await supabase
+            let dupQuery = supabase
                 .from('posts')
                 .select('id')
                 .eq('user_id', currentUser?.id)
                 .eq('course_code', courseId)
                 .eq('have_section', haveSection)
                 .in('status', ['active', 'pending']);
+
+            if (selectedTerm) dupQuery = dupQuery.eq('term_code', selectedTerm);
+
+            const { data: existingPosts } = await dupQuery;
 
             if (existingPosts?.length > 0) {
                 throw new Error('You already have an active post for this course/section combination');
@@ -214,6 +255,7 @@ function PostContent() {
                     want_section: postType === 'swap' ? wantSection : null,
                     want_section_time: wantTime,
                     expires_at: expiresAt.toISOString(),
+                    term_code: selectedTerm || '202610',
                 });
 
             if (insertError) throw insertError;
@@ -221,7 +263,7 @@ function PostContent() {
             // If swap, check for matches
             if (postType === 'swap') {
                 // Find matching posts (someone who has what I want and wants what I have)
-                const { data: matchingPosts } = await supabase
+                let matchQuery = supabase
                     .from('posts')
                     .select('*, profile:profiles!posts_user_id_fkey(id, name, email)')
                     .eq('type', 'swap')
@@ -230,6 +272,10 @@ function PostContent() {
                     .eq('want_section', haveSection)
                     .eq('status', 'active')
                     .neq('user_id', currentUser?.id);
+
+                if (selectedTerm) matchQuery = matchQuery.eq('term_code', selectedTerm);
+
+                const { data: matchingPosts } = await matchQuery;
 
                 if (matchingPosts?.length > 0) {
                     const matchingPost = matchingPosts[0];

@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { useSemester } from '@/lib/SemesterContext';
 import BottomNav from '@/components/BottomNav';
 import ThemeToggle from '@/components/ThemeToggle';
 import styles from './schedule.module.css';
@@ -509,8 +510,23 @@ export default function SchedulePage() {
     const [isSavingSchedule, setIsSavingSchedule] = useState(false);
     const router = useRouter();
     const supabase = createClient();
+    const { selectedTerm } = useSemester();
 
     useEffect(() => { checkAuth(); }, []);
+
+    // Reset state when semester changes
+    useEffect(() => {
+        if (!selectedTerm || !profile) return;
+        setAllSections({});
+        setResults(null);
+        setError('');
+        // Re-fetch sections for selected courses
+        for (const c of selectedCourses) {
+            fetchSectionsForCourse(c.course_id);
+        }
+        // Re-fetch saved schedules for this term
+        fetchDbSavedSchedules(profile);
+    }, [selectedTerm]);
 
     const checkAuth = async () => {
         const { data: { user } } = await supabase.auth.getUser();
@@ -547,11 +563,15 @@ export default function SchedulePage() {
     };
 
     const fetchDbSavedSchedules = async (prof) => {
-        const { data: savedData, error: savedError } = await supabase
+        let query = supabase
             .from('saved_schedules')
             .select('*')
             .eq('user_id', prof.id)
             .order('created_at', { ascending: true });
+
+        if (selectedTerm) query = query.eq('term_code', selectedTerm);
+
+        const { data: savedData, error: savedError } = await query;
 
         if (savedError || !savedData || savedData.length === 0) {
             setDbSavedSchedules([]);
@@ -687,7 +707,7 @@ export default function SchedulePage() {
 
             const { error: saveError } = await supabase
                 .from('saved_schedules')
-                .insert([{ user_id: profile.id, schedule_data: scheduleData }]);
+                .insert([{ user_id: profile.id, schedule_data: scheduleData, term_code: selectedTerm }]);
 
             if (saveError) {
                 setError('Database Error: ' + saveError.message);
@@ -723,7 +743,28 @@ export default function SchedulePage() {
                 .eq('id', prof.id)
                 .single();
 
-            const cart = cartData?.schedule_cart;
+            const rawCart = cartData?.schedule_cart;
+            if (!rawCart) return;
+
+            // Determine the active term — selectedTerm may not be ready yet on first load
+            const activeTerm = selectedTerm || localStorage.getItem('selectedTerm');
+
+            // Support both old format { courses, xor } and new per-term format { termCode: { courses, xor } }
+            let cart;
+            if (rawCart.courses) {
+                // Old format — treat as current term and migrate
+                cart = rawCart;
+                // Migrate to new format in background
+                if (activeTerm) {
+                    const newFormat = { [activeTerm]: rawCart };
+                    supabase.from('profiles').update({ schedule_cart: newFormat }).eq('id', prof.id);
+                }
+            } else if (activeTerm && rawCart[activeTerm]) {
+                cart = rawCart[activeTerm];
+            } else {
+                return;
+            }
+
             if (!cart?.courses?.length) return;
 
             const savedCourses = cart.courses;
@@ -760,20 +801,38 @@ export default function SchedulePage() {
         }
     };
 
-    // Persist selected courses to Supabase (debounced)
+    // Persist selected courses to Supabase (debounced, keyed by term)
     useEffect(() => {
-        if (!profile) return;
+        if (!profile || !selectedTerm) return;
+        // Don't save on initial mount — wait for restore to finish
+        const activeTerm = selectedTerm;
         const timer = setTimeout(async () => {
-            const cartPayload = selectedCourses.length > 0
-                ? { courses: selectedCourses, xor: [...xorCourseIds] }
-                : null;
+            // Read current cart object, update only the current term's key
+            const { data: current } = await supabase
+                .from('profiles')
+                .select('schedule_cart')
+                .eq('id', profile.id)
+                .single();
+
+            let existingCart = current?.schedule_cart || {};
+            // If old format, migrate first
+            if (existingCart.courses) {
+                existingCart = { [activeTerm]: existingCart };
+            }
+
+            if (selectedCourses.length > 0) {
+                existingCart[activeTerm] = { courses: selectedCourses, xor: [...xorCourseIds] };
+            } else {
+                delete existingCart[activeTerm];
+            }
+
             await supabase
                 .from('profiles')
-                .update({ schedule_cart: cartPayload })
+                .update({ schedule_cart: Object.keys(existingCart).length > 0 ? existingCart : null })
                 .eq('id', profile.id);
         }, 1000);
         return () => clearTimeout(timer);
-    }, [selectedCourses, xorCourseIds, profile]);
+    }, [selectedCourses, xorCourseIds, profile, selectedTerm]);
 
     const fetchCourses = async (userMajor) => {
         if (!userMajor) return;
@@ -783,6 +842,7 @@ export default function SchedulePage() {
         const courseIds = majorCourses.map(mc => mc.course_id);
         const { data } = await supabase
             .from('courses').select('course_id, course_name, credit_hours').in('course_id', courseIds).order('course_id');
+
         setCourses((data || []).map(c => ({ course_id: c.course_id, name: c.course_name, credit_hours: c.credit_hours || 0 })));
     };
 
@@ -831,12 +891,14 @@ export default function SchedulePage() {
                 }
 
                 // 2. Get sections for these courses
-                const { data } = await supabase
+                let electiveQuery = supabase
                     .from('sections')
                     .select('*')
                     .in('course_id', electiveIds)
                     .in('campus', allowedCampuses)
                     .order('section_num');
+                if (selectedTerm) electiveQuery = electiveQuery.eq('term_code', selectedTerm);
+                const { data } = await electiveQuery;
 
                 setAllSections(prev => ({ ...prev, [courseId]: mapSectionsData(data) || [] })); // Assign to specific slot
                 return;
@@ -879,12 +941,14 @@ export default function SchedulePage() {
                     setExtraCourseCredits(prev => ({ ...prev, ...newExtraCredits }));
                 }
 
-                const { data } = await supabase
+                let supportQuery = supabase
                     .from('sections')
                     .select('*')
                     .in('course_id', electiveIds)
                     .in('campus', allowedCampuses)
                     .order('section_num');
+                if (selectedTerm) supportQuery = supportQuery.eq('term_code', selectedTerm);
+                const { data } = await supportQuery;
 
                 setAllSections(prev => ({ ...prev, [courseId]: mapSectionsData(data) || [] }));
                 return;
@@ -916,20 +980,24 @@ export default function SchedulePage() {
                 const courseIds = basketCourses.map(c => c.course_id);
 
                 // 2. Get sections for these courses
-                const { data } = await supabase
+                let basketQuery = supabase
                     .from('sections')
                     .select('*')
                     .in('course_id', courseIds)
                     .in('campus', allowedCampuses)
                     .order('section_num');
+                if (selectedTerm) basketQuery = basketQuery.eq('term_code', selectedTerm);
+                const { data } = await basketQuery;
 
                 setAllSections(prev => ({ ...prev, [courseId]: mapSectionsData(data) || [] }));
                 return;
             }
 
-            const { data } = await supabase
+            let regularQuery = supabase
                 .from('sections').select('*').eq('course_id', courseId)
                 .in('campus', allowedCampuses).order('section_num');
+            if (selectedTerm) regularQuery = regularQuery.eq('term_code', selectedTerm);
+            const { data } = await regularQuery;
             setAllSections(prev => ({ ...prev, [courseId]: mapSectionsData(data) || [] }));
         } finally {
             setLoadingCourseIds(prev => {

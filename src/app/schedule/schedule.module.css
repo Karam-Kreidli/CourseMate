@@ -209,12 +209,10 @@
     top: calc(100% + 6px);
     left: 0;
     right: 0;
-    background: var(--glass-bg-dense);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
+    background: var(--bg-card);
     border-radius: var(--radius-lg);
-    border: 1px solid var(--glass-border);
-    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-xl);
     z-index: 100;
     overflow: hidden;
     max-height: 240px;

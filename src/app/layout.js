@@ -1,5 +1,6 @@
 import './globals.css';
 import Script from 'next/script';
+import { SemesterProviderWrapper } from '@/lib/SemesterContext';
 
 export const metadata = {
     title: 'CourseMate',
@@ -32,7 +33,9 @@ export default function RootLayout({ children }) {
                 }} />
             </head>
             <body suppressHydrationWarning>
-                {children}
+                <SemesterProviderWrapper>
+                    {children}
+                </SemesterProviderWrapper>
             </body>
         </html>
     );
