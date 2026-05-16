@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { useSemester } from '@/lib/SemesterContext';
 import BottomNav from '@/components/BottomNav';
 import ThemeToggle from '@/components/ThemeToggle';
 import styles from './profile.module.css';
@@ -33,6 +34,7 @@ function ProfileContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const supabase = createClient();
+    const { selectedTerm } = useSemester();
 
     // Check if user can edit (no active posts)
     const canEdit = myPosts.length === 0;
@@ -132,11 +134,15 @@ function ProfileContent() {
             const allowedCampuses = newGender === 'male' ? ['main', 'men'] : ['main', 'women'];
 
             // Check if courses have sections in allowed campuses
-            const { data: validSections } = await supabase
+            let sectionQuery = supabase
                 .from('sections')
                 .select('course_id')
                 .in('course_id', courseIds)
                 .in('campus', allowedCampuses);
+
+            if (selectedTerm) sectionQuery = sectionQuery.eq('term_code', selectedTerm);
+
+            const { data: validSections } = await sectionQuery;
 
             const validCampusCourseIds = new Set((validSections || []).map(s => s.course_id));
 

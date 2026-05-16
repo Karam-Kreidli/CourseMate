@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
+import { useSemester } from '@/lib/SemesterContext';
 import { SearchIcon } from '@/components/Icons';
 import BottomNav from '@/components/BottomNav';
 import PostCard from '@/components/PostCard';
@@ -24,10 +25,18 @@ export default function HomePage() {
     const [transitioning, setTransitioning] = useState(false);
     const router = useRouter();
     const supabase = createClient();
+    const { semesters, selectedTerm, setSelectedTerm, isSingleSemester } = useSemester();
 
     useEffect(() => {
         initializePage();
     }, []);
+
+    // Re-fetch when semester changes
+    useEffect(() => {
+        if (!selectedTerm || !user) return;
+        fetchSections(userGender);
+        fetchPosts();
+    }, [selectedTerm]);
 
     const navigateWithTransition = (path) => {
         setTransitioning(true);
@@ -99,15 +108,18 @@ export default function HomePage() {
     };
 
     const fetchSections = async (gender) => {
-        // Filter sections by campus based on user gender
         const allowedCampuses = gender === 'male'
             ? ['main', 'men']
             : ['main', 'women'];
 
-        const { data, error } = await supabase
+        let query = supabase
             .from('sections')
             .select('*')
             .in('campus', allowedCampuses);
+
+        if (selectedTerm) query = query.eq('term_code', selectedTerm);
+
+        const { data, error } = await query;
 
         if (!error && data) {
             setSections(data);
@@ -126,6 +138,8 @@ export default function HomePage() {
                 .in('status', ['active', 'pending'])
                 .gt('expires_at', new Date().toISOString())
                 .order('created_at', { ascending: false });
+
+            if (selectedTerm) query = query.eq('term_code', selectedTerm);
 
             const { data, error } = await query;
 
@@ -206,6 +220,28 @@ export default function HomePage() {
                         <span className={styles.themeLabel}>Theme</span>
                         <ThemeToggle />
                     </div>
+
+                    {/* Semester toggle — only when multiple semesters active */}
+                    {!isSingleSemester && semesters.length === 2 && (
+                        <div className={styles.filtersCard}>
+                            <p className={styles.filtersTitle}>Semester</p>
+                            <div className={styles.semesterToggle}>
+                                <div
+                                    className={styles.semesterIndicator}
+                                    data-pos={semesters.findIndex(s => s.term_code === selectedTerm)}
+                                />
+                                {semesters.map((sem) => (
+                                    <button
+                                        key={sem.term_code}
+                                        className={`${styles.semesterBtn} ${selectedTerm === sem.term_code ? styles.semesterBtnActive : ''}`}
+                                        onClick={() => setSelectedTerm(sem.term_code)}
+                                    >
+                                        {sem.name}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Filter card */}
                     <div className={styles.filtersCard}>

@@ -22,8 +22,7 @@ npm-debug.log*
 .idea/
 
 # Data files
-data_202520.json
-data_202610.json
+sections/
 extract-sections.js
 
 # Database scripts

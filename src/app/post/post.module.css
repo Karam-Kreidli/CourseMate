@@ -280,12 +280,10 @@
     top: calc(100% + 6px);
     left: 0;
     right: 0;
-    background: var(--glass-bg-dense);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
+    background: var(--bg-card);
     border-radius: var(--radius-lg);
-    border: 1px solid var(--glass-border);
-    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-xl);
     z-index: 100;
     overflow: hidden;
     animation: dropdownIn 0.15s var(--ease-out-expo);
@@ -368,7 +366,7 @@
     font-size: 0.9375rem;
     font-weight: 700;
     cursor: pointer;
-    transition: all var(--transition-fast) var(--ease-out-expo);
+    transition: transform var(--transition-fast) var(--ease-out-expo), box-shadow var(--transition-fast) var(--ease-out-expo), opacity var(--transition-fast);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -390,7 +388,17 @@
 
 .submitBtn:hover:not(:disabled)::before { left: 100%; }
 .submitBtn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--shadow-lg), var(--shadow-accent-lg); }
+.submitBtn:active:not(:disabled) { transform: translateY(0) scale(0.98); }
 .submitBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.submitBtn .spinner {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    border-width: 2px;
+    border-color: rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+}
 
 /* ===== Post Count ===== */
 .postCount {

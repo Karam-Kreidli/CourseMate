@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { useSemester } from '@/lib/SemesterContext';
 import BottomNav from '@/components/BottomNav';
 import ThemeToggle from '@/components/ThemeToggle';
 import styles from './matches.module.css';
@@ -18,6 +19,7 @@ export default function MatchesPage() {
     const [contactInfoMap, setContactInfoMap] = useState({});
     const router = useRouter();
     const supabase = createClient();
+    const { selectedTerm } = useSemester();
 
     useEffect(() => {
         checkAuth();
@@ -206,6 +208,7 @@ export default function MatchesPage() {
                 .eq('have_section', post.want_section)
                 .eq('want_section', post.have_section)
                 .eq('status', 'active')
+                .eq('term_code', post.term_code || selectedTerm || '202610')
                 .neq('user_id', post.user_id)
                 .neq('id', excludePostId);
 

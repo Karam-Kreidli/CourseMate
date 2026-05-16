@@ -289,6 +289,65 @@
     transform: translateX(3px) !important;
 }
 
+/* ===== Semester Toggle (segmented control) ===== */
+.semesterToggle {
+    display: flex;
+    padding: 3px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-full);
+    position: relative;
+    border: 1px solid var(--border-color-subtle);
+}
+
+.semesterBtn {
+    flex: 1;
+    padding: 9px 8px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    font-family: inherit;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    border-radius: var(--radius-full);
+    transition: color var(--transition-fast) var(--ease-out-expo);
+    position: relative;
+    z-index: 1;
+    -webkit-tap-highlight-color: transparent;
+    white-space: nowrap;
+    text-align: center;
+}
+
+.semesterBtn:hover {
+    color: var(--text-secondary);
+}
+
+.semesterBtnActive {
+    color: #FFFFFF;
+}
+
+/* Sliding active indicator */
+.semesterIndicator {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    width: calc(50% - 3px);
+    background: var(--gradient-accent-vivid);
+    border-radius: var(--radius-full);
+    transition: transform 0.3s var(--ease-out-expo);
+    box-shadow: var(--shadow-accent);
+    z-index: 0;
+}
+
+.semesterIndicator[data-pos="0"] {
+    transform: translateX(0);
+}
+
+.semesterIndicator[data-pos="1"] {
+    transform: translateX(calc(100% + 6px));
+}
+
 /* ===== Right Main Content ===== */
 .mainContent {
     flex: 1;
