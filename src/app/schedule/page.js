@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { useSemester } from '@/lib/SemesterContext';
 import BottomNav from '@/components/BottomNav';
@@ -465,9 +466,9 @@ function formatTime(minutes) {
 
 function formatTimeShort(minutes) {
     const h = Math.floor(minutes / 60);
-    const period = h >= 12 ? 'p' : 'a';
+    const period = h >= 12 ? 'PM' : 'AM';
     const displayH = h > 12 ? h - 12 : h === 0 ? 12 : h;
-    return `${displayH}${period}`;
+    return `${displayH} ${period}`;
 }
 
 // ===== MAIN COMPONENT =====
@@ -1423,7 +1424,26 @@ export default function SchedulePage() {
         <div className={styles.page}>
             <div className={styles.pageInner}>
                 <header className={styles.header}>
-                    <h1>Schedule Builder</h1>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <h1>Schedule Builder</h1>
+                        <Link href="/instructors" style={{ 
+                            padding: '6px 12px', 
+                            background: 'var(--bg-tertiary)', 
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '20px',
+                            fontSize: '0.75rem',
+                            fontWeight: '600',
+                            color: 'var(--text-secondary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            cursor: 'pointer',
+                            textDecoration: 'none'
+                        }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><polyline points="16 11 18 13 22 9"></polyline></svg>
+                            Find Instructor
+                        </Link>
+                    </div>
                     <ThemeToggle />
                 </header>
 
