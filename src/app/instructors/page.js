@@ -299,10 +299,9 @@ export default function InstructorsPage() {
         <div className={styles.page}>
             <div className={styles.pageInner}>
                 <header className={styles.header}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <Link href="/schedule" className={styles.backBtn}>
+                    <div className={styles.headerTitleContainer}>
+                        <Link href="/schedule" className={styles.backBtn} title="Back to Schedule Builder" aria-label="Back to Schedule Builder">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-                            Back
                         </Link>
                         <h1>Instructor Schedule</h1>
                     </div>
