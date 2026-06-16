@@ -7,9 +7,14 @@ export function createClient() {
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     // Check if Supabase is configured
-    if (!supabaseUrl || !supabaseKey ||
+    const looksUnconfigured = !supabaseUrl || !supabaseKey ||
         supabaseUrl.includes('your-project') ||
-        supabaseKey.includes('your-')) {
+        supabaseKey.includes('your-');
+
+    if (looksUnconfigured) {
+        if (process.env.NODE_ENV === 'production') {
+            throw new Error('Supabase env vars are missing or unconfigured in production.');
+        }
         // Return a mock client for demo mode
         return createMockClient();
     }

@@ -1,6 +1,25 @@
+import { NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
 
+const STATE_CHANGING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+function isCsrfSafe(request) {
+    if (!STATE_CHANGING.has(request.method)) return true;
+    if (!request.nextUrl.pathname.startsWith('/api/')) return true;
+
+    const origin = request.headers.get('origin');
+    if (!origin) return false;
+    try {
+        return new URL(origin).host === request.nextUrl.host;
+    } catch {
+        return false;
+    }
+}
+
 export async function middleware(request) {
+    if (!isCsrfSafe(request)) {
+        return new NextResponse('Forbidden', { status: 403 });
+    }
     return await updateSession(request);
 }
 
