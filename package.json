@@ -15,11 +15,11 @@
     "@tiptap/extension-link": "^3.26.1",
     "@tiptap/react": "^3.26.1",
     "@tiptap/starter-kit": "^3.26.1",
-    "isomorphic-dompurify": "^3.17.0",
     "next": "^16.1.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "resend": "^6.7.0"
+    "resend": "^6.7.0",
+    "sanitize-html": "^2.17.5"
   },
   "devDependencies": {
     "eslint": "^9",
