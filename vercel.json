@@ -2,11 +2,11 @@
     "crons": [
         {
             "path": "/api/expire-matches",
-            "schedule": "0 * * * *"
+            "schedule": "0 3 * * *"
         },
         {
             "path": "/api/expire-posts",
-            "schedule": "0 * * * *"
+            "schedule": "15 3 * * *"
         }
     ]
 }
