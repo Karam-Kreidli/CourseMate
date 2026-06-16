@@ -27,3 +27,5 @@ extract-sections.js
 
 # Database scripts
 supabase/
+
+uos-curriculum-scraper/
