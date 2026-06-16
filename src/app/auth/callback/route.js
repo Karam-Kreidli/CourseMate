@@ -1,12 +1,21 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
+// Only accept same-origin absolute paths. Any value that isn't a string starting
+// with exactly one "/" is rejected — prevents open redirects via ?next=https://evil.com
+// (which new URL() would otherwise resolve to evil.com when used as base).
+function safeNext(next) {
+    if (typeof next !== 'string') return null;
+    if (!next.startsWith('/') || next.startsWith('//') || next.startsWith('/\\')) return null;
+    return next;
+}
+
 export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const code = searchParams.get('code');
     const token_hash = searchParams.get('token_hash');
     const type = searchParams.get('type');
-    const next = searchParams.get('next');
+    const next = safeNext(searchParams.get('next'));
 
     const supabase = await createClient();
 
@@ -26,7 +35,7 @@ export async function GET(request) {
             token_hash,
             type,
         });
-        
+
         if (!error) {
             const redirectPath = type === 'recovery' ? '/auth/reset-password' : (next || '/');
             return NextResponse.redirect(new URL(redirectPath, request.url));
