@@ -382,6 +382,19 @@
     text-overflow: ellipsis;
 }
 
+.blockCourseName {
+    font-weight: 600;
+    font-size: 0.62rem;
+    opacity: 0.9;
+    line-height: 1.15;
+    margin-bottom: 2px;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    text-overflow: ellipsis;
+}
+
 .blockSection {
     opacity: 0.85;
     font-weight: 600;

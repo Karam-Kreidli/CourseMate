@@ -180,6 +180,32 @@
     line-height: 1.6;
 }
 
+.settingRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 0;
+}
+
+.settingText {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.settingLabel {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.settingSub {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+}
+
 /* ===== Form Elements ===== */
 .formGroup {
     margin-bottom: 16px;
@@ -291,78 +317,6 @@
     display: flex;
     gap: 10px;
     margin-top: 8px;
-}
-
-/* ===== Stats Card ===== */
-.statsCard {
-    background: var(--glass-bg-dense);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border-radius: var(--radius-xl);
-    padding: 24px;
-    box-shadow: var(--shadow-md);
-    border: 1px solid var(--glass-border);
-    position: relative;
-    overflow: hidden;
-}
-
-.statsCard::before {
-    content: '';
-    position: absolute;
-    inset: -1px;
-    border-radius: var(--radius-xl);
-    background: var(--gradient-border);
-    z-index: -1;
-    opacity: 0.3;
-}
-
-.statsCard h3 {
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    letter-spacing: -0.02em;
-    margin-bottom: 16px;
-}
-
-.stats {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-}
-
-.stat {
-    background: var(--bg-secondary);
-    border-radius: var(--radius-lg);
-    padding: 16px;
-    text-align: center;
-    border: 1px solid var(--border-color);
-    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
-}
-
-.stat:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-.statValue {
-    display: block;
-    font-size: 2rem;
-    font-weight: 800;
-    background: var(--gradient-accent-vivid);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    letter-spacing: -0.04em;
-    line-height: 1;
-    margin-bottom: 6px;
-}
-
-.statLabel {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
 }
 
 /* ===== Buttons ===== */
@@ -520,7 +474,7 @@
         gap: 12px;
     }
 
-    .card, .statsCard {
+    .card {
         border-radius: var(--radius-lg);
         box-shadow: var(--shadow-md);
     }

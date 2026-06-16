@@ -103,6 +103,42 @@
     color: var(--text-primary);
 }
 
+.headerTitleContainer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.backBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    cursor: pointer;
+    text-decoration: none;
+    transition: all var(--transition-fast) var(--ease-out-expo);
+}
+
+.backBtn:hover {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    border-color: var(--border-color-subtle);
+    transform: translateX(-2px);
+}
+
+.backBtn svg {
+    transition: transform var(--transition-fast);
+}
+
+.backBtn:hover svg {
+    transform: scale(1.1);
+}
+
 /* ===== Tabs-inside-card ===== */
 .tabsCard {
     background: var(--glass-bg-dense);

@@ -109,47 +109,6 @@
     gap: 12px;
 }
 
-.findInstructorBtn {
-    padding: 6px 12px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-color);
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    cursor: pointer;
-    text-decoration: none;
-    transition: all var(--transition-fast) var(--ease-out-expo);
-}
-
-.findInstructorBtn:hover {
-    background: var(--bg-elevated);
-    color: var(--text-primary);
-    border-color: var(--border-color-subtle);
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-sm);
-}
-
-.findInstructorBtn:active {
-    transform: translateY(0);
-}
-
-.findInstructorBtn svg {
-    flex-shrink: 0;
-    transition: transform var(--transition-fast);
-}
-
-.findInstructorBtn:hover svg {
-    transform: scale(1.1);
-}
-
-.findInstructorBtn span {
-    white-space: nowrap;
-}
-
 /* ===== Spinner ===== */
 .spinner {
     display: inline-block;
@@ -1406,10 +1365,5 @@
 @media (max-width: 520px) {
     .header h1 {
         font-size: 1.05rem;
-    }
-
-    .findInstructorBtn {
-        padding: 5px 8px;
-        font-size: 0.7rem;
     }
 }

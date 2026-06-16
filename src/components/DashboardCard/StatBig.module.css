@@ -1,0 +1,53 @@
+.stat {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+}
+
+.valueRow {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+}
+
+.value {
+    font-size: 2.25rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    letter-spacing: -0.03em;
+    line-height: 1;
+}
+
+.valueAccent {
+    background: var(--gradient-accent-vivid);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+}
+
+.valueMuted {
+    color: var(--text-muted);
+}
+
+.max {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: -0.02em;
+}
+
+.label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+}
+
+.sub {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}

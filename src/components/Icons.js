@@ -100,3 +100,30 @@ export const EyeOffIcon = (props) => (
         <line x1="1" y1="1" x2="23" y2="23" />
     </IconWrapper>
 );
+
+export const BookIcon = (props) => (
+    <IconWrapper {...props}>
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    </IconWrapper>
+);
+
+export const SparkleIcon = (props) => (
+    <IconWrapper {...props}>
+        <path d="M12 3l1.9 5.6L19.5 10l-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.4L12 3z" />
+    </IconWrapper>
+);
+
+export const UserCheckIcon = (props) => (
+    <IconWrapper {...props}>
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <polyline points="16 11 18 13 22 9" />
+    </IconWrapper>
+);
+
+export const ActivityIcon = (props) => (
+    <IconWrapper {...props}>
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+    </IconWrapper>
+);

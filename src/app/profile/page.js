@@ -332,7 +332,6 @@ function ProfileContent() {
                 <div className={styles.pageInner}>
                     <header className={styles.header}>
                         <h1>Complete Your Profile</h1>
-                        <ThemeToggle />
                     </header>
 
                     <main className={styles.main}>
@@ -381,7 +380,6 @@ function ProfileContent() {
             <div className={styles.pageInner}>
                 <header className={styles.header}>
                     <h1>Profile</h1>
-                    <ThemeToggle />
                 </header>
 
                 <main className={styles.main}>
@@ -485,18 +483,17 @@ function ProfileContent() {
                         )}
                     </div>
 
-                    {/* Stats */}
-                    <div className={styles.statsCard}>
-                        <h3>Your Activity</h3>
-                        <div className={styles.stats}>
-                            <div className={styles.stat}>
-                                <span className={styles.statValue}>{myPosts.length}</span>
-                                <span className={styles.statLabel}>Active Posts</span>
+                    {/* Settings */}
+                    <div className={styles.card}>
+                        <div className={styles.cardHeader}>
+                            <h2 className={styles.cardTitle}>Settings</h2>
+                        </div>
+                        <div className={styles.settingRow}>
+                            <div className={styles.settingText}>
+                                <div className={styles.settingLabel}>Theme</div>
+                                <div className={styles.settingSub}>Light or dark across the app</div>
                             </div>
-                            <div className={styles.stat}>
-                                <span className={styles.statValue}>{5 - myPosts.length}</span>
-                                <span className={styles.statLabel}>Posts Left</span>
-                            </div>
+                            <ThemeToggle />
                         </div>
                     </div>
 

@@ -13,7 +13,7 @@ export default function BottomNav() {
         { href: '/', icon: <HomeIcon />, label: 'Home' },
         { href: '/schedule', icon: <ScheduleIcon />, label: 'Schedule' },
         { href: '/post', icon: <PlusIcon />, label: 'Post' },
-        { href: '/matches', icon: <SwapIcon />, label: 'Activity' },
+        { href: '/browse', icon: <SwapIcon />, label: 'Swap' },
         { href: '/profile', icon: <ProfileIcon />, label: 'Profile' },
     ];
 

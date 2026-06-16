@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useSemester } from '@/lib/SemesterContext';
 import BottomNav from '@/components/BottomNav';
-import ThemeToggle from '@/components/ThemeToggle';
 import styles from './post.module.css';
 
 const POST_TYPES = [
@@ -351,7 +350,6 @@ function PostContent() {
             <div className={styles.pageInner}>
             <header className={styles.header}>
                 <h1>Create Post</h1>
-                <ThemeToggle />
             </header>
 
             <main className={styles.main}>

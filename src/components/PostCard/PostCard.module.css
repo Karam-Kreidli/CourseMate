@@ -287,13 +287,15 @@
 }
 
 .deleteBtn {
-    background: var(--bg-tertiary);
-    color: var(--text-muted);
+    background: rgba(239, 68, 68, 0.12);
+    color: var(--status-expired);
+    border: 1px solid rgba(239, 68, 68, 0.25);
 }
 
 .deleteBtn:hover {
-    background: rgba(239, 68, 68, 0.1);
-    color: var(--status-expired);
+    background: var(--status-expired);
+    color: #fff;
+    border-color: var(--status-expired);
 }
 
 /* Footer layout */

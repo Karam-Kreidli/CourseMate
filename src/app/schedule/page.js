@@ -2,11 +2,9 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { useSemester } from '@/lib/SemesterContext';
 import BottomNav from '@/components/BottomNav';
-import ThemeToggle from '@/components/ThemeToggle';
 import styles from './schedule.module.css';
 
 // ===== TIME PARSING UTILITIES =====
@@ -1426,12 +1424,7 @@ export default function SchedulePage() {
                 <header className={styles.header}>
                     <div className={styles.headerTitleContainer}>
                         <h1>Schedule Builder</h1>
-                        <Link href="/instructors" className={styles.findInstructorBtn} title="Find Instructor Schedule" aria-label="Find Instructor Schedule">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><polyline points="16 11 18 13 22 9"></polyline></svg>
-                            <span>Find Instructor</span>
-                        </Link>
                     </div>
-                    <ThemeToggle />
                 </header>
 
                 <main className={styles.main}>
