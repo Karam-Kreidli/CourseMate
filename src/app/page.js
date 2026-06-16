@@ -188,11 +188,12 @@ export default function DashboardPage() {
         }, {});
 
         const dept = majorCourses
-            .filter(mc => mc.category === 'Major Elective')
+            .filter(mc => mc.category === 'Major Elective' || mc.category === 'Support Elective')
             .map(mc => ({
                 course_id: mc.course_id,
                 course_name: mc.course_name,
                 kind: 'dept',
+                tag: mc.category === 'Support Elective' ? 'support' : 'major',
                 section_count: byCourse[mc.course_id] || 0,
             }));
 
@@ -200,6 +201,7 @@ export default function DashboardPage() {
             course_id: c.course_id,
             course_name: c.course_name || '',
             kind: 'univ',
+            tag: 'univ',
             section_count: byCourse[c.course_id] || 0,
         }));
 
@@ -401,8 +403,8 @@ export default function DashboardPage() {
                                                 href={`/schedule?course=${encodeURIComponent(row.course_id)}`}
                                                 className={styles.electiveRow}
                                             >
-                                                <span className={`${styles.kindTag} ${styles[`kindTag_${row.kind}`]}`}>
-                                                    {row.kind === 'dept' ? 'DEPT' : 'UNIV'}
+                                                <span className={`${styles.kindTag} ${styles[`kindTag_${row.tag}`]}`}>
+                                                    {row.tag === 'support' ? 'SUPPORT' : row.tag === 'major' ? 'DEPT' : 'UNIV'}
                                                 </span>
                                                 <div className={styles.electiveMain}>
                                                     <span className={styles.electiveName}>{row.course_name || 'Unnamed course'}</span>

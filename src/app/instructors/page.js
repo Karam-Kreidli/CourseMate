@@ -344,6 +344,10 @@ export default function InstructorsPage() {
                                     <div className={styles.instructorName}>{decodeHtmlEntities(selectedInstructor)}</div>
                                 </div>
 
+                                <p className={styles.disclaimer}>
+                                    Note: this schedule reflects only the instructor&rsquo;s class times. Office hours, meetings, and any other external activities aren&rsquo;t shown.
+                                </p>
+
                                 {renderTimetable()}
 
                                 <div className={styles.blockList}>
