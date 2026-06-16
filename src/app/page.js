@@ -8,6 +8,7 @@ import { useSemester } from '@/lib/SemesterContext';
 import { useRequireProfile } from '@/lib/useRequireProfile';
 import BottomNav from '@/components/BottomNav';
 import DashboardCard, { StatBig } from '@/components/DashboardCard';
+import AnnouncementsModal from '@/components/AnnouncementsModal';
 import {
     PlusIcon,
     ScheduleIcon,
@@ -231,6 +232,7 @@ export default function DashboardPage() {
 
     return (
         <div className={styles.page}>
+            <AnnouncementsModal ready={ready && !!user} />
             <div className={`${styles.transitionOverlay} ${transitioning ? styles.active : ''}`} />
 
             <div className={styles.pageInner}>
