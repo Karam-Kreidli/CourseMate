@@ -149,7 +149,7 @@ export default function PostCard({
             )}
 
             {/* Contact Info (visible for giveaways/requests or matched swaps) */}
-            {showContact && contactInfo?.phone && (
+            {showContact && !isOwn && contactInfo?.phone && (
                 <div className={styles.contactInfo}>
                     <span className={styles.contactLabel}>Contact:</span>
                     <span className={styles.contactValue}>

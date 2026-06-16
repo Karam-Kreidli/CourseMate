@@ -20,6 +20,7 @@ function PostContent() {
     const [showCourseDropdown, setShowCourseDropdown] = useState(false);
     const [haveSection, setHaveSection] = useState('');
     const [wantSection, setWantSection] = useState('');
+    const [shareContact, setShareContact] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [profile, setProfile] = useState(null);
@@ -255,6 +256,7 @@ function PostContent() {
                     want_section_time: wantTime,
                     expires_at: expiresAt.toISOString(),
                     term_code: selectedTerm || '202610',
+                    share_contact_publicly: postType !== 'swap' && shareContact,
                 });
 
             if (insertError) throw insertError;
@@ -423,9 +425,25 @@ function PostContent() {
                             )}
                         </div>
 
+                        {/* Share-contact opt-in for giveaway/request */}
+                        {postType !== 'swap' && (
+                            <label className={styles.shareContactRow}>
+                                <input
+                                    type="checkbox"
+                                    checked={shareContact}
+                                    onChange={(e) => setShareContact(e.target.checked)}
+                                />
+                                <span>Show my phone number on this post</span>
+                            </label>
+                        )}
+
                         {/* Info Notice */}
                         <div className={styles.infoNotice}>
-                            {postType === 'swap' ? (<>Contact info will only be shared after both parties accept the match</>) : (<>Your phone number will be visible to everyone</>)}
+                            {postType === 'swap'
+                                ? (<>Contact info will only be shared after both parties accept the match</>)
+                                : shareContact
+                                    ? (<>Your phone number will be visible to anyone viewing this post</>)
+                                    : (<>Your phone number stays private. People who want to coordinate will need to match with you first.</>)}
                         </div>
 
                         {error && <div className={styles.error}>{error}</div>}
