@@ -10,10 +10,9 @@ const SANITIZE_OPTIONS = {
     allowedAttributes: {
         a: ['href', 'title', 'target', 'rel'],
         img: ['src', 'alt', 'title'],
-        '*': ['class'],
     },
     allowedSchemes: ['http', 'https', 'mailto', 'tel'],
-    allowedSchemesByTag: { img: ['http', 'https', 'data'] },
+    allowedSchemesByTag: { img: ['http', 'https'] },
     transformTags: {
         a: (tagName, attribs) => ({
             tagName: 'a',

@@ -6,7 +6,7 @@ export async function GET(request) {
     if (!admin) return new NextResponse('Not found', { status: 404 });
 
     const { searchParams } = new URL(request.url);
-    const search = (searchParams.get('q') || '').trim();
+    const search = (searchParams.get('q') || '').trim().replace(/[,()*\\%]/g, '');
     const status = searchParams.get('status');
     const term = searchParams.get('term');
 

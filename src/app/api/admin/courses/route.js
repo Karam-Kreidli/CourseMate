@@ -6,7 +6,7 @@ export async function GET(request) {
     if (!admin) return new NextResponse('Not found', { status: 404 });
 
     const { searchParams } = new URL(request.url);
-    const q = (searchParams.get('q') || '').trim();
+    const q = (searchParams.get('q') || '').trim().replace(/[,()*\\%]/g, '');
 
     const supabase = createAdminClient();
     let query = supabase
