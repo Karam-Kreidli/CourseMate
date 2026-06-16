@@ -3,7 +3,17 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
-export async function GET() {
+function authorized(request) {
+    const secret = process.env.CRON_SECRET;
+    if (!secret) return false;
+    const header = request.headers.get('authorization') || '';
+    return header === `Bearer ${secret}`;
+}
+
+export async function GET(request) {
+    if (!authorized(request)) {
+        return new NextResponse('Not found', { status: 404 });
+    }
     try {
         const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
         const now = new Date().toISOString();

@@ -1,0 +1,12 @@
+{
+    "crons": [
+        {
+            "path": "/api/expire-matches",
+            "schedule": "0 * * * *"
+        },
+        {
+            "path": "/api/expire-posts",
+            "schedule": "0 * * * *"
+        }
+    ]
+}

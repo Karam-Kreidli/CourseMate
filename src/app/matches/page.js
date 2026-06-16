@@ -216,37 +216,34 @@ export default function MatchesPage() {
                 const matchExpiresAt = new Date();
                 matchExpiresAt.setHours(matchExpiresAt.getHours() + 24);
 
-                await supabase.from('matches').insert({
-                    post_a_id: post.id,
-                    post_b_id: newMatch.id,
-                    user_a_id: post.user_id,
-                    user_b_id: newMatch.user_id,
-                    status: 'pending',
-                    expires_at: matchExpiresAt.toISOString(),
-                });
+                const { data: insertedMatch } = await supabase
+                    .from('matches')
+                    .insert({
+                        post_a_id: post.id,
+                        post_b_id: newMatch.id,
+                        user_a_id: post.user_id,
+                        user_b_id: newMatch.user_id,
+                        status: 'pending',
+                        expires_at: matchExpiresAt.toISOString(),
+                    })
+                    .select('id')
+                    .single();
 
                 await supabase
                     .from('posts')
                     .update({ status: 'pending' })
                     .in('id', [post.id, newMatch.id]);
 
-                try {
-                    await fetch('/api/notify-match', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            userAId: post.user_id,
-                            userBId: newMatch.user_id,
-                            courseCode: post.course_code,
-                            courseName: post.course_name,
-                            userASection: post.have_section,
-                            userBSection: newMatch.have_section,
-                            userAName: post.profile?.name,
-                            userBName: newMatch.profile?.name,
-                        }),
-                    });
-                } catch (emailErr) {
-                    console.error('Failed to send email notification:', emailErr);
+                if (insertedMatch?.id) {
+                    try {
+                        await fetch('/api/notify-match', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ matchId: insertedMatch.id }),
+                        });
+                    } catch (emailErr) {
+                        console.error('Failed to send email notification:', emailErr);
+                    }
                 }
 
                 return true;

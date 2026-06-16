@@ -297,14 +297,18 @@ function PostContent() {
                         const matchExpiresAt = new Date();
                         matchExpiresAt.setHours(matchExpiresAt.getHours() + 24);
 
-                        await supabase.from('matches').insert({
-                            post_a_id: myPost.id,
-                            post_b_id: matchingPost.id,
-                            user_a_id: currentUser?.id,
-                            user_b_id: matchingPost.user_id,
-                            status: 'pending',
-                            expires_at: matchExpiresAt.toISOString(),
-                        });
+                        const { data: insertedMatch } = await supabase
+                            .from('matches')
+                            .insert({
+                                post_a_id: myPost.id,
+                                post_b_id: matchingPost.id,
+                                user_a_id: currentUser?.id,
+                                user_b_id: matchingPost.user_id,
+                                status: 'pending',
+                                expires_at: matchExpiresAt.toISOString(),
+                            })
+                            .select('id')
+                            .single();
 
                         // Lock both posts
                         await supabase
@@ -313,23 +317,16 @@ function PostContent() {
                             .in('id', [myPost.id, matchingPost.id]);
 
                         // Send email notifications
-                        try {
-                            await fetch('/api/notify-match', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    userAId: currentUser?.id,
-                                    userBId: matchingPost.user_id,
-                                    courseCode: courseId,
-                                    courseName: courseName,
-                                    userASection: haveSection,
-                                    userBSection: matchingPost.have_section,
-                                    userAName: profile?.name,
-                                    userBName: matchingPost.profile?.name,
-                                }),
-                            });
-                        } catch (emailErr) {
-                            // Silent fail for email - don't block the user
+                        if (insertedMatch?.id) {
+                            try {
+                                await fetch('/api/notify-match', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ matchId: insertedMatch.id }),
+                                });
+                            } catch (emailErr) {
+                                // Silent fail for email - don't block the user
+                            }
                         }
                     }
                 }
