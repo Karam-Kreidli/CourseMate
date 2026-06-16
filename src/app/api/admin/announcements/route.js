@@ -1,19 +1,29 @@
 import { NextResponse } from 'next/server';
-import DOMPurify from 'isomorphic-dompurify';
+import sanitizeHtml from 'sanitize-html';
 import { getAdminUser, createAdminClient } from '@/lib/admin';
 
-const ALLOWED_TAGS = [
-    'p', 'br', 'strong', 'em', 'u', 's', 'a', 'ul', 'ol', 'li',
-    'h1', 'h2', 'h3', 'blockquote', 'code', 'pre', 'img', 'hr', 'span'
-];
-const ALLOWED_ATTR = ['href', 'src', 'alt', 'title', 'target', 'rel', 'class'];
+const SANITIZE_OPTIONS = {
+    allowedTags: [
+        'p', 'br', 'strong', 'em', 'u', 's', 'a', 'ul', 'ol', 'li',
+        'h1', 'h2', 'h3', 'blockquote', 'code', 'pre', 'img', 'hr', 'span',
+    ],
+    allowedAttributes: {
+        a: ['href', 'title', 'target', 'rel'],
+        img: ['src', 'alt', 'title'],
+        '*': ['class'],
+    },
+    allowedSchemes: ['http', 'https', 'mailto', 'tel'],
+    allowedSchemesByTag: { img: ['http', 'https', 'data'] },
+    transformTags: {
+        a: (tagName, attribs) => ({
+            tagName: 'a',
+            attribs: { ...attribs, target: '_blank', rel: 'noopener noreferrer' },
+        }),
+    },
+};
 
 function sanitize(html) {
-    return DOMPurify.sanitize(html || '', {
-        ALLOWED_TAGS,
-        ALLOWED_ATTR,
-        ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|tel:|data:image\/)/i,
-    });
+    return sanitizeHtml(html || '', SANITIZE_OPTIONS);
 }
 
 function cleanArray(value) {
