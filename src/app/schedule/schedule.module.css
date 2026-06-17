@@ -293,14 +293,14 @@
     gap: 2px;
 }
 
-.courseChipId {
-    font-family: 'JetBrains Mono', monospace;
+.courseChipName {
     font-size: 0.8125rem;
     font-weight: 700;
     color: var(--text-primary);
 }
 
-.courseChipName {
+.courseChipId {
+    font-family: 'JetBrains Mono', monospace;
     font-size: 0.6875rem;
     color: var(--text-secondary);
 }
