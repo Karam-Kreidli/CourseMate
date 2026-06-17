@@ -523,9 +523,16 @@ export default function SchedulePage() {
         for (const c of selectedCourses) {
             fetchSectionsForCourse(c.course_id);
         }
-        // Re-fetch saved schedules for this term
-        fetchDbSavedSchedules(profile);
     }, [selectedTerm]);
+
+    // Fetch saved schedules whenever the profile or selected term settles.
+    // Keyed on both so it fires once auth completes (client-side navigation,
+    // where the term is already set at mount) and re-fires when the term
+    // changes — instead of relying on a stale selectedTerm captured in checkAuth.
+    useEffect(() => {
+        if (!profile) return;
+        fetchDbSavedSchedules(profile, selectedTerm);
+    }, [profile, selectedTerm]);
 
     const checkAuth = async () => {
         const { data: { user } } = await supabase.auth.getUser();
@@ -554,21 +561,25 @@ export default function SchedulePage() {
         setProfile(profileData);
         fetchCourses(profileData.major);
 
-        // Fetch Database Saved Schedules properly reconstructing the CRNs
-        await fetchDbSavedSchedules(profileData);
+        // Saved schedules are fetched by a dedicated [profile, selectedTerm]
+        // effect, so we don't fetch them here (which would capture a stale term).
 
         // Always restore the user's active "draft" selected courses cart
-        restoreSelectedCourses(profileData);
+        const restored = await restoreSelectedCourses(profileData);
+
+        // If we arrived via /schedule?course=ID (e.g. from the dashboard
+        // "Electives offered" list), add that course to the cart.
+        await addCourseFromQuery(profileData, restored || []);
     };
 
-    const fetchDbSavedSchedules = async (prof) => {
+    const fetchDbSavedSchedules = async (prof, term) => {
         let query = supabase
             .from('saved_schedules')
             .select('*')
             .eq('user_id', prof.id)
             .order('created_at', { ascending: true });
 
-        if (selectedTerm) query = query.eq('term_code', selectedTerm);
+        if (term) query = query.eq('term_code', term);
 
         const { data: savedData, error: savedError } = await query;
 
@@ -713,7 +724,7 @@ export default function SchedulePage() {
                 return;
             }
 
-            await fetchDbSavedSchedules(profile);
+            await fetchDbSavedSchedules(profile, selectedTerm);
         } finally {
             setIsSavingSchedule(false);
         }
@@ -743,7 +754,7 @@ export default function SchedulePage() {
                 .single();
 
             const rawCart = cartData?.schedule_cart;
-            if (!rawCart) return;
+            if (!rawCart) return [];
 
             // Determine the active term — selectedTerm may not be ready yet on first load
             const activeTerm = selectedTerm || localStorage.getItem('selectedTerm');
@@ -761,10 +772,10 @@ export default function SchedulePage() {
             } else if (activeTerm && rawCart[activeTerm]) {
                 cart = rawCart[activeTerm];
             } else {
-                return;
+                return [];
             }
 
-            if (!cart?.courses?.length) return;
+            if (!cart?.courses?.length) return [];
 
             const savedCourses = cart.courses;
             const savedXor = cart.xor || [];
@@ -785,7 +796,7 @@ export default function SchedulePage() {
                 }
             }
 
-            if (restoredCourses.length === 0) return;
+            if (restoredCourses.length === 0) return [];
 
             setSelectedCourses(restoredCourses);
             if (savedXor.length) {
@@ -795,9 +806,40 @@ export default function SchedulePage() {
             for (const c of restoredCourses) {
                 fetchSectionsForCourse(c.course_id, prof);
             }
+            return restoredCourses;
         } catch (e) {
             console.error('Error restoring cart from DB:', e);
+            return [];
         }
+    };
+
+    // Add the course passed via ?course=COURSE_ID (e.g. from the dashboard
+    // "Electives offered" list) to the cart, deduping against whatever was
+    // just restored. Called after restoreSelectedCourses so its setState
+    // doesn't clobber the addition.
+    const addCourseFromQuery = async (prof, currentCourses) => {
+        if (typeof window === 'undefined') return;
+        const courseId = new URLSearchParams(window.location.search).get('course');
+        if (!courseId || courseId.startsWith('BASKET_')) return;
+
+        // Strip the param so a refresh doesn't re-add the course.
+        window.history.replaceState({}, '', '/schedule');
+
+        if (currentCourses.find(c => c.course_id === courseId)) return;
+        if (currentCourses.length >= 8) {
+            setError('You can add at most 8 courses to a schedule.');
+            return;
+        }
+
+        const { data } = await supabase
+            .from('courses').select('course_id, course_name, credit_hours')
+            .eq('course_id', courseId).single();
+        if (!data) return;
+
+        const courseObj = { course_id: data.course_id, name: data.course_name, credit_hours: data.credit_hours || 0 };
+        setSelectedCourses(prev => prev.find(c => c.course_id === courseObj.course_id) ? prev : [...prev, courseObj]);
+        setResults(null);
+        fetchSectionsForCourse(courseObj.course_id, prof);
     };
 
     // Persist selected courses to Supabase (debounced, keyed by term)
@@ -1488,8 +1530,8 @@ export default function SchedulePage() {
                                     {selectedCourses.map(c => (
                                         <div key={c.course_id} className={`${styles.courseChip} ${xorCourseIds.has(c.course_id) ? styles.courseChipXor : ''}`}>
                                             <div className={styles.courseChipInfo}>
-                                                <span className={styles.courseChipId}>{c.course_id}</span>
                                                 <span className={styles.courseChipName}>{c.name}</span>
+                                                <span className={styles.courseChipId}>{c.course_id}</span>
                                                 {loadingCourseIds.has(c.course_id) && <span className={styles.spinner} style={{ width: 12, height: 12, borderWidth: 2, marginLeft: 8 }}></span>}
                                             </div>
                                             <div className={styles.courseChipActions}>
@@ -1512,10 +1554,10 @@ export default function SchedulePage() {
 
                             <div className={styles.basketButtons}>
                                 <button className={styles.basketBtn} onClick={() => addCourse({ course_id: 'BASKET_1', name: 'University Elective (Basket 1)', is_basket: true, basket_name: 'Basket 1' })}>
-                                    + Group 1 Elective
+                                    + University Elective 1
                                 </button>
                                 <button className={styles.basketBtn} onClick={() => addCourse({ course_id: 'BASKET_2', name: 'University Elective (Basket 2)', is_basket: true, basket_name: 'Basket 2' })}>
-                                    + Group 2 Elective
+                                    + University Elective 2
                                 </button>
                                 {majorInfo?.dept_electives_count > 0 && majorInfo?.support_electives_count > 0 ? (
                                     <>
