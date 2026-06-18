@@ -19,6 +19,7 @@ export default function BrowsePage() {
     const [filter, setFilter] = useState('all');
     const [search, setSearch] = useState('');
     const [user, setUser] = useState(null);
+    const [interestedPostIds, setInterestedPostIds] = useState(new Set());
     const [userMajor, setUserMajor] = useState(null);
     const [userGender, setUserGender] = useState(null);
     const [transitioning, setTransitioning] = useState(false);
@@ -76,6 +77,7 @@ export default function BrowsePage() {
             return;
         }
         setUser(user);
+        fetchMyInterests(user.id);
 
         const { data: profile } = await supabase
             .from('profiles')
@@ -101,6 +103,14 @@ export default function BrowsePage() {
         fetchCourses();
         fetchSections(profile?.gender);
         fetchPosts();
+    };
+
+    const fetchMyInterests = async (userId) => {
+        const { data } = await supabase
+            .from('post_interests')
+            .select('post_id')
+            .eq('interested_user_id', userId);
+        if (data) setInterestedPostIds(new Set(data.map(r => r.post_id)));
     };
 
     const fetchCourses = async () => {
@@ -296,7 +306,7 @@ export default function BrowsePage() {
                                     const wantSectionData = post.want_section ? sections.find(s => s.course_id === post.course_code && s.section_num === post.want_section) : null;
 
                                     const isOwn = user?.id && post.user_id === user.id;
-                                    return (<PostCard key={post.id} post={post} courseName={courses[post.course_code]} haveInstructor={haveSectionData?.instructor} wantInstructor={wantSectionData?.instructor} showContact={post.type !== 'swap'} showActions={isOwn} isOwn={isOwn} onDelete={handleDeletePost} />);
+                                    return (<PostCard key={post.id} post={post} courseName={courses[post.course_code]} haveInstructor={haveSectionData?.instructor} wantInstructor={wantSectionData?.instructor} showContact={post.type !== 'swap'} showActions={isOwn} isOwn={isOwn} onDelete={handleDeletePost} interestAlreadySent={interestedPostIds.has(post.id)} />);
                                 })}
                             </div>
                         )}

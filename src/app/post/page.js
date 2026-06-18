@@ -179,6 +179,12 @@ function PostContent() {
         setSections(data || []);
     };
 
+    // Tutorial sections (e.g. "62T") are bound to their parent lecture ("62") and
+    // can't be exchanged on their own, so they're hidden from the post dropdowns.
+    // Lab sections (e.g. "61L") are kept — some courses are lab-only.
+    const isTutorialSection = (num) => String(num || '').toUpperCase().endsWith('T');
+    const selectableSections = sections.filter(s => !isTutorialSection(s.section_num));
+
     // Filter courses based on search (by name or ID)
     const filteredCourses = courseSearch.length >= 2
         ? courses.filter(c =>
@@ -402,7 +408,7 @@ function PostContent() {
                                 </label>
                                 <select value={haveSection} onChange={(e) => setHaveSection(e.target.value)} className={`${styles.input} ${styles.select}`} required>
                                     <option value="">Select section</option>
-                                    {sections.map(s => (
+                                    {selectableSections.map(s => (
                                         <option key={s.section_num} value={s.section_num}>
                                             Section {s.section_num} {s.professor ? `- ${s.professor}` : ''}
                                         </option>
@@ -415,7 +421,7 @@ function PostContent() {
                                     <label className={styles.label}>Section You Want *</label>
                                     <select value={wantSection} onChange={(e) => setWantSection(e.target.value)} className={`${styles.input} ${styles.select}`} required>
                                         <option value="">Select section</option>
-                                        {sections.filter(s => s.section_num !== haveSection).map(s => (
+                                        {selectableSections.filter(s => s.section_num !== haveSection).map(s => (
                                             <option key={s.section_num} value={s.section_num}>
                                                 Section {s.section_num} {s.professor ? `- ${s.professor}` : ''}
                                             </option>
@@ -443,7 +449,7 @@ function PostContent() {
                                 ? (<>Contact info will only be shared after both parties accept the match</>)
                                 : shareContact
                                     ? (<>Your phone number will be visible to anyone viewing this post</>)
-                                    : (<>Your phone number stays private. People who want to coordinate will need to match with you first.</>)}
+                                    : (<>Your phone number stays private. Interested students can tap &quot;I&apos;m interested&quot; and you&apos;ll get their contact by email.</>)}
                         </div>
 
                         {error && <div className={styles.error}>{error}</div>}

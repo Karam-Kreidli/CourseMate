@@ -887,6 +887,35 @@ export default function SchedulePage() {
         setCourses((data || []).map(c => ({ course_id: c.course_id, name: c.course_name, credit_hours: c.credit_hours || 0 })));
     };
 
+    // Some courses split their sections between majors by instructor (e.g. a
+    // course taught by one professor for CPE and another for CYBER). Those rules
+    // live in course_major_rules. If a course has rules, keep only the sections
+    // whose instructor is allowed for the student's major; an instructor with no
+    // rule for that course is treated as unrestricted. Courses with no rules are
+    // returned untouched (the common case — one extra tiny indexed lookup).
+    const applyMajorRules = async (courseId, sections, prof) => {
+        const major = prof?.major;
+        if (!major || sections.length === 0) return sections;
+
+        const { data: rules } = await supabase
+            .from('course_major_rules')
+            .select('instructor, allowed_major')
+            .eq('course_id', courseId);
+        if (!rules || rules.length === 0) return sections;
+
+        const norm = v => decodeHtmlEntities(String(v || '')).trim().toLowerCase();
+        const ruledInstructors = new Set(rules.map(r => norm(r.instructor)));
+        const allowedForMajor = new Set(
+            rules.filter(r => r.allowed_major === major).map(r => norm(r.instructor))
+        );
+
+        return sections.filter(s => {
+            const instr = norm(s.instructor);
+            if (!ruledInstructors.has(instr)) return true; // unclassified instructor → unrestricted
+            return allowedForMajor.has(instr);             // classified → must match major
+        });
+    };
+
     const fetchSectionsForCourse = async (courseId, profileOverride) => {
         setLoadingCourseIds(prev => new Set([...prev, courseId]));
         const prof = profileOverride || profile;
@@ -1039,7 +1068,8 @@ export default function SchedulePage() {
                 .in('campus', allowedCampuses).order('section_num');
             if (selectedTerm) regularQuery = regularQuery.eq('term_code', selectedTerm);
             const { data } = await regularQuery;
-            setAllSections(prev => ({ ...prev, [courseId]: mapSectionsData(data) || [] }));
+            const mapped = await applyMajorRules(courseId, mapSectionsData(data) || [], prof);
+            setAllSections(prev => ({ ...prev, [courseId]: mapped }));
         } finally {
             setLoadingCourseIds(prev => {
                 const next = new Set(prev);

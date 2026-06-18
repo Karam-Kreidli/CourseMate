@@ -246,6 +246,60 @@
     text-decoration: underline;
 }
 
+/* Interest flow (giveaway/request with no public phone) — sits in the footer */
+.interestCluster {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    min-width: 0;
+}
+
+.interestBtn {
+    padding: 6px 14px;
+    background: transparent;
+    color: var(--color-accent);
+    border: 1.5px solid var(--color-accent);
+    border-radius: var(--radius-sm);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.interestBtn:hover {
+    background: var(--color-accent-muted);
+}
+
+.interestBtn:active {
+    transform: translateY(1px);
+}
+
+.interestBtn:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+/* Static (uninteractive) confirmation — mirrors the Cancel button, but green. */
+.interestSent {
+    padding: 6px 12px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    background: rgba(16, 185, 129, 0.12);
+    color: var(--post-giveaway);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    white-space: nowrap;
+    cursor: default;
+}
+
+.interestError {
+    font-size: 0.6875rem;
+    color: var(--color-danger, #dc2626);
+    text-align: right;
+}
+
 /* Footer */
 .footer {
     display: flex;
