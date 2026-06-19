@@ -1028,12 +1028,20 @@ export default function SchedulePage() {
             if (courseId.startsWith('BASKET_')) {
                 const basketName = courseId === 'BASKET_1' ? 'Basket 1' : 'Basket 2';
                 // 1. Get courses in this basket
-                const { data: basketCourses } = await supabase
+                const { data: basketCoursesRaw } = await supabase
                     .from('courses')
-                    .select('course_id, course_name, credit_hours')
+                    .select('course_id, course_name, credit_hours, restricted_majors')
                     .eq('university_elective_basket', basketName);
 
-                if (!basketCourses?.length) {
+                // Basket courses are shared across all majors unless restricted_majors
+                // names specific majors — then only those majors may take the course.
+                const basketCourses = (basketCoursesRaw || []).filter(c => {
+                    const r = c.restricted_majors;
+                    if (!r || r.length === 0) return true;
+                    return prof?.major && r.includes(prof.major);
+                });
+
+                if (!basketCourses.length) {
                     setAllSections(prev => ({ ...prev, [courseId]: [] }));
                     return;
                 }
