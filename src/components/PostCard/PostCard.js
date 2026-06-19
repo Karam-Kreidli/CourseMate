@@ -64,10 +64,14 @@ export default function PostCard({
     onComplete,
     onDelete,
     isOwn = false,
+    interestAlreadySent = false,
 }) {
     const typeConfig = POST_TYPE_CONFIG[post.type];
     const statusConfig = STATUS_CONFIG[post.status];
     const [contactInfo, setContactInfo] = useState(null);
+    const [contactLoaded, setContactLoaded] = useState(false);
+    const [interestState, setInterestState] = useState(interestAlreadySent ? 'sent' : 'idle');
+    const [interestError, setInterestError] = useState('');
     const supabase = createClient();
 
     // Fetch contact info via RPC when showContact is true
@@ -84,9 +88,37 @@ export default function PostCard({
                     setContactInfo(data[0]);
                 }
             }
+            setContactLoaded(true);
         };
         fetchContactInfo();
     }, [showContact, post.profile?.id]);
+
+    const handleInterest = async () => {
+        if (interestState === 'sending' || interestState === 'sent') return;
+        if (!confirm('Let the poster contact you? Your name and phone number will be sent to them.')) return;
+        setInterestState('sending');
+        setInterestError('');
+        try {
+            const res = await fetch('/api/notify-interest', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ postId: post.id }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                setInterestError(data?.error || 'Could not send. Try again.');
+                setInterestState('idle');
+                return;
+            }
+            setInterestState('sent');
+        } catch {
+            setInterestError('Could not send. Try again.');
+            setInterestState('idle');
+        }
+    };
+
+    // For giveaway/request posts with no public phone, offer the interest flow.
+    const showInterest = showContact && !isOwn && contactLoaded && !contactInfo?.phone;
 
     return (
         <article className={`${styles.card} ${styles[`card${post.type}`]}`}>
@@ -171,6 +203,29 @@ export default function PostCard({
                         ) : null;
                     })()}
                 </div>
+
+                {/* No public phone: let the poster reach out instead */}
+                {showInterest && (
+                    <div className={styles.interestCluster}>
+                        {interestState === 'sent' ? (
+                            <span className={styles.interestSent} title="The poster has been notified — they'll contact you">
+                                Sent
+                            </span>
+                        ) : (
+                            <>
+                                <button
+                                    type="button"
+                                    className={styles.interestBtn}
+                                    onClick={handleInterest}
+                                    disabled={interestState === 'sending'}
+                                >
+                                    {interestState === 'sending' ? 'Sending…' : "I'm interested"}
+                                </button>
+                                {interestError && <span className={styles.interestError}>{interestError}</span>}
+                            </>
+                        )}
+                    </div>
+                )}
 
                 {showActions && isOwn && post.status === 'active' && (onComplete || onDelete) && (
                     <div className={styles.actions}>
