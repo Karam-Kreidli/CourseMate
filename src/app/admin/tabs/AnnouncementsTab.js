@@ -168,6 +168,62 @@ function AnnouncementsProvider({ children }) {
     );
 }
 
+function DismissedList({ announcementId, count }) {
+    const [open, setOpen] = useState(false);
+    const [users, setUsers] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    const toggle = async () => {
+        const next = !open;
+        setOpen(next);
+        if (next && users === null && count > 0) {
+            setLoading(true);
+            setError('');
+            try {
+                const res = await fetch(`/api/admin/announcements/dismissals?id=${encodeURIComponent(announcementId)}`);
+                if (!res.ok) throw new Error(await res.text());
+                const data = await res.json();
+                setUsers(data.users || []);
+            } catch (e) {
+                setError(e.message || 'Failed to load');
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
+
+    return (
+        <div>
+            <button
+                type="button"
+                className={styles.previewMuted}
+                onClick={count > 0 ? toggle : undefined}
+                style={{
+                    textAlign: 'left', padding: 0, fontSize: '0.7rem',
+                    background: 'none', border: 'none',
+                    cursor: count > 0 ? 'pointer' : 'default',
+                    textDecoration: count > 0 ? 'underline' : 'none',
+                }}
+            >
+                {count} {count === 1 ? 'user' : 'users'} dismissed{count > 0 ? (open ? ' ▾' : ' ▸') : ''}
+            </button>
+            {open && (
+                <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {loading && <div className={styles.previewMuted} style={{ padding: 0, fontSize: '0.7rem' }}>Loading…</div>}
+                    {error && <div className={styles.error}>{error}</div>}
+                    {users && users.map(u => (
+                        <div key={u.id} style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', lineHeight: 1.35 }}>
+                            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{u.name || '(no name)'}</span>
+                            {' · '}{u.student_id || '—'}{' · '}{u.email || '—'}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
 function AnnouncementsSidebar() {
     const ctx = useContext(Ctx);
     if (!ctx) return null;
@@ -200,6 +256,7 @@ function AnnouncementsSidebar() {
                                             {expired ? 'expired' : a.active ? 'active' : 'hidden'}
                                         </span>
                                     </div>
+                                    <DismissedList announcementId={a.id} count={a.dismissed_count ?? 0} />
                                     <div className={styles.rowActions} style={{ justifyContent: 'flex-end' }}>
                                         <button className={`${styles.btn} ${styles.btnGhost}`} onClick={() => startEdit(a)}>
                                             {isSelected ? 'Editing' : 'Edit'}
