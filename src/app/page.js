@@ -84,7 +84,7 @@ export default function DashboardPage() {
                     .eq('major_code', profile.major),
                 supabase
                     .from('courses')
-                    .select('course_id, course_name, university_elective_basket')
+                    .select('course_id, course_name, university_elective_basket, restricted_majors')
                     .not('university_elective_basket', 'is', null),
             ]);
 
@@ -94,7 +94,13 @@ export default function DashboardPage() {
                 course_name: r.courses?.course_name || '',
             }));
             setMajorCourses(flat);
-            setUnivElectives(univRows || []);
+            // Basket electives are shared with all majors unless restricted_majors limits them.
+            const visibleUniv = (univRows || []).filter(c => {
+                const r = c.restricted_majors;
+                if (!r || r.length === 0) return true;
+                return r.includes(profile.major);
+            });
+            setUnivElectives(visibleUniv);
         })();
     }, [ready, profile?.major]);
 
