@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import styles from '../admin.module.css';
 import CoursePicker from './CoursePicker';
 
+const NEW_COURSE_CATEGORIES = ['Core', 'Major Elective', 'Support Elective', 'Basket 1', 'Basket 2'];
+
 export default function MajorEditModal({ code, onClose, onSaved }) {
     const [major, setMajor] = useState(null);
     const [courses, setCourses] = useState([]); // currently attached
@@ -47,11 +49,18 @@ export default function MajorEditModal({ code, onClose, onSaved }) {
     const addAttach = (c) => setToAttach(prev => [...prev, c]);
     const removeAttach = (id) => setToAttach(prev => prev.filter(c => c.course_id !== id));
 
-    const addNewRow = () => setNewCourses(prev => [...prev, { course_id: '', course_name: '', credit_hours: '' }]);
+    const addNewRow = () => setNewCourses(prev => [...prev, { course_id: '', course_name: '', credit_hours: '', category: 'Core' }]);
     const updateNewRow = (i, field, value) => setNewCourses(prev => prev.map((c, idx) => idx === i ? { ...c, [field]: value } : c));
     const removeNewRow = (i) => setNewCourses(prev => prev.filter((_, idx) => idx !== i));
 
     const handleSave = async () => {
+        // New course IDs must be exactly 7 digits (CCCC + NNN).
+        const filledNew = newCourses.filter(c => (c.course_id || '').trim() || (c.course_name || '').trim());
+        const invalid = filledNew.find(c => !/^\d{7}$/.test((c.course_id || '').trim()));
+        if (invalid) {
+            setErr(`Invalid course ID "${(invalid.course_id || '').trim() || '(empty)'}". Course IDs must be exactly 7 digits.`);
+            return;
+        }
         setSaving(true);
         setErr('');
         try {
@@ -118,17 +127,17 @@ export default function MajorEditModal({ code, onClose, onSaved }) {
                 {!loading && major && (
                     <>
                         <div className={styles.toolbar}>
-                            <input className={styles.search} placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
+                            <input className={styles.input} placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
                         </div>
 
                         <div className={styles.formGrid}>
                             <div className={styles.numField}>
                                 <span className={styles.numFieldLabel}>Dept electives</span>
-                                <input className={styles.search} type="number" min="0" value={deptCount} onChange={(e) => setDeptCount(+e.target.value || 0)} />
+                                <input className={styles.input} type="number" min="0" value={deptCount} onChange={(e) => setDeptCount(+e.target.value || 0)} />
                             </div>
                             <div className={styles.numField}>
                                 <span className={styles.numFieldLabel}>Support electives</span>
-                                <input className={styles.search} type="number" min="0" value={supportCount} onChange={(e) => setSupportCount(+e.target.value || 0)} />
+                                <input className={styles.input} type="number" min="0" value={supportCount} onChange={(e) => setSupportCount(+e.target.value || 0)} />
                             </div>
                         </div>
 
@@ -176,11 +185,22 @@ export default function MajorEditModal({ code, onClose, onSaved }) {
                                 <button type="button" className={`${styles.btn} ${styles.btnGhost}`} onClick={addNewRow}>+ Row</button>
                             </div>
                             {newCourses.map((c, i) => (
-                                <div key={i} className={styles.toolbar} style={{ marginBottom: 6 }}>
-                                    <input className={styles.search} style={{ maxWidth: 140 }} placeholder="Course ID" value={c.course_id} onChange={(e) => updateNewRow(i, 'course_id', e.target.value)} />
-                                    <input className={styles.search} placeholder="Course name" value={c.course_name} onChange={(e) => updateNewRow(i, 'course_name', e.target.value)} />
-                                    <input className={styles.search} style={{ maxWidth: 90 }} type="number" min="0" placeholder="Credits" value={c.credit_hours} onChange={(e) => updateNewRow(i, 'credit_hours', e.target.value)} />
-                                    <button type="button" className={`${styles.btn} ${styles.btnDanger}`} onClick={() => removeNewRow(i)}>×</button>
+                                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                                    <input
+                                        className={styles.input}
+                                        style={{ flex: '0 0 130px', borderColor: c.course_id && !/^\d{7}$/.test(c.course_id) ? 'var(--color-danger, #dc2626)' : undefined }}
+                                        placeholder="Course ID (7 digits)"
+                                        inputMode="numeric"
+                                        maxLength={7}
+                                        value={c.course_id}
+                                        onChange={(e) => updateNewRow(i, 'course_id', e.target.value.replace(/\D/g, '').slice(0, 7))}
+                                    />
+                                    <input className={styles.input} style={{ flex: '1 1 auto', minWidth: 0 }} placeholder="Course name" value={c.course_name} onChange={(e) => updateNewRow(i, 'course_name', e.target.value)} />
+                                    <input className={styles.input} style={{ flex: '0 0 80px' }} type="number" min="0" placeholder="Credits" value={c.credit_hours} onChange={(e) => updateNewRow(i, 'credit_hours', e.target.value)} />
+                                    <select className={styles.input} style={{ flex: '0 0 150px' }} value={c.category || 'Core'} onChange={(e) => updateNewRow(i, 'category', e.target.value)} title="Course type. Core / Major / Support apply to this major; Basket 1 / 2 make it a university elective shared across all majors.">
+                                        {NEW_COURSE_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                                    </select>
+                                    <button type="button" className={`${styles.btn} ${styles.btnDanger}`} style={{ flexShrink: 0 }} onClick={() => removeNewRow(i)}>×</button>
                                 </div>
                             ))}
                         </div>

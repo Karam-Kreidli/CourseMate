@@ -34,7 +34,7 @@ export default function CoursePicker({ selected, onAdd, excludeIds = [] }) {
     return (
         <div>
             <input
-                className={styles.search}
+                className={styles.input}
                 placeholder="Search courses by code or name..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}

@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import ThemeToggle from '@/components/ThemeToggle';
 import usersTab from './tabs/UsersTab';
 import postsTab from './tabs/PostsTab';
 import semestersTab from './tabs/SemestersTab';
 import majorsTab from './tabs/MajorsTab';
+import coursesTab from './tabs/CoursesTab';
 import announcementsTab from './tabs/AnnouncementsTab';
 import styles from './admin.module.css';
 
@@ -14,6 +16,7 @@ const TABS = [
     { id: 'posts', label: 'Posts', module: postsTab },
     { id: 'semesters', label: 'Semesters', module: semestersTab },
     { id: 'majors', label: 'Majors', module: majorsTab },
+    { id: 'courses', label: 'Courses', module: coursesTab },
     { id: 'announcements', label: 'Announcements', module: announcementsTab },
 ];
 
@@ -42,6 +45,9 @@ export default function AdminClient() {
                         ))}
                     </nav>
                     <div className={styles.topbarRight}>
+                        <Link href="/" className={`${styles.btn} ${styles.btnGhost}`}>
+                            ← Exit admin
+                        </Link>
                         <ThemeToggle />
                     </div>
                 </header>

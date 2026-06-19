@@ -42,7 +42,24 @@ export async function GET() {
         .order('created_at', { ascending: false })
         .limit(200);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ announcements: data || [] });
+
+    const announcements = data || [];
+
+    // Attach how many users dismissed each announcement.
+    const { data: dismissals, error: dErr } = await supabase
+        .from('announcement_dismissals')
+        .select('announcement_id');
+    if (!dErr && dismissals) {
+        const counts = new Map();
+        for (const row of dismissals) {
+            counts.set(row.announcement_id, (counts.get(row.announcement_id) || 0) + 1);
+        }
+        for (const a of announcements) {
+            a.dismissed_count = counts.get(a.id) || 0;
+        }
+    }
+
+    return NextResponse.json({ announcements });
 }
 
 export async function POST(request) {
