@@ -8,6 +8,7 @@ import { useSemester } from '@/lib/SemesterContext';
 import { SearchIcon } from '@/components/Icons';
 import BottomNav from '@/components/BottomNav';
 import PostCard from '@/components/PostCard';
+import SectionAlerts from '@/components/SectionAlerts';
 import styles from './page.module.css';
 
 export default function BrowsePage() {
@@ -269,6 +270,8 @@ export default function BrowsePage() {
                             ))}
                         </div>
                     </div>
+
+                    <SectionAlerts term={selectedTerm} courses={courses} />
                 </aside>
 
                 <main className={styles.mainContent}>

@@ -116,7 +116,7 @@ export async function POST(request) {
 
         const { data: profiles, error: profilesErr } = await admin
             .from('profiles')
-            .select('id, name, email')
+            .select('id, name, email, email_match_alerts')
             .in('id', [match.user_a_id, match.user_b_id]);
         if (profilesErr || !profiles) {
             return NextResponse.json({ error: 'Profiles not found' }, { status: 500 });
@@ -127,13 +127,32 @@ export async function POST(request) {
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
         const courseCode = postA?.course_code || postB?.course_code || '';
         const courseName = postA?.course_name || postB?.course_name || '';
+
+        // In-app notifications for both matched users.
+        await admin.from('notifications').insert([
+            {
+                user_id: match.user_a_id,
+                type: 'match_found',
+                title: 'New match found',
+                message: `A swap match for ${courseCode} — your Section ${postA?.have_section || ''} ↔ ${postB?.have_section || ''}.`,
+                data: { match_id: match.id },
+            },
+            {
+                user_id: match.user_b_id,
+                type: 'match_found',
+                title: 'New match found',
+                message: `A swap match for ${courseCode} — your Section ${postB?.have_section || ''} ↔ ${postA?.have_section || ''}.`,
+                data: { match_id: match.id },
+            },
+        ]);
+
         const mailer = getResend();
         if (!mailer) return NextResponse.json({ success: true, emailsSent: [], skipped: true });
 
         const emailsSent = [];
         const errors = [];
 
-        if (userA?.email) {
+        if (userA?.email && userA?.email_match_alerts !== false) {
             try {
                 await mailer.emails.send({
                     from: 'CourseMate <noreply@course-mate.me>',
@@ -155,7 +174,7 @@ export async function POST(request) {
             }
         }
 
-        if (userB?.email) {
+        if (userB?.email && userB?.email_match_alerts !== false) {
             try {
                 await mailer.emails.send({
                     from: 'CourseMate <noreply@course-mate.me>',

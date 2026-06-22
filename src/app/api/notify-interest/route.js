@@ -135,15 +135,24 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Could not record interest' }, { status: 500 });
         }
 
+        // In-app notification for the poster.
+        await admin.from('notifications').insert({
+            user_id: post.user_id,
+            type: 'interest_received',
+            title: 'Someone is interested',
+            message: `${me.name || 'A student'} is interested in your ${post.type} for ${post.course_code} (Section ${post.have_section}).`,
+            data: { post_id: post.id, interested_user_id: user.id },
+        });
+
         // Notify the poster.
         const { data: poster } = await admin
             .from('profiles')
-            .select('name, email')
+            .select('name, email, email_interest_alerts')
             .eq('id', post.user_id)
             .single();
 
         const mailer = getResend();
-        if (mailer && poster?.email) {
+        if (mailer && poster?.email && poster?.email_interest_alerts !== false) {
             const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
             try {
                 await mailer.emails.send({
