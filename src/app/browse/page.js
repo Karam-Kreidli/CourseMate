@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
@@ -8,6 +8,7 @@ import { useSemester } from '@/lib/SemesterContext';
 import { SearchIcon } from '@/components/Icons';
 import BottomNav from '@/components/BottomNav';
 import PostCard from '@/components/PostCard';
+import SectionAlerts from '@/components/SectionAlerts';
 import styles from './page.module.css';
 
 export default function BrowsePage() {
@@ -25,24 +26,8 @@ export default function BrowsePage() {
     const [transitioning, setTransitioning] = useState(false);
     const router = useRouter();
     const supabase = createClient();
-    const { semesters, selectedTerm, setSelectedTerm, isSingleSemester } = useSemester();
-    const semesterToggleRef = useRef(null);
-    const semesterIndicatorRef = useRef(null);
-
-    useLayoutEffect(() => {
-        const toggle = semesterToggleRef.current;
-        const indicator = semesterIndicatorRef.current;
-        if (!toggle || !indicator) return;
-        const idx = semesters.findIndex(s => s.term_code === selectedTerm);
-        if (idx < 0) return;
-        const buttons = toggle.querySelectorAll('button');
-        const target = buttons[idx];
-        if (!target) return;
-        const togRect = toggle.getBoundingClientRect();
-        const tgtRect = target.getBoundingClientRect();
-        indicator.style.left = `${tgtRect.left - togRect.left}px`;
-        indicator.style.width = `${tgtRect.width}px`;
-    }, [selectedTerm, semesters]);
+    // Semester is chosen on the home page; Browse just follows the shared selection.
+    const { selectedTerm } = useSemester();
 
     useEffect(() => {
         initializePage();
@@ -227,33 +212,12 @@ export default function BrowsePage() {
                                     <Image src="/logo.png" alt="CourseMate" width={256} height={256} className={styles.logoImage} />
                                 </div>
                                 <div>
-                                    <span className={styles.logoText}>Swap</span>
+                                    <span className={styles.logoText}>Browse</span>
                                     <p className={styles.logoSubtitle}>Find a section to swap</p>
                                 </div>
                             </div>
                         </div>
                     </div>
-
-                    {!isSingleSemester && semesters.length === 2 && (
-                        <div className={styles.filtersCard}>
-                            <p className={styles.filtersTitle}>Semester</p>
-                            <div className={styles.semesterToggle} ref={semesterToggleRef}>
-                                <div
-                                    ref={semesterIndicatorRef}
-                                    className={styles.semesterIndicator}
-                                />
-                                {semesters.map((sem) => (
-                                    <button
-                                        key={sem.term_code}
-                                        className={`${styles.semesterBtn} ${selectedTerm === sem.term_code ? styles.semesterBtnActive : ''}`}
-                                        onClick={() => setSelectedTerm(sem.term_code)}
-                                    >
-                                        {sem.name}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
 
                     <div className={styles.filtersCard}>
                         <p className={styles.filtersTitle}>Filter by type</p>
@@ -269,6 +233,8 @@ export default function BrowsePage() {
                             ))}
                         </div>
                     </div>
+
+                    <SectionAlerts term={selectedTerm} courses={courses} sections={sections} majorCourses={majorCourses} />
                 </aside>
 
                 <main className={styles.mainContent}>

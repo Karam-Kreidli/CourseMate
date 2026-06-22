@@ -249,7 +249,7 @@ function PostContent() {
             const expiresAt = new Date();
             expiresAt.setDate(expiresAt.getDate() + 7);
 
-            const { error: insertError } = await supabase
+            const { data: newPost, error: insertError } = await supabase
                 .from('posts')
                 .insert({
                     user_id: (await supabase.auth.getUser()).data.user?.id,
@@ -263,9 +263,21 @@ function PostContent() {
                     expires_at: expiresAt.toISOString(),
                     term_code: selectedTerm || '202610',
                     share_contact_publicly: postType !== 'swap' && shareContact,
-                });
+                })
+                .select('id')
+                .single();
 
             if (insertError) throw insertError;
+
+            // Alert anyone watching this section (swap/giveaway makes one available).
+            if (newPost?.id && (postType === 'swap' || postType === 'giveaway')) {
+                fetch('/api/notify-watchers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ postId: newPost.id }),
+                    keepalive: true,
+                }).catch(() => { });
+            }
 
             // If swap, check for matches
             if (postType === 'swap') {

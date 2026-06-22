@@ -34,7 +34,7 @@ CourseMate streamlines the entire process through several key mechanisms:
 
 *   **Smart Swapping:** If Student A has Section 1 but wants Section 2, and Student B has Section 2 but wants Section 1, CourseMate's smart matching algorithm instantly connects them.
 *   **Giveaways & Requests:** If a student is simply dropping a course and doesn't need a swap, they can list it as a **Giveaway** for anyone who needs it. Conversely, students can post **Requests** for sections they desperately need.
-*   **Instant Notifications:** Students no longer need to constantly monitor the app. They can receive instant notifications the moment a relevant swap or giveaway becomes available.
+*   **Instant Notifications:** Students no longer need to constantly monitor the app. By **watching** a course section, they receive an in-app notification and email the moment a relevant swap or giveaway becomes available — all collected in a dedicated notification center with a live unread badge.
 *   **Tailored Academic Experience:** The platform natively understands the University of Sharjah's structure. By capturing a student's gender and major, it automatically filters out irrelevant sections.
 *   **Visual Schedule Builder:** To prevent overlapping swaps, students can visually master and preview their potential schedule right within the app before finalizing changes.
 
@@ -44,28 +44,48 @@ CourseMate streamlines the entire process through several key mechanisms:
 
 Every single aspect of the app is engineered to funnel students toward successful, stress-free schedules.
 
-### 1. `/` (Home & Feed)
-This is the central nervous system of CourseMate. The feed natively applies intelligent filtering to **only** show posts (swaps, giveaways, and requests) that match your declared major and gender (preventing campus overlap). 
-*   **Capabilities:** Users can instantly search this curated feed by Course CRN, Course Name, or Course ID to hunt for sections they need.
+### 1. `/` (Home Dashboard)
+The landing hub after sign-in. It surfaces a personalized snapshot rather than the raw feed: your active-post and pending-match counts, the total credits in your latest saved schedule, and the **electives offered this semester** (department *and* university baskets) filtered to your major. Targeted announcements surface here on arrival.
 
-### 2. `/post` (Creation Hub)
-The dashboard where students officially register a "Have" or "Want" section. 
+### 2. `/browse` (The Feed)
+The central marketplace. The feed natively applies intelligent filtering to **only** show posts (swaps, giveaways, and requests) that match your declared major and gender (preventing campus overlap).
+*   **Capabilities:** Users can instantly search this curated feed by Course CRN, Course Name, or Course ID.
+*   **Interest Flow:** For giveaways and requests (which aren't swaps), an **"I'm interested"** action lets a student share their own contact with the poster by email — the poster's number stays private unless they explicitly choose to publish it.
+*   **Section Alerts:** This is where students set up **watch-a-section** alerts (see `/notifications`).
+
+### 3. `/post` (Creation Hub)
+The hub where students officially register a "Have" or "Want" section.
 *   **Logic:** It dynamically parses the user's major to only allow submitting posts for relevant courses. It enforces constraints—preventing users from exceeding the 5 active post maximum, keeping them from submitting identical swap requests, and ensuring no bad data permeates the system.
 
-### 3. `/matches` (Activity & Transaction Dashboard)
-When the system finds a 1-to-1 swap match or a giveaway claim is submitted, an entity here is created in a **Pending Match** state. 
-*   **The 24-Hour Timer:** Matches are securely held for exactly 24 hours. 
+### 4. `/matches` (Swap Transactions)
+When the matching engine finds a reciprocal 1-to-1 **swap** between two students, a record is created here in a **Pending Match** state. (Giveaways and requests don't use matches — they're coordinated through the "I'm interested" flow on the feed.)
+*   **The 24-Hour Timer:** Matches are securely held for exactly 24 hours.
 *   **Dual Acceptance Logic:** Only when *both* independent parties click "Accept" inside the 24-hour window will the match finalize and exchange contact details. If a match is declined or expires, the original post is **auto-requeued** and placed back on the market instantly.
 
-### 4. `/schedule` (Visual Builder)
-An advanced graphical permutations tool natively built into the platform. 
+### 5. `/schedule` (Visual Builder)
+An advanced graphical permutations tool natively built into the platform.
 *   **Complexity Management:** It dynamically renders lectures, linked labs, and tutorial combinations so they never overlap.
 *   **Preferences:** Students can customize gap minimization rules, instruct the system to pack classes into compact days, strictly avoid Arabic or English designated classes (e.g., stopping section "01A" if English is preferred), and cleanly ingest "Major Elective" baskets flawlessly.
 
-### 5. `/profile` (User Settings)
-The core setup and onboarding view that forcefully captures necessary metadata required to feed the logic loops for the rest of the application. 
+### 6. `/instructors` (Instructor Schedule)
+A lookup tool that lets a student search any instructor by name and see the full weekly schedule of class times they teach this term — useful for vetting a section before swapping into a different professor.
 
-### 6. `/auth` (Authentication)
+### 7. `/profile` (User Settings)
+The core setup and onboarding view that forcefully captures necessary metadata required to feed the logic loops for the rest of the application.
+*   **Settings & Preferences:** Beyond identity fields, students control their app **theme** and a set of **email notification preferences** — independently toggling swap-match, interest, and watched-section emails off. In-app notifications always remain on; these toggles govern email delivery only.
+
+### 8. `/notifications` (Notification Center)
+A unified in-app inbox for everything time-sensitive, surfaced via a live **unread badge** on the bottom navigation bell.
+*   **What lands here:** new swap matches, interest in your giveaways/requests, and alerts for course sections you're watching. Opening the page marks items as read and clears the badge.
+*   **Section Alerts (Watch a Section):** Straight from the feed, a student can subscribe to a course — optionally pinned to a specific section — for the active term. The instant a matching **swap or giveaway** is posted, the watcher receives both an in-app notification and (unless opted out) an email, turning the platform from pull to push.
+
+### 9. `/admin` (Admin Console)
+A gated, admin-only operator console for running the platform.
+*   **Overview:** At-a-glance analytics — user, post, and match counts, recent activity, type/status breakdowns, and top courses by post volume.
+*   **Management Tabs:** Users, Posts, Semesters, Majors, and **Courses** (search and edit a course's attributes — credit hours, major memberships, and elective type, including shared university **Basket** electives with per-major exceptions).
+*   **Announcements:** A rich-text broadcaster precisely targeted by major, gender, and/or specific users, with per-announcement **dismissal tracking** (see exactly who dismissed each one).
+
+### 10. `/auth` (Authentication)
 Dedicated, fully secure authentication proxy built seamlessly onto Supabase's OAuth/OTP ecosystem. It guards all internal APIs to protect student data.
 
 ---
@@ -78,7 +98,7 @@ CourseMate handles sensitive data carefully. Here is exactly **why** we collect 
 | :--- | :--- | :--- |
 | **Gender** | UoS strictly segregates campuses (e.g., `Main/Men` vs `Main/Women`). Without knowing a user's gender, a male student could inadvertently accept a swap for a female-designated course section, which is physically impossible to attend. | Stored encrypted in the DB. Used entirely in the background as a route-filter constraint. |
 | **Major** | Prevents the system from showing Engineering swaps to a Med student. It's the central pillar that enables the `/schedule` route to dynamically look up a user's applicable Department Electives. | Retained in profiles and queried passively via the UI. |
-| **Phone Number** | Crucial for the final step of a swap coordination where users sync up on WhatsApp to click "Drop" in the actual university portal at the exact same millisecond. | **Strictly Hidden.** We do *not* display phone numbers publicly. A user's phone number is securely locked behind our `/matches` Row Level Security (RLS) system and is **ONLY** unveiled specifically to Party B once **both** Party A and Party B have actively hit "Accept" on a pending match. |
+| **Phone Number** | Crucial for the final step of a swap coordination where users sync up on WhatsApp to click "Drop" in the actual university portal at the exact same millisecond. | **Hidden by default.** For **swaps**, a number is locked behind our `/matches` Row Level Security (RLS) and is unveiled only once **both** parties hit "Accept" on a pending match. For **giveaways/requests**, the poster may either opt to publish their number publicly, or keep it private — in which case an interested student's contact is sent to the poster by email via the "I'm interested" flow, so the poster's number is never exposed. |
 | **Student ID** | Defends the platform against spam. Guarantees that active accounts are verifiable, enrolled University of Sharjah students. | Visible internally for trust & accountability metrics. |
 | **Full Name** | Personalizes the interactions, injecting a human element into automated notifications (e.g., *"Karam accepted your swap request!"*). | Publicly associated strictly with your respective swaps/giveaways. |
 
@@ -88,7 +108,7 @@ CourseMate handles sensitive data carefully. Here is exactly **why** we collect 
 
 *   **Frontend Ecosystem:** Next.js (App Router), React 19, Vanilla CSS Modules (to maintain highly isolated, premium and modular styling across dynamic pages).
 *   **Backend & DB Layer:** Supabase (PostgreSQL implementation layered with extremely tight Row-Level-Security rules locking down the APIs).
-*   **Automations & Crons:** Built-in Background Tasks (`/api/expire-posts`, `/api/expire-matches`) executing securely to gracefully strip away old, stale requests so the active feed remains permanently healthy. 
+*   **Automations & Background Services:** Scheduled cleanup tasks (`/api/expire-posts`, `/api/expire-matches`) gracefully strip away old, stale requests so the active feed remains permanently healthy. Event-driven dispatchers (`/api/notify-match`, `/api/notify-interest`, `/api/notify-watchers`) write in-app notifications and send transactional email via **Resend**, respecting each user's per-category email preferences.
 
 ---
 

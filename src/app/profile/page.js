@@ -274,6 +274,15 @@ function ProfileContent() {
         setSaving(false);
     };
 
+    const isPrefOn = (field) => profile?.[field] !== false;
+
+    const togglePref = async (field) => {
+        const newVal = !isPrefOn(field);
+        setProfile(p => ({ ...p, [field]: newVal }));
+        const { data: { user } } = await supabase.auth.getUser();
+        await supabase.from('profiles').update({ [field]: newVal }).eq('id', user.id);
+    };
+
     const handleSignOut = async () => {
         await supabase.auth.signOut();
         router.push('/auth');
@@ -495,6 +504,38 @@ function ProfileContent() {
                             </div>
                             <ThemeToggle />
                         </div>
+                    </div>
+
+                    {/* Preferences */}
+                    <div className={styles.card}>
+                        <div className={styles.cardHeader}>
+                            <h2 className={styles.cardTitle}>Preferences</h2>
+                        </div>
+                        <p className={styles.prefCaption}>
+                            Choose which emails you receive. In-app notifications always stay on.
+                        </p>
+                        {[
+                            { field: 'email_match_alerts', label: 'Swap match emails', sub: 'When a swap match is found for you' },
+                            { field: 'email_interest_alerts', label: 'Interest emails', sub: "When someone's interested in your giveaway or request" },
+                            { field: 'email_watch_alerts', label: 'Section alert emails', sub: "When a section you're watching becomes available" },
+                        ].map(p => (
+                            <div key={p.field} className={styles.settingRow}>
+                                <div className={styles.settingText}>
+                                    <div className={styles.settingLabel}>{p.label}</div>
+                                    <div className={styles.settingSub}>{p.sub}</div>
+                                </div>
+                                <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={isPrefOn(p.field)}
+                                    className={`${styles.toggle} ${isPrefOn(p.field) ? styles.toggleOn : ''}`}
+                                    onClick={() => togglePref(p.field)}
+                                    title={isPrefOn(p.field) ? 'On' : 'Off'}
+                                >
+                                    <span className={styles.toggleKnob} />
+                                </button>
+                            </div>
+                        ))}
                     </div>
 
                     {/* Sign Out */}

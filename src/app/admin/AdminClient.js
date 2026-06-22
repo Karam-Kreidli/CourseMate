@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import ThemeToggle from '@/components/ThemeToggle';
+import overviewTab from './tabs/OverviewTab';
 import usersTab from './tabs/UsersTab';
 import postsTab from './tabs/PostsTab';
 import semestersTab from './tabs/SemestersTab';
@@ -12,6 +13,7 @@ import announcementsTab from './tabs/AnnouncementsTab';
 import styles from './admin.module.css';
 
 const TABS = [
+    { id: 'overview', label: 'Overview', module: overviewTab },
     { id: 'users', label: 'Users', module: usersTab },
     { id: 'posts', label: 'Posts', module: postsTab },
     { id: 'semesters', label: 'Semesters', module: semestersTab },
@@ -21,7 +23,7 @@ const TABS = [
 ];
 
 export default function AdminClient() {
-    const [active, setActive] = useState('users');
+    const [active, setActive] = useState('overview');
     const activeTab = TABS.find(t => t.id === active);
     const { Provider, Sidebar, Main } = activeTab.module;
 
