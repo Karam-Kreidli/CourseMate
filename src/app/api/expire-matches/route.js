@@ -20,7 +20,7 @@ export async function GET(request) {
 
         const { data: expiredMatches, error: fetchError } = await supabaseAdmin
             .from('matches')
-            .select('*, post_a:posts!matches_post_a_id_fkey(*), post_b:posts!matches_post_b_id_fkey(*)')
+            .select('id, participants:match_participants(post_id)')
             .eq('status', 'pending')
             .lt('expires_at', now);
 
@@ -35,7 +35,10 @@ export async function GET(request) {
 
         for (const match of expiredMatches) {
             await supabaseAdmin.from('matches').update({ status: 'expired' }).eq('id', match.id);
-            await supabaseAdmin.from('posts').update({ status: 'active' }).in('id', [match.post_a_id, match.post_b_id]);
+            const postIds = (match.participants || []).map(p => p.post_id).filter(Boolean);
+            if (postIds.length > 0) {
+                await supabaseAdmin.from('posts').update({ status: 'active' }).in('id', postIds);
+            }
             expiredCount++;
         }
 

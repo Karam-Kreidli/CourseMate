@@ -129,11 +129,11 @@ export default function DashboardPage() {
                     .in('status', ['active', 'pending'])
                     .gt('expires_at', new Date().toISOString()),
                 supabase
-                    .from('matches')
-                    .select('id', { count: 'exact', head: true })
-                    .or(`user_a_id.eq.${user.id},user_b_id.eq.${user.id}`)
-                    .eq('status', 'pending')
-                    .eq('term_code', selectedTerm),
+                    .from('match_participants')
+                    .select('match_id, matches!inner(status, term_code)', { count: 'exact', head: true })
+                    .eq('user_id', user.id)
+                    .eq('matches.status', 'pending')
+                    .eq('matches.term_code', selectedTerm),
                 supabase
                     .from('saved_schedules')
                     .select('id, created_at, schedule_data')

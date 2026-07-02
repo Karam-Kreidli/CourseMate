@@ -279,75 +279,24 @@ function PostContent() {
                 }).catch(() => { });
             }
 
-            // If swap, check for matches
-            if (postType === 'swap') {
-                // Find matching posts (someone who has what I want and wants what I have)
-                let matchQuery = supabase
-                    .from('posts')
-                    .select('*, profile:profiles!posts_user_id_fkey(id, name, email)')
-                    .eq('type', 'swap')
-                    .eq('course_code', courseId)
-                    .eq('have_section', wantSection)
-                    .eq('want_section', haveSection)
-                    .eq('status', 'active')
-                    .neq('user_id', currentUser?.id);
+            // If swap, run the matching engine (finds the shortest cycle: a direct
+            // 2-way reciprocal swap, or a 3-way A->B->C->A loop). All matching logic,
+            // post-locking and in-app notifications happen server-side in the RPC.
+            if (postType === 'swap' && newPost?.id) {
+                const { data: matchId } = await supabase.rpc('find_match_for_post', {
+                    p_post_id: newPost.id,
+                });
 
-                if (selectedTerm) matchQuery = matchQuery.eq('term_code', selectedTerm);
-
-                const { data: matchingPosts } = await matchQuery;
-
-                if (matchingPosts?.length > 0) {
-                    const matchingPost = matchingPosts[0];
-
-                    // Get my newly created post
-                    const { data: myPosts } = await supabase
-                        .from('posts')
-                        .select('id')
-                        .eq('user_id', currentUser?.id)
-                        .eq('course_code', courseId)
-                        .eq('have_section', haveSection)
-                        .in('status', ['active', 'pending'])
-                        .order('created_at', { ascending: false })
-                        .limit(1);
-
-                    if (myPosts?.length > 0) {
-                        const myPost = myPosts[0];
-
-                        // Create match with 24-hour expiration
-                        const matchExpiresAt = new Date();
-                        matchExpiresAt.setHours(matchExpiresAt.getHours() + 24);
-
-                        const { data: insertedMatch } = await supabase
-                            .from('matches')
-                            .insert({
-                                post_a_id: myPost.id,
-                                post_b_id: matchingPost.id,
-                                user_a_id: currentUser?.id,
-                                user_b_id: matchingPost.user_id,
-                                status: 'pending',
-                                expires_at: matchExpiresAt.toISOString(),
-                            })
-                            .select('id')
-                            .single();
-
-                        // Lock both posts
-                        await supabase
-                            .from('posts')
-                            .update({ status: 'pending' })
-                            .in('id', [myPost.id, matchingPost.id]);
-
-                        // Send email notifications
-                        if (insertedMatch?.id) {
-                            try {
-                                await fetch('/api/notify-match', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ matchId: insertedMatch.id }),
-                                });
-                            } catch (emailErr) {
-                                // Silent fail for email - don't block the user
-                            }
-                        }
+                // Best-effort match emails (in-app notifications already sent by the RPC).
+                if (matchId) {
+                    try {
+                        await fetch('/api/notify-match', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ matchId }),
+                        });
+                    } catch (emailErr) {
+                        // Silent fail for email - don't block the user
                     }
                 }
             }

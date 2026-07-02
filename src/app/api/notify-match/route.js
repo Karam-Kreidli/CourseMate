@@ -20,15 +20,14 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
-function emailHtml({ recipientName, courseCode, courseName, theirSection, otherUserName, otherSection, appUrl }) {
+function emailHtml({ recipientName, swapLabel, courseLine, givesSection, getsSection, otherNames, appUrl }) {
     const safeName = escapeHtml(recipientName || 'Student');
-    const safeCourseCode = escapeHtml(courseCode || '');
-    const safeCourseName = escapeHtml(courseName || '');
-    const safeTheirSection = escapeHtml(theirSection || '');
-    const safeOtherUserName = escapeHtml(otherUserName || 'Student');
-    const safeOtherSection = escapeHtml(otherSection || '');
+    const safeCourseLine = escapeHtml(courseLine || '');
+    const safeGives = escapeHtml(givesSection || '');
+    const safeGets = escapeHtml(getsSection || '');
+    const safeOthers = escapeHtml(otherNames || '');
     const safeAppUrl = escapeHtml(appUrl);
-    const courseLine = safeCourseName ? `${safeCourseCode} - ${safeCourseName}` : safeCourseCode;
+    const safeSwapLabel = escapeHtml(swapLabel);
 
     return `
         <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 0; background-color: #ffffff; color: #333333;">
@@ -40,25 +39,25 @@ function emailHtml({ recipientName, courseCode, courseName, theirSection, otherU
                     Hello <strong>${safeName}</strong>,
                 </p>
                 <p style="font-size: 16px; line-height: 1.5; margin: 0 0 24px 0;">
-                    A potential CourseMate match has been found for you.
+                    ${safeSwapLabel} has been found for you on CourseMate.
                 </p>
                 <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 24px; border: 1px solid #eaeaea;">
-                    <h3 style="margin: 0 0 16px 0; color: #0a2540; font-size: 18px;">${courseLine}</h3>
+                    <h3 style="margin: 0 0 16px 0; color: #0a2540; font-size: 18px;">${safeCourseLine}</h3>
                     <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span style="color: #666;">Your Section:</span>
-                        <span style="font-weight: 600; color: #333;">${safeTheirSection}</span>
+                        <span style="color: #666;">You give:</span>
+                        <span style="font-weight: 600; color: #333;">Section ${safeGives}</span>
                     </div>
                     <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span style="color: #666;">Their Section:</span>
-                        <span style="font-weight: 600; color: #333;">${safeOtherSection}</span>
+                        <span style="color: #666;">You get:</span>
+                        <span style="font-weight: 600; color: #333;">Section ${safeGets}</span>
                     </div>
                     <div style="display: flex; justify-content: space-between;">
-                        <span style="color: #666;">Matched With:</span>
-                        <span style="font-weight: 600; color: #333;">${safeOtherUserName}</span>
+                        <span style="color: #666;">With:</span>
+                        <span style="font-weight: 600; color: #333;">${safeOthers}</span>
                     </div>
                 </div>
                 <p style="font-size: 16px; line-height: 1.5; margin: 0 0 32px 0;">
-                    Please log in to review and respond to this match request.
+                    Everyone in the swap must accept before contact info is shared. Log in to review and respond.
                 </p>
                 <div style="text-align: center;">
                     <a href="${safeAppUrl}/matches"
@@ -93,110 +92,77 @@ export async function POST(request) {
 
         const { data: match, error: matchErr } = await admin
             .from('matches')
-            .select('id, user_a_id, user_b_id, post_a_id, post_b_id')
+            .select('id, size')
             .eq('id', matchId)
             .single();
         if (matchErr || !match) {
             return NextResponse.json({ error: 'Match not found' }, { status: 404 });
         }
 
-        if (user.id !== match.user_a_id && user.id !== match.user_b_id) {
+        // Load every participant + their post + their profile.
+        const { data: participants, error: partErr } = await admin
+            .from('match_participants')
+            .select(`
+                position, user_id, gives_section, gets_section,
+                post:posts!match_participants_post_id_fkey(course_code, course_name),
+                profile:profiles!match_participants_user_id_fkey(id, name, email, email_match_alerts)
+            `)
+            .eq('match_id', matchId)
+            .order('position');
+        if (partErr || !participants || participants.length === 0) {
+            return NextResponse.json({ error: 'Participants not found' }, { status: 500 });
+        }
+
+        // Authorize: the caller must be one of the participants.
+        if (!participants.some(p => p.user_id === user.id)) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
-        const { data: posts, error: postsErr } = await admin
-            .from('posts')
-            .select('id, user_id, course_code, course_name, have_section')
-            .in('id', [match.post_a_id, match.post_b_id]);
-        if (postsErr || !posts || posts.length !== 2) {
-            return NextResponse.json({ error: 'Posts not found' }, { status: 500 });
-        }
-        const postA = posts.find(p => p.id === match.post_a_id);
-        const postB = posts.find(p => p.id === match.post_b_id);
-
-        const { data: profiles, error: profilesErr } = await admin
-            .from('profiles')
-            .select('id, name, email, email_match_alerts')
-            .in('id', [match.user_a_id, match.user_b_id]);
-        if (profilesErr || !profiles) {
-            return NextResponse.json({ error: 'Profiles not found' }, { status: 500 });
-        }
-        const userA = profiles.find(p => p.id === match.user_a_id);
-        const userB = profiles.find(p => p.id === match.user_b_id);
-
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-        const courseCode = postA?.course_code || postB?.course_code || '';
-        const courseName = postA?.course_name || postB?.course_name || '';
-
-        // In-app notifications for both matched users.
-        await admin.from('notifications').insert([
-            {
-                user_id: match.user_a_id,
-                type: 'match_found',
-                title: 'New match found',
-                message: `A swap match for ${courseCode} — your Section ${postA?.have_section || ''} ↔ ${postB?.have_section || ''}.`,
-                data: { match_id: match.id },
-            },
-            {
-                user_id: match.user_b_id,
-                type: 'match_found',
-                title: 'New match found',
-                message: `A swap match for ${courseCode} — your Section ${postB?.have_section || ''} ↔ ${postA?.have_section || ''}.`,
-                data: { match_id: match.id },
-            },
-        ]);
+        const first = participants[0];
+        const courseCode = first?.post?.course_code || '';
+        const courseName = first?.post?.course_name || '';
+        const courseLine = courseName ? `${courseCode} - ${courseName}` : courseCode;
+        const isCycle = (match.size || participants.length) > 2;
+        const swapLabel = isCycle ? `A ${match.size || participants.length}-way swap` : 'A swap match';
 
         const mailer = getResend();
-        if (!mailer) return NextResponse.json({ success: true, emailsSent: [], skipped: true });
+        if (!mailer) return NextResponse.json({ success: true, emailsSent: 0, skipped: true });
 
-        const emailsSent = [];
+        let emailsSent = 0;
         const errors = [];
 
-        if (userA?.email && userA?.email_match_alerts !== false) {
+        for (const p of participants) {
+            const profile = p.profile;
+            if (!profile?.email || profile.email_match_alerts === false) continue;
+
+            const otherNames = participants
+                .filter(o => o.user_id !== p.user_id)
+                .map(o => o.profile?.name || 'a student')
+                .join(', ');
+
             try {
                 await mailer.emails.send({
                     from: 'CourseMate <noreply@course-mate.me>',
-                    to: userA.email,
+                    to: profile.email,
                     subject: `Match Found: ${courseCode}`,
                     html: emailHtml({
-                        recipientName: userA?.name,
-                        courseCode,
-                        courseName,
-                        theirSection: postA?.have_section,
-                        otherUserName: userB?.name,
-                        otherSection: postB?.have_section,
+                        recipientName: profile.name,
+                        swapLabel,
+                        courseLine,
+                        givesSection: p.gives_section,
+                        getsSection: p.gets_section,
+                        otherNames,
                         appUrl,
                     }),
                 });
-                emailsSent.push('A');
+                emailsSent++;
             } catch (err) {
-                errors.push({ user: 'A', error: err.message });
+                errors.push({ user: p.user_id, error: err.message });
             }
         }
 
-        if (userB?.email && userB?.email_match_alerts !== false) {
-            try {
-                await mailer.emails.send({
-                    from: 'CourseMate <noreply@course-mate.me>',
-                    to: userB.email,
-                    subject: `Match Found: ${courseCode}`,
-                    html: emailHtml({
-                        recipientName: userB?.name,
-                        courseCode,
-                        courseName,
-                        theirSection: postB?.have_section,
-                        otherUserName: userA?.name,
-                        otherSection: postA?.have_section,
-                        appUrl,
-                    }),
-                });
-                emailsSent.push('B');
-            } catch (err) {
-                errors.push({ user: 'B', error: err.message });
-            }
-        }
-
-        return NextResponse.json({ success: true, emailsSent: emailsSent.length, errors });
+        return NextResponse.json({ success: true, emailsSent, errors });
     } catch (error) {
         return NextResponse.json({ error: 'Internal error' }, { status: 500 });
     }
