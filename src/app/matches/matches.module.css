@@ -471,6 +471,68 @@
     flex-shrink: 0;
 }
 
+/* ===== 3-way cycle chain ===== */
+.cycleChain {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    margin-bottom: 12px;
+    border: 1px solid var(--border-color);
+}
+
+.cycleStep {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 9px 12px;
+    background: var(--bg-card, var(--glass-bg-dense));
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+}
+
+.cycleStepMe {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 1px var(--color-accent-muted);
+}
+
+.cycleName {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cycleFlow {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.cycleArrow {
+    color: var(--color-accent);
+    font-weight: 800;
+    padding: 0 2px;
+}
+
+.contactList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.contactList .contactInfo {
+    margin-bottom: 0;
+}
+
 .matchCourse {
     display: flex;
     align-items: center;
