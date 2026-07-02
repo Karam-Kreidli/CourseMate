@@ -735,6 +735,20 @@
 
 .postStatusactive { background: var(--post-giveaway-bg); color: var(--post-giveaway); border: none; }
 .postStatuspending { background: var(--post-request-bg); color: var(--post-request); border: none; }
+.postStatuscompleted { background: var(--post-giveaway-bg); color: var(--post-giveaway); border: none; }
+.postStatusexpired { background: var(--bg-secondary); color: var(--text-muted); border: 1px solid var(--border-color); }
+
+.postExpiry {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.postExpiryUrgent {
+    color: #ef4444;
+}
 
 .postDetails {
     display: flex;

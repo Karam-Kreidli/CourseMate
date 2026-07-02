@@ -11,6 +11,7 @@ export default function MatchesPage() {
     const [matches, setMatches] = useState([]);
     const [declinedMatches, setDeclinedMatches] = useState([]);
     const [myPosts, setMyPosts] = useState([]);
+    const [historyPosts, setHistoryPosts] = useState([]);
     const [activeTab, setActiveTab] = useState('matches');
     const [loading, setLoading] = useState(true);
     const [user, setUser] = useState(null);
@@ -56,6 +57,7 @@ export default function MatchesPage() {
         fetchMatches(user.id);
         fetchDeclinedMatches(user.id);
         fetchMyPosts(user.id);
+        fetchHistory(user.id);
         fetchCourses();
     };
 
@@ -137,6 +139,19 @@ export default function MatchesPage() {
         setMyPosts(data || []);
     };
 
+    // Past posts (completed swaps/giveaways and expired ones) for the History tab.
+    const fetchHistory = async (userId) => {
+        const { data } = await supabase
+            .from('posts')
+            .select('*')
+            .eq('user_id', userId)
+            .in('status', ['completed', 'expired'])
+            .order('updated_at', { ascending: false })
+            .limit(50);
+
+        setHistoryPosts(data || []);
+    };
+
     const fetchDeclinedMatches = async (userId) => {
         const ids = await myMatchIds(userId, ['declined']);
         if (ids.length === 0) {
@@ -192,6 +207,7 @@ export default function MatchesPage() {
         ));
 
         fetchMyPosts(user.id);
+        fetchHistory(user.id);
     };
 
     const handleDelete = async (postId) => {
@@ -214,6 +230,23 @@ export default function MatchesPage() {
         const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
 
         return `${hours}h ${minutes}m left`;
+    };
+
+    // Compact "time left" label for a user's own active post (turns urgent < 24h).
+    const getPostExpiry = (expiresAt) => {
+        if (!expiresAt) return null;
+        const diff = new Date(expiresAt) - new Date();
+        if (diff <= 0) return { text: 'Expiring…', urgent: true };
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        if (days >= 1) return { text: `${days}d left`, urgent: false };
+        if (hours >= 1) return { text: `${hours}h left`, urgent: true };
+        return { text: '<1h left', urgent: true };
+    };
+
+    const formatDate = (dateString) => {
+        if (!dateString) return '';
+        return new Date(dateString).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     };
 
     const sortedParts = (match) => [...(match.participants || [])].sort((a, b) => a.position - b.position);
@@ -255,6 +288,12 @@ export default function MatchesPage() {
                             {myPosts.length > 0 && (
                                 <span className={styles.countBadge}>{myPosts.length}</span>
                             )}
+                        </button>
+                        <button
+                            className={`${styles.tab} ${activeTab === 'history' ? styles.activeTab : ''}`}
+                            onClick={() => setActiveTab('history')}
+                        >
+                            History
                         </button>
                     </div>
                 </div>
@@ -415,6 +454,52 @@ export default function MatchesPage() {
                                 </section>
                             )}
 
+                            {/* History */}
+                            {activeTab === 'history' && (
+                                <section className={styles.section}>
+                                    <h2 className={styles.sectionTitle}>Past Posts</h2>
+
+                                    {historyPosts.length === 0 ? (
+                                        <div className={styles.empty}>
+                                            <p>No past posts yet</p>
+                                            <p className={styles.hint}>Completed swaps and expired posts will show up here</p>
+                                        </div>
+                                    ) : (
+                                        <div className={styles.postList}>
+                                            {historyPosts.map((post) => (
+                                                <div key={post.id} className={`${styles.postCard} ${styles[`postCard${post.type}`]}`}>
+                                                    <div className={styles.postHeader}>
+                                                        <span className={`${styles.postBadge} ${styles[`postBadge${post.type}`]}`}>
+                                                            {post.type?.charAt(0).toUpperCase() + post.type?.slice(1)}
+                                                        </span>
+                                                        <span className={`${styles.postStatus} ${styles[`postStatus${post.status}`]}`}>
+                                                            {post.status === 'completed' ? 'Swapped' : 'Expired'}
+                                                        </span>
+                                                    </div>
+
+                                                    <div className={styles.postDetails}>
+                                                        <span className={styles.courseId}>{post.course_code}</span>
+                                                        <span className={styles.courseName}>
+                                                            {post.course_name || courses[post.course_code]}
+                                                        </span>
+                                                        <div className={styles.sections}>
+                                                            <span>Section {post.have_section}</span>
+                                                            {post.want_section && (
+                                                                <>
+                                                                    <span className={styles.arrow}>→</span>
+                                                                    <span>Section {post.want_section}</span>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                        <span className={styles.postExpiry}>{formatDate(post.updated_at)}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </section>
+                            )}
+
                             {/* My Posts */}
                             {activeTab === 'posts' && (
                                 <section className={styles.section}>
@@ -451,6 +536,14 @@ export default function MatchesPage() {
                                                                 </>
                                                             )}
                                                         </div>
+                                                        {post.status === 'active' && post.expires_at && (() => {
+                                                            const exp = getPostExpiry(post.expires_at);
+                                                            return exp ? (
+                                                                <span className={`${styles.postExpiry} ${exp.urgent ? styles.postExpiryUrgent : ''}`}>
+                                                                    Expires · {exp.text}
+                                                                </span>
+                                                            ) : null;
+                                                        })()}
                                                     </div>
 
                                                     <div className={styles.postFooter}>
