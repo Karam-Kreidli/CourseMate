@@ -119,7 +119,7 @@ CourseMate handles sensitive data carefully. Here is exactly **why** we collect 
 
 *   **Frontend Ecosystem:** Next.js (App Router), React 19, Vanilla CSS Modules (to maintain highly isolated, premium and modular styling across dynamic pages).
 *   **Backend & DB Layer:** Supabase (PostgreSQL implementation layered with extremely tight Row-Level-Security rules locking down the APIs).
-*   **Automations & Background Services:** Scheduled cleanup tasks (`/api/expire-posts`, `/api/expire-matches`) gracefully strip away old, stale requests so the active feed remains permanently healthy. Event-driven dispatchers (`/api/notify-match`, `/api/notify-interest`, `/api/notify-watchers`) write in-app notifications and send transactional email via **Resend**, respecting each user's per-category email preferences.
+*   **Automations & Background Services:** Scheduled cleanup tasks (`/api/expire-posts`, `/api/expire-matches`) gracefully strip away old, stale requests so the active feed remains permanently healthy. Event-driven dispatchers (`/api/notify-match`, `/api/notify-interest`, `/api/notify-watchers`) write in-app notifications and send transactional email via **Resend**, respecting each user's per-category email preferences. Chat nudges (`/api/notify-message`) only fire for a message left unread past a quiet period, so an active back-and-forth never generates an email per tap — the daily `expire-matches` run dispatches them, since Vercel's Hobby plan caps the project at two cron entries.
 
 ---
 

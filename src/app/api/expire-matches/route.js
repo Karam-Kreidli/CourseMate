@@ -2,6 +2,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { dispatchMessageEmails } from '@/lib/messageEmails';
 
 function authorized(request) {
     const secret = process.env.CRON_SECRET;
@@ -18,6 +19,10 @@ export async function GET(request) {
         const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
         const now = new Date().toISOString();
 
+        // Piggybacks on this daily run: the Hobby plan allows only two cron
+        // entries, and this route plus expire-posts already use both.
+        const chatEmails = await dispatchMessageEmails(supabaseAdmin).catch(() => ({ sent: 0 }));
+
         const { data: expiredMatches, error: fetchError } = await supabaseAdmin
             .from('matches')
             .select('id, participants:match_participants(post_id)')
@@ -29,7 +34,9 @@ export async function GET(request) {
             return NextResponse.json({ error: fetchError.message }, { status: 500 });
         }
 
-        if (!expiredMatches || expiredMatches.length === 0) return NextResponse.json({ message: 'No expired matches found', expired: 0 });
+        if (!expiredMatches || expiredMatches.length === 0) {
+            return NextResponse.json({ message: 'No expired matches found', expired: 0, chatEmails });
+        }
 
         let expiredCount = 0;
 
@@ -42,7 +49,7 @@ export async function GET(request) {
             expiredCount++;
         }
 
-        return NextResponse.json({ message: `Expired ${expiredCount} matches`, expired: expiredCount });
+        return NextResponse.json({ message: `Expired ${expiredCount} matches`, expired: expiredCount, chatEmails });
     } catch (error) {
         console.error('Error processing expired matches:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });

@@ -28,8 +28,10 @@ export default function BottomNav() {
             if (!cancelled) setUnreadChats(chats || 0);
 
             // The app is open somewhere, so anything waiting has reached this
-            // device — that's the second grey tick for whoever sent it.
-            await supabase.rpc('mark_all_delivered');
+            // device — that's the second grey tick for whoever sent it. Only
+            // worth a write when something is actually pending; with nothing
+            // unread the delivered watermark is already caught up.
+            if (chats > 0) await supabase.rpc('mark_all_delivered');
         };
 
         loadUnread();

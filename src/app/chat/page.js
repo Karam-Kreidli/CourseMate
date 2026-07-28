@@ -34,7 +34,9 @@ export default function ChatListPage() {
             setLoading(false);
 
             // Being on this screen means the messages reached this device.
-            await supabase.rpc('mark_all_delivered');
+            if ((data || []).some(c => c.unread > 0)) {
+                await supabase.rpc('mark_all_delivered');
+            }
         };
 
         load();
