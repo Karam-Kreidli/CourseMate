@@ -34,6 +34,7 @@ CourseMate streamlines the entire process through several key mechanisms:
 
 *   **Smart Swapping:** If Student A has Section 1 but wants Section 2, and Student B has Section 2 but wants Section 1, CourseMate's smart matching algorithm instantly connects them.
 *   **Giveaways & Requests:** If a student is simply dropping a course and doesn't need a swap, they can list it as a **Giveaway** for anyone who needs it. Conversely, students can post **Requests** for sections they desperately need.
+*   **Coordination Without Contact Details:** Matched students agree on when to do the swap inside the app, using a fixed catalogue of templated messages with WhatsApp-style delivery ticks — no phone numbers, no group chats, and nothing free-typed to moderate.
 *   **Instant Notifications:** Students no longer need to constantly monitor the app. By **watching** a course section, they receive an in-app notification and email the moment a relevant swap or giveaway becomes available — all collected in a dedicated notification center with a live unread badge.
 *   **Tailored Academic Experience:** The platform natively understands the University of Sharjah's structure. By capturing a student's gender and major, it automatically filters out irrelevant sections.
 *   **Visual Schedule Builder:** To prevent overlapping swaps, students can visually master and preview their potential schedule right within the app before finalizing changes.
@@ -50,7 +51,7 @@ The landing hub after sign-in. It surfaces a personalized snapshot rather than t
 ### 2. `/browse` (The Feed)
 The central marketplace. The feed natively applies intelligent filtering to **only** show posts (swaps, giveaways, and requests) that match your declared major and gender (preventing campus overlap).
 *   **Capabilities:** Users can instantly search this curated feed by Course CRN, Course Name, or Course ID.
-*   **Interest Flow:** For giveaways and requests (which aren't swaps), an **"I'm interested"** action lets a student share their own contact with the poster by email — the poster's number stays private unless they explicitly choose to publish it.
+*   **Interest Flow:** For giveaways and requests (which aren't swaps), an **"I'm interested"** action opens a **chat thread** with the poster (see `/chat`). No phone numbers change hands — the poster is notified in-app and by email, and replies inside CourseMate.
 *   **Section Alerts:** This is where students set up **watch-a-section** alerts (see `/notifications`).
 
 ### 3. `/post` (Creation Hub)
@@ -60,32 +61,42 @@ The hub where students officially register a "Have" or "Want" section.
 ### 4. `/matches` (Swap Transactions)
 When the matching engine finds a reciprocal 1-to-1 **swap** between two students, a record is created here in a **Pending Match** state. (Giveaways and requests don't use matches — they're coordinated through the "I'm interested" flow on the feed.)
 *   **The 24-Hour Timer:** Matches are securely held for exactly 24 hours.
-*   **Dual Acceptance Logic:** Only when *both* independent parties click "Accept" inside the 24-hour window will the match finalize and exchange contact details. If a match is declined or expires, the original post is **auto-requeued** and placed back on the market instantly.
+*   **Dual Acceptance Logic:** Only when *both* independent parties click "Accept" inside the 24-hour window will the match finalize. If a match is declined or expires, the original post is **auto-requeued** and placed back on the market instantly.
+*   **Coordination:** A chat thread opens the moment the match is created, so the two sides can agree on a time *inside* the 24-hour window rather than after it. A phone number is still available on an accepted match, but only behind an explicit "Show phone number" tap.
 
-### 5. `/schedule` (Visual Builder)
+### 5. `/chat` (Coordination Threads)
+The in-app channel that replaces swapping phone numbers. A thread opens automatically for every match (the moment it's created, not after acceptance) and for every "I'm interested" on a giveaway/request.
+*   **Templated messages, not free text:** there is no text box anywhere. Students pick a sentence from a fixed catalogue — grouped into *Timing*, *Doing it now*, *Status*, and *Courtesy* — and fill any blanks from dropdown chips (a day, a half-hour time slot, one of the sections actually in the swap, a retry interval). This keeps the conversation on-task, leaves nothing to moderate, and makes it impossible to leak an off-platform contact or send anything abusive.
+*   **Server-enforced:** `messages` has no insert policy at all. Every message goes through the `send_message` RPC, which re-checks the template key, rejects any value the picker wouldn't have offered, and renders the text itself — so a crafted client can't put arbitrary words in front of another student. Sending is rate-limited per conversation.
+*   **Delivery ticks:** one tick when the message is stored, two when it has reached every other participant's app, two in the accent colour once they've all actually opened the thread. In a 3-way cyclic swap the state only advances when the slowest person catches up.
+*   **Structured by design:** each message is stored as a template key plus its values, so the platform can see *why* swaps fail ("seat was taken", "rescheduled three times") instead of losing it to WhatsApp.
+*   **Lifecycle:** threads close automatically when a match is declined, expires, or completes, and the composer is disabled with a closing note.
+
+### 6. `/schedule` (Visual Builder)
 An advanced graphical permutations tool natively built into the platform.
 *   **Complexity Management:** It dynamically renders lectures, linked labs, and tutorial combinations so they never overlap.
 *   **Preferences:** Students can customize gap minimization rules, instruct the system to pack classes into compact days, strictly avoid Arabic or English designated classes (e.g., stopping section "01A" if English is preferred), and cleanly ingest "Major Elective" baskets flawlessly.
 
-### 6. `/instructors` (Instructor Schedule)
+### 7. `/instructors` (Instructor Schedule)
 A lookup tool that lets a student search any instructor by name and see the full weekly schedule of class times they teach this term — useful for vetting a section before swapping into a different professor.
 
-### 7. `/profile` (User Settings)
+### 8. `/profile` (User Settings)
 The core setup and onboarding view that forcefully captures necessary metadata required to feed the logic loops for the rest of the application.
 *   **Settings & Preferences:** Beyond identity fields, students control their app **theme** and a set of **email notification preferences** — independently toggling swap-match, interest, and watched-section emails off. In-app notifications always remain on; these toggles govern email delivery only.
 
-### 8. `/notifications` (Notification Center)
+### 9. `/notifications` (Notification Center)
 A unified in-app inbox for everything time-sensitive, surfaced via a live **unread badge** on the bottom navigation bell.
-*   **What lands here:** new swap matches, interest in your giveaways/requests, and alerts for course sections you're watching. Opening the page marks items as read and clears the badge.
+*   **What lands here:** new swap matches, interest in your giveaways/requests, unread chat messages, and alerts for course sections you're watching. Opening the page marks items as read and clears the badge.
+*   **Chat is deduplicated:** a burst of messages in one thread produces a single unread entry here, not one per message, so a busy conversation can't bury everything else.
 *   **Section Alerts (Watch a Section):** Straight from the feed, a student can subscribe to a course — optionally pinned to a specific section — for the active term. The instant a matching **swap or giveaway** is posted, the watcher receives both an in-app notification and (unless opted out) an email, turning the platform from pull to push.
 
-### 9. `/admin` (Admin Console)
+### 10. `/admin` (Admin Console)
 A gated, admin-only operator console for running the platform.
 *   **Overview:** At-a-glance analytics — user, post, and match counts, recent activity, type/status breakdowns, and top courses by post volume.
 *   **Management Tabs:** Users, Posts, Semesters, Majors, and **Courses** (search and edit a course's attributes — credit hours, major memberships, and elective type, including shared university **Basket** electives with per-major exceptions).
 *   **Announcements:** A rich-text broadcaster precisely targeted by major, gender, and/or specific users, with per-announcement **dismissal tracking** (see exactly who dismissed each one).
 
-### 10. `/auth` (Authentication)
+### 11. `/auth` (Authentication)
 Dedicated, fully secure authentication proxy built seamlessly onto Supabase's OAuth/OTP ecosystem. It guards all internal APIs to protect student data.
 
 ---
@@ -98,7 +109,7 @@ CourseMate handles sensitive data carefully. Here is exactly **why** we collect 
 | :--- | :--- | :--- |
 | **Gender** | UoS strictly segregates campuses (e.g., `Main/Men` vs `Main/Women`). Without knowing a user's gender, a male student could inadvertently accept a swap for a female-designated course section, which is physically impossible to attend. | Held in your `profiles` row and governed by the same Row-Level Security that guards all profile data — never surfaced in the UI, used only in the background as a campus route-filter. (Supabase encrypts data at rest, which guards against physical media theft; RLS is what controls application-level access.) |
 | **Major** | Prevents the system from showing Engineering swaps to a Med student. It's the central pillar that enables the `/schedule` route to dynamically look up a user's applicable Department Electives. | Retained in profiles and queried passively via the UI. |
-| **Phone Number** | Crucial for the final step of a swap coordination where users sync up on WhatsApp to click "Drop" in the actual university portal at the exact same millisecond. | **Hidden by default.** For **swaps**, a number is locked behind our `/matches` Row Level Security (RLS) and is unveiled only once **both** parties hit "Accept" on a pending match. For **giveaways/requests**, the poster may either opt to publish their number publicly, or keep it private — in which case an interested student's contact is sent to the poster by email via the "I'm interested" flow, so the poster's number is never exposed. |
+| **Phone Number** | A fallback for the final step of a swap, where both sides must click "Drop" in the university portal at the same moment. Since the introduction of `/chat`, this coordination happens **in-app by default** and a number is rarely needed at all. | **Hidden by default, and now optional.** For **swaps**, a number stays locked behind `/matches` Row Level Security and is only unveiled once **both** parties hit "Accept" — and even then, only after an explicit "Show phone number" tap. For **giveaways/requests**, the poster may publish their number or keep it private; the "I'm interested" flow no longer sends anyone's number by email, it opens a chat thread instead. |
 | **Student ID** | Defends the platform against spam. Guarantees that active accounts are verifiable, enrolled University of Sharjah students. | Visible internally for trust & accountability metrics. |
 | **Full Name** | Personalizes the interactions, injecting a human element into automated notifications (e.g., *"Karam accepted your swap request!"*). | Publicly associated strictly with your respective swaps/giveaways. |
 

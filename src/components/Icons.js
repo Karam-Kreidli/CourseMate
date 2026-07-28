@@ -134,3 +134,23 @@ export const ActivityIcon = (props) => (
         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
     </IconWrapper>
 );
+
+export const ChatIcon = (props) => (
+    <IconWrapper {...props}>
+        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+    </IconWrapper>
+);
+
+export const CheckIcon = (props) => (
+    <IconWrapper {...props}>
+        <polyline points="20 6 9 17 4 12" />
+    </IconWrapper>
+);
+
+// Two overlapping checks — the WhatsApp-style "delivered"/"seen" marker.
+export const DoubleCheckIcon = (props) => (
+    <IconWrapper {...props}>
+        <polyline points="17 7 10.5 17 7 13.5" />
+        <polyline points="22 7 15.5 17 15 16.4" />
+    </IconWrapper>
+);

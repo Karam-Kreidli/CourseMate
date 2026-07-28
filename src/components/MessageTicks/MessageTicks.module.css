@@ -1,0 +1,11 @@
+.ticks {
+    display: inline-flex;
+    align-items: center;
+    color: var(--text-muted);
+    transition: color var(--transition-fast) var(--ease-out-expo);
+}
+
+/* Seen — the app's accent stands in for WhatsApp's blue. */
+.read {
+    color: var(--color-accent);
+}

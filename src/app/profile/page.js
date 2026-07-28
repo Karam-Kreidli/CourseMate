@@ -518,6 +518,7 @@ function ProfileContent() {
                             { field: 'email_match_alerts', label: 'Swap match emails', sub: 'When a swap match is found for you' },
                             { field: 'email_interest_alerts', label: 'Interest emails', sub: "When someone's interested in your giveaway or request" },
                             { field: 'email_watch_alerts', label: 'Section alert emails', sub: "When a section you're watching becomes available" },
+                            { field: 'email_message_alerts', label: 'Chat emails', sub: 'When a message is waiting and you haven’t opened it' },
                         ].map(p => (
                             <div key={p.field} className={styles.settingRow}>
                                 <div className={styles.settingText}>

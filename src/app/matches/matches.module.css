@@ -664,6 +664,53 @@
 
 .completeBtn:hover { background: rgba(16, 185, 129, 0.2); border-color: rgba(16, 185, 129, 0.5); }
 
+.messageBtn {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 16px;
+    margin-bottom: 12px;
+    background: var(--color-accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.messageBtn:hover { background: var(--color-accent-dark); transform: translateY(-1px); }
+
+.messageBadge {
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.25);
+    font-size: 0.6875rem;
+    line-height: 18px;
+    text-align: center;
+}
+
+.revealPhoneBtn {
+    width: 100%;
+    padding: 9px 16px;
+    margin-bottom: 12px;
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px dashed var(--border-color);
+    border-radius: var(--radius-md);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.revealPhoneBtn:hover { color: var(--text-secondary); border-color: var(--text-muted); }
+
 /* ===== Post Cards (My Posts tab) ===== */
 .postList {
     display: flex;

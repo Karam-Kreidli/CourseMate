@@ -17,6 +17,8 @@ export default function MatchesPage() {
     const [user, setUser] = useState(null);
     const [courses, setCourses] = useState({});
     const [contactInfoMap, setContactInfoMap] = useState({});
+    const [chatByMatch, setChatByMatch] = useState({});
+    const [phoneShown, setPhoneShown] = useState({});
     const router = useRouter();
     const supabase = createClient();
     const { selectedTerm } = useSemester();
@@ -58,6 +60,7 @@ export default function MatchesPage() {
         fetchDeclinedMatches(user.id);
         fetchMyPosts(user.id);
         fetchHistory(user.id);
+        fetchChatThreads();
         fetchCourses();
     };
 
@@ -150,6 +153,16 @@ export default function MatchesPage() {
             .limit(50);
 
         setHistoryPosts(data || []);
+    };
+
+    // Each match has exactly one thread; map them so the card can link straight to it.
+    const fetchChatThreads = async () => {
+        const { data } = await supabase.rpc('my_conversations');
+        const map = {};
+        for (const c of data || []) {
+            if (c.match_id) map[c.match_id] = { id: c.id, unread: c.unread };
+        }
+        setChatByMatch(map);
     };
 
     const fetchDeclinedMatches = async (userId) => {
@@ -410,22 +423,49 @@ export default function MatchesPage() {
                                                             </div>
                                                         )}
 
+                                                        {chatByMatch[match.id] && (
+                                                            <button
+                                                                type="button"
+                                                                className={styles.messageBtn}
+                                                                onClick={() => router.push(`/chat/${chatByMatch[match.id].id}`)}
+                                                            >
+                                                                Message
+                                                                {chatByMatch[match.id].unread > 0 && (
+                                                                    <span className={styles.messageBadge}>
+                                                                        {chatByMatch[match.id].unread > 9 ? '9+' : chatByMatch[match.id].unread}
+                                                                    </span>
+                                                                )}
+                                                            </button>
+                                                        )}
+
+                                                        {/* Chat is the main channel now — the phone stays as a fallback
+                                                            for when someone stops replying, but isn't shown by default. */}
                                                         {allAccepted && (
-                                                            <div className={styles.contactList}>
-                                                                {others.map((p) => {
-                                                                    const ci = contactInfoMap[p.profile?.id];
-                                                                    return (
-                                                                        <div key={p.position} className={styles.contactInfo}>
-                                                                            <span>{p.profile?.name}: </span>
-                                                                            {ci?.phone ? (
-                                                                                <a href={`tel:${ci.phone}`}>{ci.phone}</a>
-                                                                            ) : (
-                                                                                <span>contact unlocked</span>
-                                                                            )}
-                                                                        </div>
-                                                                    );
-                                                                })}
-                                                            </div>
+                                                            phoneShown[match.id] ? (
+                                                                <div className={styles.contactList}>
+                                                                    {others.map((p) => {
+                                                                        const ci = contactInfoMap[p.profile?.id];
+                                                                        return (
+                                                                            <div key={p.position} className={styles.contactInfo}>
+                                                                                <span>{p.profile?.name}: </span>
+                                                                                {ci?.phone ? (
+                                                                                    <a href={`tel:${ci.phone}`}>{ci.phone}</a>
+                                                                                ) : (
+                                                                                    <span>contact unlocked</span>
+                                                                                )}
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            ) : (
+                                                                <button
+                                                                    type="button"
+                                                                    className={styles.revealPhoneBtn}
+                                                                    onClick={() => setPhoneShown(prev => ({ ...prev, [match.id]: true }))}
+                                                                >
+                                                                    Show phone number
+                                                                </button>
+                                                            )
                                                         )}
 
                                                         {!allAccepted && myAccepted && (

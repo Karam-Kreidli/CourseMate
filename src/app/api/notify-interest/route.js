@@ -20,10 +20,9 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
-function emailHtml({ recipientName, interestedName, interestedPhone, interestedStudentId, kind, courseCode, courseName, section, appUrl }) {
+function emailHtml({ recipientName, interestedName, interestedStudentId, kind, courseCode, courseName, section, appUrl }) {
     const safeName = escapeHtml(recipientName || 'Student');
     const safeInterested = escapeHtml(interestedName || 'A student');
-    const safePhone = escapeHtml(interestedPhone || '');
     const safeStudentId = escapeHtml(interestedStudentId || '');
     const safeCourseCode = escapeHtml(courseCode || '');
     const safeCourseName = escapeHtml(courseName || '');
@@ -45,26 +44,22 @@ function emailHtml({ recipientName, interestedName, interestedPhone, interestedS
                     Hello <strong>${safeName}</strong>,
                 </p>
                 <p style="font-size: 16px; line-height: 1.5; margin: 0 0 24px 0;">
-                    <strong>${safeInterested}</strong> is interested in ${postLine} for <strong>${courseLine}</strong>. Reach out to them to arrange it:
+                    <strong>${safeInterested}</strong> is interested in ${postLine} for <strong>${courseLine}</strong>. A chat is waiting for you in CourseMate - reply there to arrange it.
                 </p>
                 <div style="background-color: #f8f9fa; padding: 20px; border-radius: 6px; margin-bottom: 24px; border: 1px solid #eaeaea;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                         <span style="color: #666;">Name:</span>
                         <span style="font-weight: 600; color: #333;">${safeInterested}</span>
                     </div>
-                    ${safePhone ? `<div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span style="color: #666;">Phone:</span>
-                        <span style="font-weight: 600; color: #333;">${safePhone}</span>
-                    </div>` : ''}
                     ${safeStudentId ? `<div style="display: flex; justify-content: space-between;">
                         <span style="color: #666;">Student ID:</span>
                         <span style="font-weight: 600; color: #333;">${safeStudentId}</span>
                     </div>` : ''}
                 </div>
                 <div style="text-align: center;">
-                    <a href="${safeAppUrl}/browse"
+                    <a href="${safeAppUrl}/chat"
                        style="background-color: #c9a227; color: #ffffff; padding: 12px 32px; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 16px; display: inline-block;">
-                        Open CourseMate
+                        Open the chat
                     </a>
                 </div>
                 <p style="margin-top: 40px; font-size: 12px; color: #888888; text-align: center; border-top: 1px solid #eaeaea; padding-top: 20px;">
@@ -111,36 +106,40 @@ export async function POST(request) {
             return NextResponse.json({ error: 'You cannot express interest in your own post' }, { status: 400 });
         }
 
-        // The interested student's contact, shared with the poster.
+        // Who to name in the email. No phone number: coordination happens in chat.
         const { data: me, error: meErr } = await admin
             .from('profiles')
-            .select('name, phone, student_id')
+            .select('name, student_id')
             .eq('id', user.id)
             .single();
         if (meErr || !me) {
             return NextResponse.json({ error: 'Your profile could not be loaded' }, { status: 500 });
         }
-        if (!me.phone) {
-            return NextResponse.json({ error: 'Add a phone number to your profile so the poster can contact you.' }, { status: 400 });
+
+        // open_interest_conversation() already recorded the interest row, so the
+        // notification is what tells us whether the poster has been told before.
+        const { data: existing } = await admin
+            .from('notifications')
+            .select('id')
+            .eq('user_id', post.user_id)
+            .eq('type', 'interest_received')
+            .contains('data', { post_id: post.id, interested_user_id: user.id })
+            .limit(1);
+        if (existing && existing.length > 0) {
+            return NextResponse.json({ success: true, alreadySent: true });
         }
 
-        // Record interest (one per user/post). If it already exists, don't re-email.
-        const { error: insertErr } = await admin
+        await admin
             .from('post_interests')
-            .insert({ post_id: post.id, interested_user_id: user.id });
-        if (insertErr) {
-            if (insertErr.code === '23505') {
-                return NextResponse.json({ success: true, alreadySent: true });
-            }
-            return NextResponse.json({ error: 'Could not record interest' }, { status: 500 });
-        }
+            .upsert({ post_id: post.id, interested_user_id: user.id },
+                { onConflict: 'post_id,interested_user_id', ignoreDuplicates: true });
 
         // In-app notification for the poster.
         await admin.from('notifications').insert({
             user_id: post.user_id,
             type: 'interest_received',
             title: 'Someone is interested',
-            message: `${me.name || 'A student'} is interested in your ${post.type} for ${post.course_code} (Section ${post.have_section}).`,
+            message: `${me.name || 'A student'} is interested in your ${post.type} for ${post.course_code} (Section ${post.have_section}). Open the chat to reply.`,
             data: { post_id: post.id, interested_user_id: user.id },
         });
 
@@ -162,7 +161,6 @@ export async function POST(request) {
                     html: emailHtml({
                         recipientName: poster.name,
                         interestedName: me.name,
-                        interestedPhone: me.phone,
                         interestedStudentId: me.student_id,
                         kind: post.type,
                         courseCode: post.course_code,

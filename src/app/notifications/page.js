@@ -17,8 +17,13 @@ function timeAgo(dateString) {
 
 function linkFor(n) {
     if (!n?.type) return null;
+    if (n.type === 'new_message') {
+        const id = n.data?.conversation_id;
+        return id ? `/chat/${id}` : '/chat';
+    }
     if (n.type.startsWith('match')) return '/matches';
-    if (n.type === 'interest_received' || n.type === 'watch_alert' || n.type === 'giveaway_posted') return '/browse';
+    if (n.type === 'interest_received') return '/chat';
+    if (n.type === 'watch_alert' || n.type === 'giveaway_posted') return '/browse';
     return null;
 }
 

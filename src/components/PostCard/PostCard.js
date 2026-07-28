@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import styles from './PostCard.module.css';
 
@@ -73,6 +74,7 @@ export default function PostCard({
     const [interestState, setInterestState] = useState(interestAlreadySent ? 'sent' : 'idle');
     const [interestError, setInterestError] = useState('');
     const supabase = createClient();
+    const router = useRouter();
 
     // Fetch contact info via RPC when showContact is true
     useEffect(() => {
@@ -93,26 +95,33 @@ export default function PostCard({
         fetchContactInfo();
     }, [showContact, post.profile?.id]);
 
+    // Opens (or reopens) the chat thread with the poster. Your phone number is
+    // no longer part of this — the coordination happens in the app.
     const handleInterest = async () => {
         if (interestState === 'sending' || interestState === 'sent') return;
-        if (!confirm('Let the poster contact you? Your name and phone number will be sent to them.')) return;
+        if (!confirm('Start a chat with the poster? They\'ll see your name and be able to message you here.')) return;
         setInterestState('sending');
         setInterestError('');
         try {
-            const res = await fetch('/api/notify-interest', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ postId: post.id }),
-            });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                setInterestError(data?.error || 'Could not send. Try again.');
+            const { data: conversationId, error } = await supabase
+                .rpc('open_interest_conversation', { p_post_id: post.id });
+            if (error) {
+                setInterestError(error.message || 'Could not start the chat. Try again.');
                 setInterestState('idle');
                 return;
             }
+
+            // Best-effort email nudge; the thread already exists either way.
+            fetch('/api/notify-interest', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ postId: post.id }),
+            }).catch(() => { });
+
             setInterestState('sent');
+            router.push(`/chat/${conversationId}`);
         } catch {
-            setInterestError('Could not send. Try again.');
+            setInterestError('Could not start the chat. Try again.');
             setInterestState('idle');
         }
     };
@@ -204,13 +213,18 @@ export default function PostCard({
                     })()}
                 </div>
 
-                {/* No public phone: let the poster reach out instead */}
+                {/* No public phone: open a chat thread with the poster instead */}
                 {showInterest && (
                     <div className={styles.interestCluster}>
                         {interestState === 'sent' ? (
-                            <span className={styles.interestSent} title="The poster has been notified — they'll contact you">
-                                Sent
-                            </span>
+                            <button
+                                type="button"
+                                className={styles.interestBtn}
+                                onClick={() => router.push('/chat')}
+                                title="You've already reached out — continue in chat"
+                            >
+                                Open chat
+                            </button>
                         ) : (
                             <>
                                 <button
@@ -219,7 +233,7 @@ export default function PostCard({
                                     onClick={handleInterest}
                                     disabled={interestState === 'sending'}
                                 >
-                                    {interestState === 'sending' ? 'Sending…' : "I'm interested"}
+                                    {interestState === 'sending' ? 'Opening…' : "I'm interested"}
                                 </button>
                                 {interestError && <span className={styles.interestError}>{interestError}</span>}
                             </>

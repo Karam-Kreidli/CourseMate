@@ -6,11 +6,12 @@ import { usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import styles from './BottomNav.module.css';
 
-import { HomeIcon, SwapIcon, ProfileIcon, ScheduleIcon, PlusIcon, BellIcon } from '../Icons';
+import { HomeIcon, SwapIcon, ProfileIcon, ScheduleIcon, PlusIcon, BellIcon, ChatIcon } from '../Icons';
 
 export default function BottomNav() {
     const pathname = usePathname();
     const [unread, setUnread] = useState(0);
+    const [unreadChats, setUnreadChats] = useState(0);
 
     useEffect(() => {
         const supabase = createClient();
@@ -22,6 +23,13 @@ export default function BottomNav() {
                 .select('id', { count: 'exact', head: true })
                 .is('read', false);
             if (!cancelled) setUnread(count || 0);
+
+            const { data: chats } = await supabase.rpc('my_unread_message_count');
+            if (!cancelled) setUnreadChats(chats || 0);
+
+            // The app is open somewhere, so anything waiting has reached this
+            // device — that's the second grey tick for whoever sent it.
+            await supabase.rpc('mark_all_delivered');
         };
 
         loadUnread();
@@ -34,6 +42,7 @@ export default function BottomNav() {
         { href: '/schedule', icon: <ScheduleIcon />, label: 'Schedule' },
         { href: '/post', icon: <PlusIcon />, label: 'Post' },
         { href: '/browse', icon: <SwapIcon />, label: 'Browse' },
+        { href: '/chat', icon: <ChatIcon />, label: 'Chat', badge: unreadChats },
         { href: '/notifications', icon: <BellIcon />, label: 'Alerts', badge: unread },
         { href: '/profile', icon: <ProfileIcon />, label: 'Profile' },
     ];
@@ -41,7 +50,10 @@ export default function BottomNav() {
     return (
         <nav className={styles.bottomNav}>
             {navItems.map((item) => {
-                const isActive = pathname === item.href;
+                // startsWith so nested routes (e.g. /chat/[id]) keep the tab lit.
+                const isActive = item.href === '/'
+                    ? pathname === '/'
+                    : pathname === item.href || pathname.startsWith(`${item.href}/`);
                 return (
                     <Link key={item.href} href={item.href} className={`${styles.navItem} ${isActive ? styles.active : ''}`}>
                         <span className={styles.navIcon}>

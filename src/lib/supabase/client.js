@@ -48,6 +48,12 @@ function createMockClient() {
             signOut: async () => ({ error: null }),
             onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => { } } } }),
         },
+        rpc: async () => ({ data: [], error: null }),
+        channel: () => {
+            const chan = { on: () => chan, subscribe: () => chan };
+            return chan;
+        },
+        removeChannel: () => { },
         from: (table) => ({
             select: () => ({
                 eq: () => ({
