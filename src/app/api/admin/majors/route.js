@@ -39,13 +39,50 @@ export async function POST(request) {
         }))
         .filter(c => c.course_id && c.course_name);
 
+    // Course IDs must be 7 digits (CCCC + NNN); the classification columns are derived from them.
+    const badId = cleanedNew.find(c => !/^\d{7}$/.test(c.course_id));
+    if (badId) {
+        return NextResponse.json(
+            { error: `Invalid course ID "${badId.course_id}". Course IDs must be exactly 7 digits.` },
+            { status: 400 }
+        );
+    }
+
     const supabase = createAdminClient();
 
     // 1. Upsert any new courses (won't overwrite existing if course_id matches)
     if (cleanedNew.length > 0) {
+        // The courses table requires college_code/college_name/course_number (NOT NULL).
+        // Derive code/number from the course_id (format CCCC + NNN), and borrow the
+        // college_name from any existing course in the same college.
+        const collegeCodes = [...new Set(cleanedNew.map(c => c.course_id.slice(0, 4)))];
+        const { data: existingCourses } = await supabase
+            .from('courses')
+            .select('college_code, college_name')
+            .in('college_code', collegeCodes);
+        const nameByCollege = new Map();
+        for (const row of existingCourses || []) {
+            if (row.college_name && !nameByCollege.has(row.college_code)) {
+                nameByCollege.set(row.college_code, row.college_name);
+            }
+        }
+
+        const toInsert = cleanedNew.map(c => {
+            const college_code = c.course_id.slice(0, 4);
+            const course_number = c.course_id.slice(4);
+            return {
+                course_id: c.course_id,
+                course_name: c.course_name,
+                credit_hours: c.credit_hours ?? 0,
+                college_code,
+                course_number,
+                college_name: nameByCollege.get(college_code) || 'Unknown College',
+            };
+        });
+
         const { error: courseErr } = await supabase
             .from('courses')
-            .upsert(cleanedNew, { onConflict: 'course_id', ignoreDuplicates: true });
+            .upsert(toInsert, { onConflict: 'course_id', ignoreDuplicates: true });
         if (courseErr) {
             return NextResponse.json({ error: `Failed inserting courses: ${courseErr.message}` }, { status: 500 });
         }
