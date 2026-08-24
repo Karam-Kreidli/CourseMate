@@ -2085,6 +2085,12 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                                         </div>
                                         <div className={styles.detailMeta}>
                                             <span className={styles.detailSection}>{sec.section_num}</span>
+                                            {sec.crn && (
+                                                <>
+                                                    <span className={styles.detailSep}>•</span>
+                                                    <span className={styles.detailCrn}>CRN {sec.crn}</span>
+                                                </>
+                                            )}
                                             <span className={styles.detailSep}>•</span>
                                             <span className={styles.detailTime}>{sec.class_time}</span>
                                             {sec.instructor && (

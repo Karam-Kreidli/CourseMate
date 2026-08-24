@@ -1138,6 +1138,11 @@
     color: var(--text-primary);
 }
 
+.detailCrn {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-secondary);
+}
+
 .detailTime {
     color: var(--text-secondary);
 }
