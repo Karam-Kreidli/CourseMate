@@ -23,6 +23,24 @@ export async function PATCH(request, { params }) {
     if (typeof body.course_name === 'string') {
         const name = body.course_name.trim();
         if (!name) return NextResponse.json({ error: 'Course name cannot be empty' }, { status: 400 });
+
+        // Renaming into another course's exact name would create a duplicate — block it.
+        const escapedName = name.replace(/[\\%_]/g, (c) => `\\${c}`);
+        const { data: nameMatch, error: nameErr } = await supabase
+            .from('courses')
+            .select('course_id')
+            .ilike('course_name', escapedName)
+            .neq('course_id', courseId)
+            .limit(1)
+            .maybeSingle();
+        if (nameErr) return NextResponse.json({ error: nameErr.message }, { status: 500 });
+        if (nameMatch) {
+            return NextResponse.json(
+                { error: `A course named "${name}" already exists (${nameMatch.course_id}).` },
+                { status: 409 }
+            );
+        }
+
         update.course_name = name;
     }
     if (body.credit_hours !== undefined) {

@@ -158,6 +158,23 @@ export async function POST(request) {
     if (existErr) return NextResponse.json({ error: existErr.message }, { status: 500 });
     if (existing) return NextResponse.json({ error: `Course ${courseId} already exists.` }, { status: 409 });
 
+    // Same course name under a different code is still a duplicate — block it too.
+    // Escape ILIKE wildcard/escape chars so the name is matched literally, not as a pattern.
+    const escapedName = courseName.replace(/[\\%_]/g, (c) => `\\${c}`);
+    const { data: nameMatch, error: nameErr } = await supabase
+        .from('courses')
+        .select('course_id')
+        .ilike('course_name', escapedName)
+        .limit(1)
+        .maybeSingle();
+    if (nameErr) return NextResponse.json({ error: nameErr.message }, { status: 500 });
+    if (nameMatch) {
+        return NextResponse.json(
+            { error: `A course named "${courseName}" already exists (${nameMatch.course_id}).` },
+            { status: 409 }
+        );
+    }
+
     const majors = Array.isArray(body.majors) ? body.majors : [];
     const cleanedMajors = [];
     const seen = new Set();
