@@ -18,6 +18,7 @@ function CoursesProvider({ children }) {
     const [error, setError] = useState('');
     const [expandedId, setExpandedId] = useState(null);
     const [editingCourse, setEditingCourse] = useState(null);
+    const [creating, setCreating] = useState(false);
     const supabase = createClient();
 
     const load = useCallback(async (overrides = {}) => {
@@ -62,7 +63,7 @@ function CoursesProvider({ children }) {
         <Ctx.Provider value={{
             courses, search, setSearch, major, category, majors, loading, error,
             expandedId, toggleExpand, setMajorAndLoad, setCategoryAndLoad, submitSearch, reset,
-            editingCourse, setEditingCourse, reload,
+            editingCourse, setEditingCourse, creating, setCreating, reload,
         }}>
             {children}
         </Ctx.Provider>
@@ -80,10 +81,20 @@ const CATEGORY_FILTERS = [
 function CoursesSidebar() {
     const ctx = useContext(Ctx);
     if (!ctx) return null;
-    const { major, category, majors, courses, setMajorAndLoad, setCategoryAndLoad, reset } = ctx;
+    const { major, category, majors, courses, setMajorAndLoad, setCategoryAndLoad, reset, setCreating } = ctx;
 
     return (
         <>
+        <div className={styles.sidebarCard}>
+            <p className={styles.sectionTitle}>Actions</p>
+            <button
+                className={`${styles.btn} ${styles.btnPrimary} ${styles.btnFull}`}
+                onClick={() => setCreating(true)}
+            >
+                + New course
+            </button>
+        </div>
+
         <div className={styles.sidebarCard}>
             <p className={styles.sectionTitle}>Filter by type</p>
             <div className={styles.navList}>
@@ -203,7 +214,7 @@ function CourseDetail({ course }) {
 function CoursesMain() {
     const ctx = useContext(Ctx);
     if (!ctx) return null;
-    const { courses, search, setSearch, loading, error, expandedId, toggleExpand, submitSearch, majors, editingCourse, setEditingCourse, reload } = ctx;
+    const { courses, search, setSearch, loading, error, expandedId, toggleExpand, submitSearch, majors, editingCourse, setEditingCourse, creating, setCreating, reload } = ctx;
 
     return (
         <>
@@ -274,6 +285,15 @@ function CoursesMain() {
                     course={editingCourse}
                     majors={majors}
                     onClose={() => setEditingCourse(null)}
+                    onSaved={reload}
+                />
+            )}
+
+            {creating && (
+                <CourseEditModal
+                    course={null}
+                    majors={majors}
+                    onClose={() => setCreating(false)}
                     onSaved={reload}
                 />
             )}
