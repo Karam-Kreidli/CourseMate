@@ -36,6 +36,13 @@ export default function CourseEditModal({ course, majors, onClose, onSaved }) {
         setAddCode('');
     };
 
+    const addAllMajors = () => {
+        setMemberships(prev => [
+            ...prev,
+            ...available.map(m => ({ code: m.code, name: m.name, category: 'Core' })),
+        ]);
+    };
+
     const setCategory = (code, category) =>
         setMemberships(prev => prev.map(m => (m.code === code ? { ...m, category } : m)));
 
@@ -187,6 +194,11 @@ export default function CourseEditModal({ course, majors, onClose, onSaved }) {
                             University-elective membership is managed by the basket setting above. Add majors here only for Core / Major / Support roles.
                         </span>
                     )}
+                    {memberships.length > 0 && (
+                        <span className={styles.rowMeta} style={{ marginBottom: 4 }}>
+                            Use Remove below to exclude a major after adding all of them.
+                        </span>
+                    )}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                         {memberships.length === 0 && <div className={styles.rowMeta}>Not attached to any major.</div>}
                         {memberships.map(m => (
@@ -214,6 +226,7 @@ export default function CourseEditModal({ course, majors, onClose, onSaved }) {
                             {available.map(m => <option key={m.code} value={m.code}>{m.name} ({m.code})</option>)}
                         </select>
                         <button type="button" className={styles.btn} style={{ flexShrink: 0 }} onClick={addMajor} disabled={!addCode}>+ Add</button>
+                        <button type="button" className={styles.btn} style={{ flexShrink: 0 }} onClick={addAllMajors} disabled={available.length === 0}>+ Add all majors</button>
                     </div>
                 </div>
 
