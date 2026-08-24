@@ -7,15 +7,17 @@ const CATEGORIES = ['Core', 'Major Elective', 'Support Elective'];
 const BASKETS = ['Basket 1', 'Basket 2'];
 
 export default function CourseEditModal({ course, majors, onClose, onSaved }) {
-    const [name, setName] = useState(course.course_name || '');
-    const [credits, setCredits] = useState(course.credit_hours ?? 0);
-    const [basket, setBasket] = useState(course.university_elective_basket || '');
-    const [restricted, setRestricted] = useState(course.restricted_majors || []);
+    const isCreate = !course;
+    const [courseId, setCourseId] = useState('');
+    const [name, setName] = useState(course?.course_name || '');
+    const [credits, setCredits] = useState(course?.credit_hours ?? 0);
+    const [basket, setBasket] = useState(course?.university_elective_basket || '');
+    const [restricted, setRestricted] = useState(course?.restricted_majors || []);
     // memberships: [{ code, name, category }] — hand-edited categories only.
     // "University Elective" rows are derived from the basket flag, so they're managed
     // by the basket + restrict controls below, not listed here.
     const [memberships, setMemberships] = useState(
-        (course.majors || [])
+        (course?.majors || [])
             .filter(m => m.category !== 'University Elective')
             .map(m => ({ code: m.code, name: m.name, category: m.category || 'Core' }))
     );
@@ -45,20 +47,27 @@ export default function CourseEditModal({ course, majors, onClose, onSaved }) {
 
     const handleSave = async () => {
         if (!name.trim()) { setErr('Course name is required.'); return; }
+        if (isCreate && !/^\d{7}$/.test(courseId.trim())) {
+            setErr('Course ID must be exactly 7 digits.');
+            return;
+        }
         setSaving(true);
         setErr('');
         try {
-            const res = await fetch(`/api/admin/courses/${encodeURIComponent(course.course_id)}`, {
-                method: 'PATCH',
+            const url = isCreate ? '/api/admin/courses' : `/api/admin/courses/${encodeURIComponent(course.course_id)}`;
+            const payload = {
+                course_name: name,
+                credit_hours: credits,
+                university_elective_basket: basket,
+                // Restriction only applies to basket courses; clear it otherwise.
+                restricted_majors: basket ? restricted : [],
+                majors: memberships.map(m => ({ major_code: m.code, category: m.category })),
+            };
+            if (isCreate) payload.course_id = courseId.trim();
+            const res = await fetch(url, {
+                method: isCreate ? 'POST' : 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    course_name: name,
-                    credit_hours: credits,
-                    university_elective_basket: basket,
-                    // Restriction only applies to basket courses; clear it otherwise.
-                    restricted_majors: basket ? restricted : [],
-                    majors: memberships.map(m => ({ major_code: m.code, category: m.category })),
-                }),
+                body: JSON.stringify(payload),
             });
             if (!res.ok) {
                 const body = await res.json().catch(() => ({}));
@@ -97,8 +106,10 @@ export default function CourseEditModal({ course, majors, onClose, onSaved }) {
             >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
-                        <div style={{ fontSize: 18, fontWeight: 700 }}>Edit course</div>
-                        <div className={styles.rowMeta}>{course.course_id}{course.college_name ? ` · ${course.college_name}` : ''}</div>
+                        <div style={{ fontSize: 18, fontWeight: 700 }}>{isCreate ? 'Add course' : 'Edit course'}</div>
+                        {!isCreate && (
+                            <div className={styles.rowMeta}>{course.course_id}{course.college_name ? ` · ${course.college_name}` : ''}</div>
+                        )}
                     </div>
                     <button className={styles.btn} onClick={onClose}>Close</button>
                 </div>
@@ -106,6 +117,20 @@ export default function CourseEditModal({ course, majors, onClose, onSaved }) {
                 {err && <div className={styles.error}>{err}</div>}
 
                 {/* Course fields */}
+                {isCreate && (
+                    <div className={styles.fieldGroup}>
+                        <label className={styles.fieldLabel}>Course ID (7 digits)</label>
+                        <input
+                            className={styles.input}
+                            style={{ borderColor: courseId && !/^\d{7}$/.test(courseId) ? 'var(--color-danger, #dc2626)' : undefined }}
+                            placeholder="e.g. 1501101"
+                            inputMode="numeric"
+                            maxLength={7}
+                            value={courseId}
+                            onChange={(e) => setCourseId(e.target.value.replace(/\D/g, '').slice(0, 7))}
+                        />
+                    </div>
+                )}
                 <div className={styles.fieldGroup}>
                     <label className={styles.fieldLabel}>Course name</label>
                     <input className={styles.input} value={name} onChange={(e) => setName(e.target.value)} placeholder="Course name" />
@@ -195,7 +220,7 @@ export default function CourseEditModal({ course, majors, onClose, onSaved }) {
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
                     <button className={styles.btn} onClick={onClose} disabled={saving}>Cancel</button>
                     <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={handleSave} disabled={saving}>
-                        {saving ? 'Saving…' : 'Save changes'}
+                        {saving ? 'Saving…' : isCreate ? 'Create course' : 'Save changes'}
                     </button>
                 </div>
             </div>
