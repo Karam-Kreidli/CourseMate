@@ -571,10 +571,14 @@ export default function MatchesPage() {
                                                     </div>
 
                                                     <div className={styles.postFooter}>
-                                                        <div className={styles.postActions}>
-                                                            <button onClick={() => handleComplete(post.id)} className={styles.completePostBtn} title="Mark this post as completed/swapped">Swapped</button>
-                                                            <button onClick={() => handleDelete(post.id)} className={styles.deletePostBtn} title="Cancel and remove this post">Cancel</button>
-                                                        </div>
+                                                        {post.status === 'active' ? (
+                                                            <div className={styles.postActions}>
+                                                                <button onClick={() => handleComplete(post.id)} className={styles.completePostBtn} title="Mark this post as completed/swapped">Swapped</button>
+                                                                <button onClick={() => handleDelete(post.id)} className={styles.deletePostBtn} title="Cancel and remove this post">Cancel</button>
+                                                            </div>
+                                                        ) : (
+                                                            <p className={styles.hint}>Part of a pending match — accept, decline, or complete it from the Matches tab.</p>
+                                                        )}
                                                     </div>
                                                 </div>
                                             ))}
