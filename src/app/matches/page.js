@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useSemester } from '@/lib/SemesterContext';
@@ -20,6 +20,7 @@ export default function MatchesPage() {
     const router = useRouter();
     const supabase = createClient();
     const { selectedTerm } = useSemester();
+    const liveChannelRef = useRef(null);
 
     useEffect(() => {
         checkAuth();
@@ -32,7 +33,11 @@ export default function MatchesPage() {
             setMatches(prev => [...prev]); // Force re-render to update timer
         }, 60000);
 
-        return () => clearInterval(timerInterval);
+        return () => {
+            clearInterval(timerInterval);
+            if (liveChannelRef.current) supabase.removeChannel(liveChannelRef.current);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const checkAuth = async () => {
@@ -59,6 +64,28 @@ export default function MatchesPage() {
         fetchMyPosts(user.id);
         fetchHistory(user.id);
         fetchCourses();
+        liveChannelRef.current = subscribeToLiveUpdates(user.id);
+    };
+
+    // Live updates: a new match, an accept/decline from the other side, or a
+    // notification landing for me all refresh this page's data on their own,
+    // instead of the user having to reload to see a match appear or fall through.
+    const subscribeToLiveUpdates = (userId) => {
+        if (typeof supabase.channel !== 'function') return;
+        const refresh = () => {
+            fetchMatches(userId);
+            fetchDeclinedMatches(userId);
+            fetchMyPosts(userId);
+        };
+        const channel = supabase
+            .channel(`matches-live-${userId}`)
+            // RLS already scopes these to matches/participants I'm actually in,
+            // so no extra filter is needed on top of the subscription itself.
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, refresh)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'match_participants' }, refresh)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, refresh)
+            .subscribe();
+        return channel;
     };
 
     const fetchCourses = async () => {

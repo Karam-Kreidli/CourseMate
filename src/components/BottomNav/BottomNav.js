@@ -11,23 +11,52 @@ import { HomeIcon, SwapIcon, ProfileIcon, ScheduleIcon, PlusIcon, BellIcon } fro
 export default function BottomNav() {
     const pathname = usePathname();
     const [unread, setUnread] = useState(0);
+    const supabase = createClient();
 
+    const loadUnread = async () => {
+        const { count } = await supabase
+            .from('notifications')
+            .select('id', { count: 'exact', head: true })
+            .is('read', false);
+        setUnread(count || 0);
+    };
+
+    // Poll as a fallback, and re-check on every route change (e.g. right after
+    // leaving /notifications, once its "mark read" writes have landed).
     useEffect(() => {
-        const supabase = createClient();
         let cancelled = false;
-
-        const loadUnread = async () => {
+        const run = async () => {
             const { count } = await supabase
                 .from('notifications')
                 .select('id', { count: 'exact', head: true })
                 .is('read', false);
             if (!cancelled) setUnread(count || 0);
         };
-
-        loadUnread();
-        const interval = setInterval(loadUnread, 60000);
+        run();
+        const interval = setInterval(run, 60000);
         return () => { cancelled = true; clearInterval(interval); };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pathname]);
+
+    // Live badge updates: a new notification (e.g. a match found) lands on the
+    // bell instantly instead of waiting up to 60s for the poll above.
+    useEffect(() => {
+        let channel = null;
+        let cancelled = false;
+        (async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user || cancelled || typeof supabase.channel !== 'function') return;
+            channel = supabase
+                .channel(`notifications-badge-${user.id}`)
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, loadUnread)
+                .subscribe();
+        })();
+        return () => {
+            cancelled = true;
+            if (channel) supabase.removeChannel(channel);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const navItems = [
         { href: '/', icon: <HomeIcon />, label: 'Home' },

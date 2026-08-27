@@ -41,6 +41,18 @@ export default function BrowsePage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedTerm]);
 
+    // Live updates: someone else creating, cancelling, or getting matched on a
+    // post in this term shows up here immediately, with no manual refresh.
+    useEffect(() => {
+        if (!selectedTerm || !user || typeof supabase.channel !== 'function') return;
+        const channel = supabase
+            .channel(`browse-posts-${selectedTerm}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'posts', filter: `term_code=eq.${selectedTerm}` }, () => fetchPosts())
+            .subscribe();
+        return () => { supabase.removeChannel(channel); };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedTerm, user]);
+
     const navigateWithTransition = (path) => {
         setTransitioning(true);
         setTimeout(() => {
