@@ -301,7 +301,7 @@ function PostContent() {
                 }
             }
 
-            router.push('/');
+            router.push('/browse');
         } catch (err) {
             setError(err.message);
         } finally {
