@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import BottomNav from '@/components/BottomNav';
@@ -29,6 +29,7 @@ export default function NotificationsPage() {
     const [loading, setLoading] = useState(true);
     // Snapshot of which were unread at load, so styling persists after we mark them read.
     const [unreadSnapshot, setUnreadSnapshot] = useState(new Set());
+    const channelRef = useRef(null);
 
     useEffect(() => {
         (async () => {
@@ -51,7 +52,21 @@ export default function NotificationsPage() {
             if (unreadIds.length > 0) {
                 await supabase.from('notifications').update({ read: true }).in('id', unreadIds);
             }
+
+            // Live updates: a notification that arrives while this page is open
+            // (e.g. a match found mid-session) appears at the top immediately.
+            if (typeof supabase.channel !== 'function') return;
+            channelRef.current = supabase
+                .channel(`notifications-live-${user.id}`)
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, (payload) => {
+                    setItems(prev => [payload.new, ...prev]);
+                    setUnreadSnapshot(prev => new Set(prev).add(payload.new.id));
+                    supabase.from('notifications').update({ read: true }).eq('id', payload.new.id);
+                })
+                .subscribe();
         })();
+
+        return () => { if (channelRef.current) supabase.removeChannel(channelRef.current); };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
