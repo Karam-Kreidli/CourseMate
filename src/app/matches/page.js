@@ -195,6 +195,14 @@ export default function MatchesPage() {
             alert('Failed to decline: ' + error.message);
             return;
         }
+
+        // Best-effort decline email/push (in-app notification already sent by the RPC).
+        fetch('/api/notify-decline', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ matchId: match.id }),
+        }).catch(() => { });
+
         fetchMatches(user.id);
         fetchMyPosts(user.id);
         fetchDeclinedMatches(user.id);
@@ -345,7 +353,7 @@ export default function MatchesPage() {
                                                     <div className={styles.declineText}>
                                                         <span><strong>{declinerName}</strong> declined your {match.size > 2 ? `${match.size}-way ` : ''}swap request</span>
                                                         <span className={styles.declineCourse}>
-                                                            {mine?.post?.course_code} • give {mine?.gives_section} ↔ get {mine?.gets_section}
+                                                            {mine?.post?.course_name ? `${mine.post.course_name} (${mine.post.course_code})` : mine?.post?.course_code} • give {mine?.gives_section} ↔ get {mine?.gets_section}
                                                         </span>
                                                     </div>
                                                 </div>

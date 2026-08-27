@@ -134,7 +134,6 @@ export default function SectionAlerts({ term, courses, sections = [], majorCours
     return (
         <div className={styles.card}>
             <p className={styles.title}>Section alerts</p>
-            <p className={styles.hint}>Get notified when a swap or giveaway opens up for a section you want — for courses in your major.</p>
 
             <form onSubmit={add} className={styles.form}>
                 <div className={styles.searchWrapper} ref={wrapperRef}>
