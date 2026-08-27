@@ -24,24 +24,38 @@ export async function PATCH(request, { params }) {
         const name = body.course_name.trim();
         if (!name) return NextResponse.json({ error: 'Course name cannot be empty' }, { status: 400 });
 
-        // Renaming into another course's exact name would create a duplicate — block it.
-        const escapedName = name.replace(/[\\%_]/g, (c) => `\\${c}`);
-        const { data: nameMatch, error: nameErr } = await supabase
+        // The edit form always resends the current name even when it wasn't
+        // touched, so only run the duplicate check (and the write) if the name
+        // is actually changing — otherwise a course that legitimately shares
+        // its name with another (e.g. two "Abstract Algebra II" courses in
+        // different departments) would fail every save of anything else on it.
+        const { data: currentRow, error: curNameErr } = await supabase
             .from('courses')
-            .select('course_id')
-            .ilike('course_name', escapedName)
-            .neq('course_id', courseId)
-            .limit(1)
-            .maybeSingle();
-        if (nameErr) return NextResponse.json({ error: nameErr.message }, { status: 500 });
-        if (nameMatch) {
-            return NextResponse.json(
-                { error: `A course named "${name}" already exists (${nameMatch.course_id}).` },
-                { status: 409 }
-            );
-        }
+            .select('course_name')
+            .eq('course_id', courseId)
+            .single();
+        if (curNameErr) return NextResponse.json({ error: curNameErr.message }, { status: 500 });
 
-        update.course_name = name;
+        if (name.toLowerCase() !== (currentRow?.course_name || '').trim().toLowerCase()) {
+            // Renaming into another course's exact name would create a duplicate — block it.
+            const escapedName = name.replace(/[\\%_]/g, (c) => `\\${c}`);
+            const { data: nameMatch, error: nameErr } = await supabase
+                .from('courses')
+                .select('course_id')
+                .ilike('course_name', escapedName)
+                .neq('course_id', courseId)
+                .limit(1)
+                .maybeSingle();
+            if (nameErr) return NextResponse.json({ error: nameErr.message }, { status: 500 });
+            if (nameMatch) {
+                return NextResponse.json(
+                    { error: `A course named "${name}" already exists (${nameMatch.course_id}).` },
+                    { status: 409 }
+                );
+            }
+
+            update.course_name = name;
+        }
     }
     if (body.credit_hours !== undefined) {
         update.credit_hours = Number.isFinite(+body.credit_hours) ? +body.credit_hours : 0;
