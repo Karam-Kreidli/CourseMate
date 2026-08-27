@@ -134,6 +134,7 @@
     box-shadow: var(--shadow-md);
     border: 1px solid var(--glass-border);
     position: relative;
+    z-index: 2;
     overflow: visible;
 }
 
