@@ -28,9 +28,10 @@ export default function CourseEditModal({ course, majors, onClose, onSaved }) {
     const usedCodes = useMemo(() => new Set(memberships.map(m => m.code)), [memberships]);
     const available = (majors || []).filter(m => !usedCodes.has(m.code));
 
-    const addMajor = () => {
-        if (!addCode) return;
-        const m = (majors || []).find(x => x.code === addCode);
+    const addMajor = (code) => {
+        const targetCode = code ?? addCode;
+        if (!targetCode) return;
+        const m = (majors || []).find(x => x.code === targetCode);
         if (!m) return;
         setMemberships(prev => [...prev, { code: m.code, name: m.name, category: 'Core' }]);
         setAddCode('');
@@ -221,11 +222,13 @@ export default function CourseEditModal({ course, majors, onClose, onSaved }) {
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                        <select className={styles.input} style={{ flex: '1 1 auto' }} value={addCode} onChange={(e) => setAddCode(e.target.value)}>
+                        {/* Picking a major adds it immediately — no separate "+ Add" click to
+                            forget, which used to let admins select a major, hit Save, and have
+                            nothing actually attach (the form silently submitted an empty list). */}
+                        <select className={styles.input} style={{ flex: '1 1 auto' }} value={addCode} onChange={(e) => addMajor(e.target.value)}>
                             <option value="">Add a major…</option>
                             {available.map(m => <option key={m.code} value={m.code}>{m.name} ({m.code})</option>)}
                         </select>
-                        <button type="button" className={styles.btn} style={{ flexShrink: 0 }} onClick={addMajor} disabled={!addCode}>+ Add</button>
                         <button type="button" className={styles.btn} style={{ flexShrink: 0 }} onClick={addAllMajors} disabled={available.length === 0}>+ Add all majors</button>
                     </div>
                 </div>
