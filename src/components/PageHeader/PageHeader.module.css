@@ -90,3 +90,16 @@
         font-size: 1.05rem;
     }
 }
+
+/* The hamburger and bell live in the header on phone and tablet; from 1024px
+   up TopBar owns them, so these duplicates step aside. */
+.mobileChrome {
+    display: inline-flex;
+    flex-shrink: 0;
+}
+
+@media (min-width: 1024px) {
+    .mobileChrome {
+        display: none;
+    }
+}

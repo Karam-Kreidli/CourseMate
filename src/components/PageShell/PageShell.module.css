@@ -92,6 +92,20 @@
     }
 }
 
+/* Desktop: the top bar spans the page, so the column stacks under it, and the
+   space the bottom pill used to occupy is reclaimed. */
+@media (min-width: 1024px) {
+    .page {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .pageInner {
+        padding-top: 28px;
+        padding-bottom: 48px;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .page::before,
     .page::after,

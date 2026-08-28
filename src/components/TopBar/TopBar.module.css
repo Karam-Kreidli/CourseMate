@@ -1,0 +1,164 @@
+/* ===== Desktop top bar =====
+   The floating pill is a phone idiom — it used to render identically on a
+   27" monitor. From 1024px up the pill is hidden and navigation lives here
+   instead, alongside the menu and bell. */
+
+.topBar {
+    display: none;
+}
+
+@media (min-width: 1024px) {
+    .topBar {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        height: 64px;
+        padding: 0 28px;
+        background: var(--glass-bg-dense);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border-bottom: 1px solid var(--glass-border);
+        box-shadow: var(--shadow-md);
+    }
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    min-width: 180px;
+    color: var(--text-primary);
+    text-decoration: none;
+}
+
+.logoFrame {
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    box-shadow: var(--shadow-sm), 0 0 20px rgba(0, 195, 137, 0.12);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logoImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scale(1.4);
+}
+
+.wordmark {
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+}
+
+.nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.navItem {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: var(--radius-full);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-decoration: none;
+    position: relative;
+    transition: all var(--transition-fast) var(--ease-out-expo);
+}
+
+.navItem:hover {
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+}
+
+.active {
+    color: var(--color-accent);
+    background: var(--color-accent-muted);
+}
+
+.active:hover {
+    color: var(--color-accent);
+    background: var(--color-accent-muted);
+}
+
+.navItem svg {
+    width: 17px;
+    height: 17px;
+}
+
+.badge {
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: var(--radius-full);
+    background: var(--status-expired, #ef4444);
+    color: #fff;
+    font-size: 0.625rem;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: flex-end;
+    min-width: 180px;
+    flex-shrink: 0;
+}
+
+/* Post is the primary action — a filled button here, the raised FAB on phone. */
+.newPost {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 36px;
+    padding: 0 16px;
+    border-radius: var(--radius-full);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--text-inverse);
+    background: var(--gradient-accent-vivid);
+    box-shadow: var(--shadow-accent);
+    white-space: nowrap;
+    text-decoration: none;
+    transition: transform var(--transition-fast) var(--ease-out-expo),
+                box-shadow var(--transition-fast) var(--ease-out-expo);
+}
+
+.newPost:hover {
+    color: var(--text-inverse);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-accent-lg);
+}
+
+.newPost svg {
+    width: 16px;
+    height: 16px;
+    stroke-width: 2.5px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .newPost:hover {
+        transform: none;
+    }
+}

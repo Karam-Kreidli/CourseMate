@@ -1,4 +1,5 @@
 import BottomNav from '@/components/BottomNav';
+import TopBar from '@/components/TopBar';
 import styles from './PageShell.module.css';
 
 /**
@@ -20,6 +21,7 @@ export default function PageShell({
 }) {
     return (
         <div className={`${styles.page} ${className}`.trim()}>
+            {nav && <TopBar />}
             <div className={`${styles.pageInner} ${styles[width]} ${innerClassName}`.trim()}>
                 {children}
             </div>

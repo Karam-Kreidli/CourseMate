@@ -28,7 +28,8 @@ export default function PageHeader({
     return (
         <header className={styles.header}>
             <div className={styles.titleGroup}>
-                {menu && <AppMenu />}
+                {/* Hidden ≥1024px, where TopBar carries the menu and bell. */}
+                {menu && <span className={styles.mobileChrome}><AppMenu /></span>}
                 {left}
                 <div className={styles.titleText}>
                     <h1 className={styles.title}>{title}</h1>
@@ -39,7 +40,7 @@ export default function PageHeader({
             {hasActions && (
                 <div className={styles.actions}>
                     {children}
-                    {bell && <AlertsBell />}
+                    {bell && <span className={styles.mobileChrome}><AlertsBell /></span>}
                 </div>
             )}
         </header>
