@@ -168,18 +168,23 @@ function ProfileContent() {
         }
     };
 
-    // A major or gender change invalidates the whole plan — wipe it clean
-    // rather than trying to keep whatever courses happen to still be valid.
-    // Covers both the in-progress basket (localStorage) and any starred
-    // schedules saved to the account (the saved_schedules table), across
-    // every term.
-    const clearSchedule = async (userId) => {
+    // A major or gender change invalidates every starred schedule on the
+    // account (saved_schedules), since a saved schedule pins specific
+    // sections that may no longer be valid for the new major or campus.
+    const clearSavedSchedules = async (userId) => {
         try {
             localStorage.removeItem('schedule_saved');
         } catch (e) {
             console.error('Error clearing local schedule:', e);
         }
         await supabase.from('saved_schedules').delete().eq('user_id', userId);
+    };
+
+    // The in-progress course basket (profiles.schedule_cart, per term) only
+    // needs wiping on a real major change — courses are gated by major, not
+    // by gender/campus, so a gender-only change can keep the same basket.
+    const clearScheduleCart = async (userId) => {
+        await supabase.from('profiles').update({ schedule_cart: null }).eq('id', userId);
     };
 
     const handleSaveMajor = async () => {
@@ -288,9 +293,15 @@ function ProfileContent() {
             const majorData = majors.find(m => m.code === editForm.major);
             setMajorName(majorData?.name || editForm.major);
 
-            if (editForm.major !== profile.major || editForm.gender !== profile.gender) {
-                // Major or gender changed — the whole plan is invalid now, don't keep any of it.
-                await clearSchedule(user.id);
+            if (editForm.major !== profile.major) {
+                // Major changed — courses eligible for the plan are different now.
+                await clearSavedSchedules(user.id);
+                await clearScheduleCart(user.id);
+            } else if (editForm.gender !== profile.gender) {
+                // Gender-only change — same courses, just a different campus, so
+                // the in-progress basket is still valid; only starred schedules
+                // (which pin specific sections) need clearing.
+                await clearSavedSchedules(user.id);
             }
 
             setIsEditing(false);
