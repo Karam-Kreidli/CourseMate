@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { useSemester } from '@/lib/SemesterContext';
 import { SearchIcon } from '@/components/Icons';
@@ -230,14 +229,9 @@ export default function BrowsePage() {
                 <aside className={styles.sidebar}>
                     <div className={styles.sidebarCard}>
                         <div className={styles.logoContainer}>
-                            <div className={styles.logoWrapper}>
-                                <div className={styles.logoFrame}>
-                                    <Image src="/logo.png" alt="CourseMate" width={256} height={256} className={styles.logoImage} />
-                                </div>
-                                <div>
-                                    <span className={styles.logoText}>Browse</span>
-                                    <p className={styles.logoSubtitle}>Find a section to swap</p>
-                                </div>
+                            <div>
+                                <span className={styles.logoText}>Browse</span>
+                                <p className={styles.logoSubtitle}>Find a section to swap</p>
                             </div>
                             {/* Same chrome as every other page; Browse wears it in
                                 the sidebar card rather than a PageHeader. */}

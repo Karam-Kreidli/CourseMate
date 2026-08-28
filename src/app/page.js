@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import Image from 'next/image';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { useSemester } from '@/lib/SemesterContext';
@@ -10,6 +9,7 @@ import BottomNav from '@/components/BottomNav';
 import TopBar from '@/components/TopBar';
 import AppMenu from '@/components/AppMenu';
 import AlertsBell from '@/components/AlertsBell';
+import SemesterPicker from '@/components/SemesterPicker';
 import DashboardCard, { StatBig } from '@/components/DashboardCard';
 import AnnouncementsModal from '@/components/AnnouncementsModal';
 import {
@@ -42,24 +42,7 @@ function relativeTime(iso) {
 
 export default function DashboardPage() {
     const { user, profile, ready, transitioning } = useRequireProfile();
-    const { semesters, selectedTerm, setSelectedTerm, isSingleSemester } = useSemester();
-    const semesterToggleRef = useRef(null);
-    const semesterIndicatorRef = useRef(null);
-
-    useLayoutEffect(() => {
-        const toggle = semesterToggleRef.current;
-        const indicator = semesterIndicatorRef.current;
-        if (!toggle || !indicator) return;
-        const idx = semesters.findIndex(s => s.term_code === selectedTerm);
-        if (idx < 0) return;
-        const buttons = toggle.querySelectorAll('button');
-        const target = buttons[idx];
-        if (!target) return;
-        const togRect = toggle.getBoundingClientRect();
-        const tgtRect = target.getBoundingClientRect();
-        indicator.style.left = `${tgtRect.left - togRect.left}px`;
-        indicator.style.width = `${tgtRect.width}px`;
-    }, [selectedTerm, semesters]);
+    const { semesters, selectedTerm } = useSemester();
 
     // Group A: user-scoped, runs once profile is ready
     const [majorCourses, setMajorCourses] = useState(null); // [{course_id, course_name, category, credit_hours}]
@@ -239,7 +222,6 @@ export default function DashboardPage() {
 
     const firstName = (profile?.name || '').trim().split(/\s+/)[0] || 'there';
     const currentSemesterName = semesters.find(s => s.term_code === selectedTerm)?.name || '';
-    const showSemesterToggle = !isSingleSemester && semesters.length === 2;
     const showProfileBanner = ready && profile && profileCompletion.pct < 100;
 
     return (
@@ -259,34 +241,13 @@ export default function DashboardPage() {
 
                 {/* ===== Hero ===== */}
                 <section className={styles.hero}>
-                    <div className={styles.heroLeft}>
-                        <div className={styles.heroLogo}>
-                            <Image src="/logo.png" alt="CourseMate" width={88} height={88} className={styles.heroLogoImage} />
-                        </div>
-                        <div className={styles.heroText}>
-                            <span className={styles.heroGreeting}>
-                                Hi, <span className={styles.heroAccent}>{firstName}</span>
-                            </span>
-                        </div>
+                    <div className={styles.heroText}>
+                        <span className={styles.heroGreeting}>
+                            Hi, <span className={styles.heroAccent}>{firstName}</span>
+                        </span>
                     </div>
                     <div className={styles.heroRight}>
-                        {showSemesterToggle && (
-                            <div className={styles.semesterToggle} ref={semesterToggleRef}>
-                                <div
-                                    ref={semesterIndicatorRef}
-                                    className={styles.semesterIndicator}
-                                />
-                                {semesters.map((sem) => (
-                                    <button
-                                        key={sem.term_code}
-                                        className={`${styles.semesterBtn} ${selectedTerm === sem.term_code ? styles.semesterBtnActive : ''}`}
-                                        onClick={() => setSelectedTerm(sem.term_code)}
-                                    >
-                                        {sem.name}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
+                        <SemesterPicker />
                     </div>
                 </section>
 
