@@ -98,6 +98,10 @@
     .page {
         flex-direction: column;
         align-items: center;
+        /* Must be reset: the base rule centres the single column horizontally,
+           but once the axis flips to column that same value centres everything
+           VERTICALLY, floating the top bar down the middle of short pages. */
+        justify-content: flex-start;
     }
 
     .pageInner {
