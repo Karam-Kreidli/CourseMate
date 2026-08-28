@@ -43,11 +43,15 @@ export default function BrowsePage() {
 
     // Live updates: someone else creating, cancelling, or getting matched on a
     // post in this term shows up here immediately, with no manual refresh.
+    // No server-side filter here on purpose: Postgres only ships the primary
+    // key for a DELETE's old row (unless REPLICA IDENTITY FULL is set), so a
+    // filter on term_code would silently never match cancellations — fetchPosts
+    // itself already re-queries scoped to selectedTerm.
     useEffect(() => {
         if (!selectedTerm || !user || typeof supabase.channel !== 'function') return;
         const channel = supabase
             .channel(`browse-posts-${selectedTerm}`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'posts', filter: `term_code=eq.${selectedTerm}` }, () => fetchPosts())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => fetchPosts())
             .subscribe();
         return () => { supabase.removeChannel(channel); };
         // eslint-disable-next-line react-hooks/exhaustive-deps
