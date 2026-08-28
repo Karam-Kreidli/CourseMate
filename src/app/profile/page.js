@@ -168,6 +168,20 @@ function ProfileContent() {
         }
     };
 
+    // A major or gender change invalidates the whole plan — wipe it clean
+    // rather than trying to keep whatever courses happen to still be valid.
+    // Covers both the in-progress basket (localStorage) and any starred
+    // schedules saved to the account (the saved_schedules table), across
+    // every term.
+    const clearSchedule = async (userId) => {
+        try {
+            localStorage.removeItem('schedule_saved');
+        } catch (e) {
+            console.error('Error clearing local schedule:', e);
+        }
+        await supabase.from('saved_schedules').delete().eq('user_id', userId);
+    };
+
     const handleSaveMajor = async () => {
         if (!selectedMajor) return;
 
@@ -274,7 +288,10 @@ function ProfileContent() {
             const majorData = majors.find(m => m.code === editForm.major);
             setMajorName(majorData?.name || editForm.major);
 
-            await validateAndCleanSchedule(editForm.major, editForm.gender);
+            if (editForm.major !== profile.major || editForm.gender !== profile.gender) {
+                // Major or gender changed — the whole plan is invalid now, don't keep any of it.
+                await clearSchedule(user.id);
+            }
 
             setIsEditing(false);
         }
