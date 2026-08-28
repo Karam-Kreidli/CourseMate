@@ -314,7 +314,7 @@ function PostContent() {
 
     return (
         <PageShell>
-            <PageHeader title="Create Post" />
+            <PageHeader title="New post" />
 
             <main className={styles.main}>
                 {isMaxPosts ? (

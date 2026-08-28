@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/client';
 import { useSemester } from '@/lib/SemesterContext';
 import PageShell from '@/components/PageShell';
 import PageHeader from '@/components/PageHeader';
+import InstructorFinder from '@/components/InstructorFinder';
+import { ScheduleIcon, UserCheckIcon } from '@/components/Icons';
 import styles from './schedule.module.css';
 
 // ===== TIME PARSING UTILITIES =====
@@ -474,6 +476,8 @@ function formatTimeShort(minutes) {
 
 export default function SchedulePage() {
     const [profile, setProfile] = useState(null);
+    // 'build' | 'instructor' — peer modes of this page.
+    const [mode, setMode] = useState('build');
     const [majorInfo, setMajorInfo] = useState(null);
     const [courses, setCourses] = useState([]);
     const [selectedCourses, setSelectedCourses] = useState([]);
@@ -1500,9 +1504,37 @@ export default function SchedulePage() {
 
     return (
         <PageShell>
-                <PageHeader title="Schedule Builder" />
+                <PageHeader title="Schedule" />
 
-                <main className={styles.main}>
+                {/* Building a timetable and looking up an instructor answer the
+                    same question — when does this happen — so they are peer
+                    modes here rather than separate destinations. */}
+                <div className={styles.modeCard} role="tablist" aria-label="Schedule mode">
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={mode === 'build'}
+                        className={`${styles.modeBtn} ${mode === 'build' ? styles.modeBtnActive : ''}`}
+                        onClick={() => setMode('build')}
+                    >
+                        <ScheduleIcon width={16} height={16} />
+                        Build schedule
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={mode === 'instructor'}
+                        className={`${styles.modeBtn} ${mode === 'instructor' ? styles.modeBtnActive : ''}`}
+                        onClick={() => setMode('instructor')}
+                    >
+                        <UserCheckIcon width={16} height={16} />
+                        Find instructor
+                    </button>
+                </div>
+
+                {mode === 'instructor' && <InstructorFinder />}
+
+                <main className={styles.main} hidden={mode !== 'build'}>
                     {error && <div className={styles.error}>{error}</div>}
 
                     {/* SAVED SCHEDULES WIDGET */}
