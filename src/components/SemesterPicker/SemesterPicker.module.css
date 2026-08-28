@@ -50,11 +50,6 @@
     transform: rotate(180deg);
 }
 
-.scrim {
-    position: fixed;
-    inset: 0;
-    z-index: 200;
-}
 
 .menu {
     position: absolute;

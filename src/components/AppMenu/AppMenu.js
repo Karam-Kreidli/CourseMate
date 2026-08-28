@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -27,6 +28,8 @@ const SignOutIcon = () => (
     </svg>
 );
 
+const DESKTOP_QUERY = '(min-width: 768px)';
+
 function initialsOf(name) {
     const parts = (name || '').trim().split(/\s+/).filter(Boolean);
     if (parts.length === 0) return '?';
@@ -39,13 +42,21 @@ function initialsOf(name) {
  * Deliberately account-only: navigation lives in the bottom nav / top bar, so
  * this holds Profile & settings, the theme switch and Sign out. Admin is NOT
  * listed — it is reachable only by typing /admin on an admin account.
+ *
+ * The panel is rendered through a portal to <body>. It has to be: every host
+ * this sits in (PageHeader's .header, Browse's .sidebarCard) uses
+ * backdrop-filter, which makes those elements the containing block for
+ * position:fixed descendants — so an in-place sheet would be trapped inside
+ * the header card instead of covering the viewport.
  */
 export default function AppMenu() {
     const [open, setOpen] = useState(false);
+    const [mounted, setMounted] = useState(false);
+    const [isDesktop, setIsDesktop] = useState(false);
+    const [anchorRect, setAnchorRect] = useState(null);
     const [profile, setProfile] = useState(null);
     const [theme, setTheme] = useState('dark');
-    const [mounted, setMounted] = useState(false);
-    const anchorRef = useRef(null);
+
     const panelRef = useRef(null);
     const triggerRef = useRef(null);
     const router = useRouter();
@@ -59,6 +70,12 @@ export default function AppMenu() {
                 || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
             setTheme(saved);
         } catch { /* storage unavailable — fall back to the default */ }
+
+        const mq = window.matchMedia(DESKTOP_QUERY);
+        const sync = () => setIsDesktop(mq.matches);
+        sync();
+        mq.addEventListener('change', sync);
+        return () => mq.removeEventListener('change', sync);
     }, []);
 
     useEffect(() => {
@@ -80,6 +97,11 @@ export default function AppMenu() {
     // Close on route change, so tapping a link never leaves the sheet open.
     useEffect(() => { setOpen(false); }, [pathname]);
 
+    const measure = useCallback(() => {
+        const el = triggerRef.current;
+        if (el) setAnchorRect(el.getBoundingClientRect());
+    }, []);
+
     // Escape closes and returns focus to the trigger; focus moves into the
     // panel on open so keyboard users aren't stranded behind the scrim.
     useEffect(() => {
@@ -91,9 +113,20 @@ export default function AppMenu() {
             }
         };
         document.addEventListener('keydown', onKey);
+        window.addEventListener('resize', measure);
+        window.addEventListener('scroll', measure, true);
         panelRef.current?.querySelector('a, button')?.focus();
-        return () => document.removeEventListener('keydown', onKey);
-    }, [open]);
+        return () => {
+            document.removeEventListener('keydown', onKey);
+            window.removeEventListener('resize', measure);
+            window.removeEventListener('scroll', measure, true);
+        };
+    }, [open, measure]);
+
+    const toggleOpen = () => {
+        if (!open) measure();
+        setOpen(o => !o);
+    };
 
     const toggleTheme = () => {
         const next = theme === 'light' ? 'dark' : 'light';
@@ -109,13 +142,75 @@ export default function AppMenu() {
         router.refresh();
     };
 
+    // Desktop anchors the dropdown under the trigger; phone uses the full-height
+    // sheet the stylesheet already positions.
+    const desktopStyle = isDesktop && anchorRect
+        ? { top: `${anchorRect.bottom + 10}px`, right: `${window.innerWidth - anchorRect.right}px` }
+        : undefined;
+
+    const panel = (
+        <>
+            <div className={styles.scrim} onClick={() => setOpen(false)} aria-hidden="true" />
+            <div
+                className={`${styles.panel} ${isDesktop ? styles.panelDesktop : ''}`}
+                style={desktopStyle}
+                ref={panelRef}
+                role="menu"
+                aria-label="Account menu"
+            >
+                <div className={styles.identity}>
+                    <span className={styles.avatar}>{initialsOf(profile?.name)}</span>
+                    <div className={styles.identityText}>
+                        <div className={styles.name}>{profile?.name || 'Your account'}</div>
+                        <div className={styles.meta}>
+                            {[profile?.major, profile?.student_id].filter(Boolean).join(' · ') || 'CourseMate'}
+                        </div>
+                    </div>
+                </div>
+
+                <div className={styles.rule} />
+
+                <div className={styles.rows}>
+                    <Link href="/profile" className={styles.row} role="menuitem">
+                        <PersonIcon />
+                        Profile &amp; settings
+                    </Link>
+
+                    <button type="button" className={styles.row} role="menuitem" onClick={toggleTheme}>
+                        <MoonIcon />
+                        Dark mode
+                        <span
+                            className={`${styles.switch} ${mounted && theme === 'dark' ? styles.switchOn : ''}`}
+                            aria-hidden="true"
+                        />
+                    </button>
+                </div>
+
+                <div className={styles.spacer} />
+                <div className={styles.rule} />
+
+                <div className={styles.rows}>
+                    <button
+                        type="button"
+                        className={`${styles.row} ${styles.danger}`}
+                        role="menuitem"
+                        onClick={signOut}
+                    >
+                        <SignOutIcon />
+                        Sign out
+                    </button>
+                </div>
+            </div>
+        </>
+    );
+
     return (
-        <div className={styles.anchor} ref={anchorRef}>
+        <div className={styles.anchor}>
             <button
                 type="button"
                 ref={triggerRef}
                 className={styles.trigger}
-                onClick={() => setOpen(o => !o)}
+                onClick={toggleOpen}
                 aria-expanded={open}
                 aria-haspopup="menu"
                 aria-label="Menu"
@@ -123,59 +218,7 @@ export default function AppMenu() {
                 <MenuIcon />
             </button>
 
-            {open && (
-                <>
-                    <div
-                        className={styles.scrim}
-                        onClick={() => setOpen(false)}
-                        aria-hidden="true"
-                    />
-                    <div className={styles.panel} ref={panelRef} role="menu" aria-label="Account menu">
-                        <div className={styles.identity}>
-                            <span className={styles.avatar}>{initialsOf(profile?.name)}</span>
-                            <div className={styles.identityText}>
-                                <div className={styles.name}>{profile?.name || 'Your account'}</div>
-                                <div className={styles.meta}>
-                                    {[profile?.major, profile?.student_id].filter(Boolean).join(' · ') || 'CourseMate'}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className={styles.rule} />
-
-                        <div className={styles.rows}>
-                            <Link href="/profile" className={styles.row} role="menuitem">
-                                <PersonIcon />
-                                Profile &amp; settings
-                            </Link>
-
-                            <button type="button" className={styles.row} role="menuitem" onClick={toggleTheme}>
-                                <MoonIcon />
-                                Dark mode
-                                <span
-                                    className={`${styles.switch} ${mounted && theme === 'dark' ? styles.switchOn : ''}`}
-                                    aria-hidden="true"
-                                />
-                            </button>
-                        </div>
-
-                        <div className={styles.spacer} />
-                        <div className={styles.rule} />
-
-                        <div className={styles.rows}>
-                            <button
-                                type="button"
-                                className={`${styles.row} ${styles.danger}`}
-                                role="menuitem"
-                                onClick={signOut}
-                            >
-                                <SignOutIcon />
-                                Sign out
-                            </button>
-                        </div>
-                    </div>
-                </>
-            )}
+            {open && mounted && createPortal(panel, document.body)}
         </div>
     );
 }

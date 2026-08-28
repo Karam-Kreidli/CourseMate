@@ -29,7 +29,11 @@ export default function SemesterPicker() {
     const { semesters, selectedTerm, setSelectedTerm } = useSemester();
     const [open, setOpen] = useState(false);
     const triggerRef = useRef(null);
+    const wrapRef = useRef(null);
 
+    // Close on Escape or an outside click. A fixed-position scrim would not
+    // work here: the hero's backdrop-filter makes it the containing block for
+    // fixed descendants, so a "full screen" scrim would only cover the hero.
     useEffect(() => {
         if (!open) return;
         const onKey = (e) => {
@@ -38,8 +42,17 @@ export default function SemesterPicker() {
                 triggerRef.current?.focus();
             }
         };
+        const onPointerDown = (e) => {
+            if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+        };
         document.addEventListener('keydown', onKey);
-        return () => document.removeEventListener('keydown', onKey);
+        document.addEventListener('mousedown', onPointerDown);
+        document.addEventListener('touchstart', onPointerDown);
+        return () => {
+            document.removeEventListener('keydown', onKey);
+            document.removeEventListener('mousedown', onPointerDown);
+            document.removeEventListener('touchstart', onPointerDown);
+        };
     }, [open]);
 
     if (!semesters || semesters.length <= 1) return null;
@@ -47,7 +60,7 @@ export default function SemesterPicker() {
     const current = semesters.find(s => s.term_code === selectedTerm);
 
     return (
-        <div className={styles.wrap}>
+        <div className={styles.wrap} ref={wrapRef}>
             <button
                 type="button"
                 ref={triggerRef}
@@ -62,8 +75,6 @@ export default function SemesterPicker() {
             </button>
 
             {open && (
-                <>
-                    <div className={styles.scrim} onClick={() => setOpen(false)} aria-hidden="true" />
                     <ul className={styles.menu} role="listbox" aria-label="Semester">
                         {semesters.map(sem => {
                             const isSelected = sem.term_code === selectedTerm;
@@ -85,8 +96,7 @@ export default function SemesterPicker() {
                                 </li>
                             );
                         })}
-                    </ul>
-                </>
+                </ul>
             )}
         </div>
     );

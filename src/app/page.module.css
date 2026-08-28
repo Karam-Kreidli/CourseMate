@@ -95,7 +95,14 @@
     box-shadow: var(--shadow-md);
     border: 1px solid var(--glass-border);
     position: relative;
-    overflow: hidden;
+    /* Not hidden: the semester dropdown opens past the card's bottom edge and
+       would be clipped. The ::before ring is inset by only 1px, so letting it
+       show is the intended border glow rather than a bleed. */
+    overflow: visible;
+    /* backdrop-filter gives .hero its own stacking context, which traps the
+       dropdown's z-index inside it — so without an explicit z-index here the
+       later .quickAction siblings (also backdrop-filtered) paint on top of it. */
+    z-index: 5;
     display: flex;
     align-items: center;
     justify-content: space-between;
