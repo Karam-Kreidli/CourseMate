@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useSemester } from '@/lib/SemesterContext';
-import BottomNav from '@/components/BottomNav';
+import PageShell from '@/components/PageShell';
+import PageHeader from '@/components/PageHeader';
 import styles from './instructors.module.css';
 
 // ===== TIME PARSING UTILITIES (reused from schedule) =====
@@ -296,16 +297,8 @@ export default function InstructorsPage() {
     };
 
     return (
-        <div className={styles.page}>
-            <div className={styles.pageInner}>
-                <header className={styles.header}>
-                    <div className={styles.headerTitleContainer}>
-                        <button type="button" onClick={() => router.back()} className={styles.backBtn} title="Back" aria-label="Back">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-                        </button>
-                        <h1>Instructor Schedule</h1>
-                    </div>
-                </header>
+        <PageShell>
+                <PageHeader title="Instructor Schedule" />
 
                 <main className={styles.main}>
                     <div className={styles.card}>
@@ -373,8 +366,6 @@ export default function InstructorsPage() {
                         )}
                     </div>
                 </main>
-            </div>
-            <BottomNav />
-        </div>
+        </PageShell>
     );
 }

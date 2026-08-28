@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import BottomNav from '@/components/BottomNav';
+import PageShell from '@/components/PageShell';
+import PageHeader from '@/components/PageHeader';
 import { BellIcon } from '@/components/Icons';
 import styles from './notifications.module.css';
 
@@ -84,57 +85,48 @@ export default function NotificationsPage() {
     };
 
     return (
-        <div className={styles.page}>
-            <div className={styles.pageInner}>
-                <header className={styles.header}>
-                    <div className={styles.headerTitleContainer}>
-                        <button type="button" onClick={() => router.back()} className={styles.backBtn} title="Back" aria-label="Back">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-                        </button>
-                        <h1>Notifications</h1>
-                    </div>
-                    {items.length > 0 && (
-                        <button className={styles.clearBtn} onClick={clearAll}>Clear all</button>
-                    )}
-                </header>
+        <PageShell>
+            <PageHeader title="Notifications">
+                {items.length > 0 && (
+                    <button className={styles.clearBtn} onClick={clearAll}>Clear all</button>
+                )}
+            </PageHeader>
 
-                <main className={styles.main}>
-                    <div className={styles.card}>
-                        {loading ? (
-                            <div className={styles.centered}><div className={styles.spinner} /></div>
-                        ) : items.length === 0 ? (
-                            <div className={styles.empty}>
-                                <span className={styles.emptyIcon}><BellIcon width={28} height={28} /></span>
-                                <h3>No notifications</h3>
-                                <p>Matches, interest in your posts, and watched sections will show up here.</p>
-                            </div>
-                        ) : (
-                            <div className={styles.list}>
-                                {items.map(n => {
-                                    const wasUnread = unreadSnapshot.has(n.id);
-                                    const href = linkFor(n);
-                                    return (
-                                        <div
-                                            key={n.id}
-                                            className={`${styles.item} ${wasUnread ? styles.unread : ''} ${href ? styles.clickable : ''}`}
-                                            onClick={() => openItem(n)}
-                                            role={href ? 'button' : undefined}
-                                        >
-                                            {wasUnread && <span className={styles.dot} />}
-                                            <div className={styles.itemMain}>
-                                                <div className={styles.itemTitle}>{n.title}</div>
-                                                {n.message && <div className={styles.itemMsg}>{n.message}</div>}
-                                                <div className={styles.itemTime}>{timeAgo(n.created_at)}</div>
-                                            </div>
+            <main className={styles.main}>
+                <div className={styles.card}>
+                    {loading ? (
+                        <div className={styles.centered}><div className={styles.spinner} /></div>
+                    ) : items.length === 0 ? (
+                        <div className={styles.empty}>
+                            <span className={styles.emptyIcon}><BellIcon width={28} height={28} /></span>
+                            <h3>No notifications</h3>
+                            <p>Matches, interest in your posts, and watched sections will show up here.</p>
+                        </div>
+                    ) : (
+                        <div className={styles.list}>
+                            {items.map(n => {
+                                const wasUnread = unreadSnapshot.has(n.id);
+                                const href = linkFor(n);
+                                return (
+                                    <div
+                                        key={n.id}
+                                        className={`${styles.item} ${wasUnread ? styles.unread : ''} ${href ? styles.clickable : ''}`}
+                                        onClick={() => openItem(n)}
+                                        role={href ? 'button' : undefined}
+                                    >
+                                        {wasUnread && <span className={styles.dot} />}
+                                        <div className={styles.itemMain}>
+                                            <div className={styles.itemTitle}>{n.title}</div>
+                                            {n.message && <div className={styles.itemMsg}>{n.message}</div>}
+                                            <div className={styles.itemTime}>{timeAgo(n.created_at)}</div>
                                         </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
-                </main>
-            </div>
-            <BottomNav />
-        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            </main>
+        </PageShell>
     );
 }

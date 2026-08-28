@@ -4,7 +4,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useSemester } from '@/lib/SemesterContext';
-import BottomNav from '@/components/BottomNav';
+import PageShell from '@/components/PageShell';
+import PageHeader from '@/components/PageHeader';
 import styles from './schedule.module.css';
 
 // ===== TIME PARSING UTILITIES =====
@@ -1491,21 +1492,15 @@ export default function SchedulePage() {
 
     if (!profile) {
         return (
-            <div className={styles.page}>
+            <PageShell>
                 <div className={styles.spinner} style={{ margin: '60px auto' }}></div>
-                <BottomNav />
-            </div>
+            </PageShell>
         );
     }
 
     return (
-        <div className={styles.page}>
-            <div className={styles.pageInner}>
-                <header className={styles.header}>
-                    <div className={styles.headerTitleContainer}>
-                        <h1>Schedule Builder</h1>
-                    </div>
-                </header>
+        <PageShell>
+                <PageHeader title="Schedule Builder" />
 
                 <main className={styles.main}>
                     {error && <div className={styles.error}>{error}</div>}
@@ -1912,10 +1907,7 @@ export default function SchedulePage() {
                         </div>
                     )}
                 </main>
-            </div>
-
-            <BottomNav />
-        </div>
+        </PageShell>
     );
 }
 
