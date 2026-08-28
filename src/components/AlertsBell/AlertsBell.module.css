@@ -1,0 +1,47 @@
+.bell {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    flex-shrink: 0;
+    transition: all var(--transition-fast) var(--ease-out-expo);
+}
+
+.bell:hover {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+}
+
+.active {
+    background: var(--color-accent-muted);
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}
+
+.bell svg {
+    width: 18px;
+    height: 18px;
+}
+
+.badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: var(--radius-full);
+    background: var(--status-expired, #ef4444);
+    color: #fff;
+    font-size: 0.625rem;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+    box-shadow: 0 0 0 2px var(--glass-bg-dense);
+}

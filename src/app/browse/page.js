@@ -7,6 +7,9 @@ import { createClient } from '@/lib/supabase/client';
 import { useSemester } from '@/lib/SemesterContext';
 import { SearchIcon } from '@/components/Icons';
 import BottomNav from '@/components/BottomNav';
+import TopBar from '@/components/TopBar';
+import AppMenu from '@/components/AppMenu';
+import AlertsBell from '@/components/AlertsBell';
 import PostCard from '@/components/PostCard';
 import SectionAlerts from '@/components/SectionAlerts';
 import styles from './page.module.css';
@@ -221,6 +224,8 @@ export default function BrowsePage() {
         <div className={styles.page}>
             <div className={`${styles.transitionOverlay} ${transitioning ? styles.active : ''}`} />
 
+            <TopBar />
+
             <div className={styles.pageInner}>
                 <aside className={styles.sidebar}>
                     <div className={styles.sidebarCard}>
@@ -233,6 +238,12 @@ export default function BrowsePage() {
                                     <span className={styles.logoText}>Browse</span>
                                     <p className={styles.logoSubtitle}>Find a section to swap</p>
                                 </div>
+                            </div>
+                            {/* Same chrome as every other page; Browse wears it in
+                                the sidebar card rather than a PageHeader. */}
+                            <div className={styles.topChrome}>
+                                <AppMenu />
+                                <AlertsBell />
                             </div>
                         </div>
                     </div>

@@ -7,12 +7,16 @@ import { createClient } from '@/lib/supabase/client';
 import { useSemester } from '@/lib/SemesterContext';
 import { useRequireProfile } from '@/lib/useRequireProfile';
 import BottomNav from '@/components/BottomNav';
+import TopBar from '@/components/TopBar';
+import AppMenu from '@/components/AppMenu';
+import AlertsBell from '@/components/AlertsBell';
 import DashboardCard, { StatBig } from '@/components/DashboardCard';
 import AnnouncementsModal from '@/components/AnnouncementsModal';
 import {
     PlusIcon,
     ScheduleIcon,
-    SwapIcon,
+    SearchIcon,
+    ActivityIcon,
     BookIcon,
     UserCheckIcon,
     ProfileIcon,
@@ -243,7 +247,16 @@ export default function DashboardPage() {
             <AnnouncementsModal ready={ready && !!user} />
             <div className={`${styles.transitionOverlay} ${transitioning ? styles.active : ''}`} />
 
+            <TopBar />
+
             <div className={styles.pageInner}>
+                {/* Same chrome as every other page — Home just wears it above
+                    the hero instead of inside a PageHeader card. */}
+                <div className={styles.topChrome}>
+                    <AppMenu />
+                    <AlertsBell />
+                </div>
+
                 {/* ===== Hero ===== */}
                 <section className={styles.hero}>
                     <div className={styles.heroLeft}>
@@ -306,8 +319,8 @@ export default function DashboardPage() {
                         <span className={styles.quickActionSub}>Generate timetables for {currentSemesterName || 'the term'}</span>
                     </Link>
                     <Link href="/browse" className={styles.quickAction}>
-                        <span className={styles.quickActionIcon}><SwapIcon width={20} height={20} /></span>
-                        <span className={styles.quickActionLabel}>Swap</span>
+                        <span className={styles.quickActionIcon}><SearchIcon width={20} height={20} /></span>
+                        <span className={styles.quickActionLabel}>Browse</span>
                         <span className={styles.quickActionSub}>See active posts from your major</span>
                     </Link>
                     <Link href="/instructors" className={styles.quickAction}>
@@ -322,6 +335,8 @@ export default function DashboardPage() {
                     <DashboardCard
                         title="Schedule builder"
                         icon={<ScheduleIcon width={16} height={16} />}
+                        actionLabel="Open Schedule"
+                        actionHref="/schedule"
                         loading={termLoading}
                     >
                         <div className={styles.statRow}>
@@ -348,7 +363,7 @@ export default function DashboardPage() {
 
                     <DashboardCard
                         title="My activity"
-                        icon={<SwapIcon width={16} height={16} />}
+                        icon={<ActivityIcon width={16} height={16} />}
                         actionLabel="Open Activity"
                         actionHref="/matches"
                         loading={termLoading}

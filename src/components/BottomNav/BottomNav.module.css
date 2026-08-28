@@ -110,3 +110,62 @@
     font-weight: 600;
     letter-spacing: 0.01em;
 }
+
+/* ===== Centre action ===== */
+.fab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    flex-shrink: 0;
+    border-radius: var(--radius-full);
+    background: var(--gradient-accent-vivid);
+    color: var(--text-inverse);
+    /* Lifts clear of the pill; the ring hides the bar edge behind it. */
+    transform: translateY(-18px);
+    border: 3px solid var(--auth-bg);
+    box-shadow: var(--shadow-accent-lg), var(--shadow-accent);
+    transition: transform var(--transition-fast) var(--ease-spring),
+                box-shadow var(--transition-fast) var(--ease-out-expo);
+}
+
+.fab:hover {
+    transform: translateY(-21px) scale(1.04);
+}
+
+.fab:active {
+    transform: translateY(-16px) scale(0.97);
+}
+
+.fab svg {
+    width: 26px;
+    height: 26px;
+    stroke-width: 2.5px;
+}
+
+.fabActive {
+    box-shadow: var(--shadow-accent-lg), 0 0 0 4px var(--color-accent-muted);
+}
+
+/* ===== Desktop =====
+   The floating pill is a phone idiom. Above 1024px navigation lives in the
+   top bar instead, so the pill (and the space reserved for it) goes away. */
+@media (min-width: 1024px) {
+    .bottomNav {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fab,
+    .fab:hover,
+    .fab:active {
+        transition: none;
+        transform: translateY(-18px);
+    }
+
+    .navItem.active::before {
+        animation: none;
+    }
+}

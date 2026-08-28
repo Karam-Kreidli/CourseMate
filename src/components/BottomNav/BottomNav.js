@@ -1,88 +1,70 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import useUnreadCount from '@/lib/useUnreadCount';
 import styles from './BottomNav.module.css';
 
-import { HomeIcon, SwapIcon, ProfileIcon, ScheduleIcon, PlusIcon, BellIcon } from '../Icons';
+import { HomeIcon, SearchIcon, ScheduleIcon, PlusIcon, ActivityIcon } from '../Icons';
+
+// Post is deliberately absent: it is the raised centre button, not a tab.
+const NAV_ITEMS = [
+    { href: '/', icon: <HomeIcon />, label: 'Home' },
+    { href: '/browse', icon: <SearchIcon />, label: 'Browse' },
+    { href: '/schedule', icon: <ScheduleIcon />, label: 'Schedule' },
+    { href: '/matches', icon: <ActivityIcon />, label: 'Activity' },
+];
+
+// Sub-routes that should keep their parent tab lit. Home stays exact-match so
+// it doesn't win on every route.
+const isActiveRoute = (pathname, href) =>
+    href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
 
 export default function BottomNav() {
     const pathname = usePathname();
-    const [unread, setUnread] = useState(0);
-    const supabase = createClient();
+    const unread = useUnreadCount();
+    const postActive = isActiveRoute(pathname, '/post');
 
-    const loadUnread = async () => {
-        const { count } = await supabase
-            .from('notifications')
-            .select('id', { count: 'exact', head: true })
-            .is('read', false);
-        setUnread(count || 0);
+    const renderItem = (item) => {
+        const isActive = isActiveRoute(pathname, item.href);
+        return (
+            <Link
+                key={item.href}
+                href={item.href}
+                className={`${styles.navItem} ${isActive ? styles.active : ''}`}
+                aria-current={isActive ? 'page' : undefined}
+            >
+                <span className={styles.navIcon}>
+                    {item.icon}
+                    {item.badge > 0 && (
+                        <span className={styles.badge}>{item.badge > 9 ? '9+' : item.badge}</span>
+                    )}
+                </span>
+                <span className={styles.navLabel}>{item.label}</span>
+            </Link>
+        );
     };
 
-    // Poll as a fallback, and re-check on every route change (e.g. right after
-    // leaving /notifications, once its "mark read" writes have landed).
-    useEffect(() => {
-        let cancelled = false;
-        const run = async () => {
-            const { count } = await supabase
-                .from('notifications')
-                .select('id', { count: 'exact', head: true })
-                .is('read', false);
-            if (!cancelled) setUnread(count || 0);
-        };
-        run();
-        const interval = setInterval(run, 60000);
-        return () => { cancelled = true; clearInterval(interval); };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pathname]);
-
-    // Live badge updates: a new notification (e.g. a match found) lands on the
-    // bell instantly instead of waiting up to 60s for the poll above.
-    useEffect(() => {
-        let channel = null;
-        let cancelled = false;
-        (async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user || cancelled || typeof supabase.channel !== 'function') return;
-            channel = supabase
-                .channel(`notifications-badge-${user.id}`)
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, loadUnread)
-                .subscribe();
-        })();
-        return () => {
-            cancelled = true;
-            if (channel) supabase.removeChannel(channel);
-        };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    const navItems = [
-        { href: '/', icon: <HomeIcon />, label: 'Home' },
-        { href: '/schedule', icon: <ScheduleIcon />, label: 'Schedule' },
-        { href: '/post', icon: <PlusIcon />, label: 'Post' },
-        { href: '/browse', icon: <SwapIcon />, label: 'Browse' },
-        { href: '/notifications', icon: <BellIcon />, label: 'Alerts', badge: unread },
-        { href: '/profile', icon: <ProfileIcon />, label: 'Profile' },
-    ];
+    const [home, browse, schedule, activity] = NAV_ITEMS;
 
     return (
-        <nav className={styles.bottomNav}>
-            {navItems.map((item) => {
-                const isActive = pathname === item.href;
-                return (
-                    <Link key={item.href} href={item.href} className={`${styles.navItem} ${isActive ? styles.active : ''}`}>
-                        <span className={styles.navIcon}>
-                            {item.icon}
-                            {item.badge > 0 && (
-                                <span className={styles.badge}>{item.badge > 9 ? '9+' : item.badge}</span>
-                            )}
-                        </span>
-                        <span className={styles.navLabel}>{item.label}</span>
-                    </Link>
-                );
-            })}
+        <nav className={styles.bottomNav} aria-label="Main">
+            {renderItem(home)}
+            {renderItem(browse)}
+
+            {/* Creating a post is the primary action, so it gets the centre
+                slot as a raised button rather than competing as a tab. */}
+            <Link
+                href="/post"
+                className={`${styles.fab} ${postActive ? styles.fabActive : ''}`}
+                aria-label="New post"
+                aria-current={postActive ? 'page' : undefined}
+            >
+                <PlusIcon />
+            </Link>
+
+            {renderItem(schedule)}
+            {renderItem({ ...activity, badge: unread })}
         </nav>
     );
 }

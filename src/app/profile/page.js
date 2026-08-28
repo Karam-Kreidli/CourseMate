@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useSemester } from '@/lib/SemesterContext';
 import { isPushSupported, getPushState, subscribeToPush, unsubscribeFromPush } from '@/lib/push/client';
-import BottomNav from '@/components/BottomNav';
+import PageShell from '@/components/PageShell';
+import PageHeader from '@/components/PageHeader';
 import ThemeToggle from '@/components/ThemeToggle';
 import styles from './profile.module.css';
 
@@ -366,12 +367,11 @@ function ProfileContent() {
 
     if (loading) {
         return (
-            <div className={styles.page}>
+            <PageShell>
                 <div className={styles.loading}>
                     <div className={styles.spinner}></div>
                 </div>
-                <BottomNav />
-            </div>
+            </PageShell>
         );
     }
 
@@ -412,11 +412,8 @@ function ProfileContent() {
     if (showMajorSelect && (needsMajor || needsGender)) {
         const canContinue = (!needsMajor || selectedMajor) && (!needsGender || selectedGender);
         return (
-            <div className={styles.page}>
-                <div className={styles.pageInner}>
-                    <header className={styles.header}>
-                        <h1>Complete Your Profile</h1>
-                    </header>
+            <PageShell>
+                    <PageHeader title="Complete Your Profile" />
 
                     <main className={styles.main}>
                         <div className={styles.card}>
@@ -453,18 +450,13 @@ function ProfileContent() {
                             </button>
                         </div>
                     </main>
-                </div>
-                <BottomNav />
-            </div>
+            </PageShell>
         );
     }
 
     return (
-        <div className={styles.page}>
-            <div className={styles.pageInner}>
-                <header className={styles.header}>
-                    <h1>Profile</h1>
-                </header>
+        <PageShell>
+                <PageHeader title="Profile" />
 
                 <main className={styles.main}>
                     {/* Profile Info */}
@@ -644,10 +636,7 @@ function ProfileContent() {
                         Contribute to the project on our <a href="https://github.com/Karam-Kreidli/CourseMate" target="_blank" rel="noopener noreferrer" className={styles.contributeLink}>GitHub Repository</a>.
                     </p>
                 </main>
-            </div>
-
-            <BottomNav />
-        </div>
+        </PageShell>
     );
 }
 
@@ -655,11 +644,11 @@ function ProfileContent() {
 export default function ProfilePage() {
     return (
         <Suspense fallback={
-            <div className={styles.page}>
+            <PageShell nav={false}>
                 <div className={styles.loading}>
                     <div className={styles.spinner}></div>
                 </div>
-            </div>
+            </PageShell>
         }>
             <ProfileContent />
         </Suspense>

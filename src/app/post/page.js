@@ -4,7 +4,8 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useSemester } from '@/lib/SemesterContext';
-import BottomNav from '@/components/BottomNav';
+import PageShell from '@/components/PageShell';
+import PageHeader from '@/components/PageHeader';
 import styles from './post.module.css';
 
 const POST_TYPES = [
@@ -312,11 +313,8 @@ function PostContent() {
     const isMaxPosts = activePostCount >= 5;
 
     return (
-        <div className={styles.page}>
-            <div className={styles.pageInner}>
-            <header className={styles.header}>
-                <h1>Create Post</h1>
-            </header>
+        <PageShell>
+            <PageHeader title="New post" />
 
             <main className={styles.main}>
                 {isMaxPosts ? (
@@ -425,22 +423,16 @@ function PostContent() {
                     </form>
                 )}
             </main>
-            </div>
-
-            <BottomNav />
-        </div>
+        </PageShell>
     );
 }
 
 export default function PostPage() {
     return (
         <Suspense fallback={
-            <div className={styles.page}>
-                <div className={styles.pageInner} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexGrow: 1 }}>
-                    <div className={styles.spinner}></div>
-                </div>
-                <BottomNav />
-            </div>
+            <PageShell innerClassName={styles.loadingInner}>
+                <div className={styles.spinner}></div>
+            </PageShell>
         }>
             <PostContent />
         </Suspense>
