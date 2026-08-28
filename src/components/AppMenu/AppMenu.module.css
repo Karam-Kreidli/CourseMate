@@ -37,7 +37,7 @@
     position: fixed;
     inset: 0;
     background: rgba(3, 10, 20, 0.72);
-    z-index: 900;
+    z-index: 1100;
     animation: scrimIn 0.2s var(--ease-out-expo);
     border: none;
     padding: 0;
@@ -56,7 +56,7 @@
     left: 0;
     bottom: 0;
     width: min(308px, 85vw);
-    z-index: 901;
+    z-index: 1101;
     background: var(--bg-card);
     border-right: 1px solid var(--border-color);
     box-shadow: 24px 0 60px rgba(0, 0, 0, 0.45);
@@ -218,17 +218,16 @@
     background: var(--text-inverse);
 }
 
-/* ===== Desktop: anchored dropdown ===== */
+/* ===== Desktop: anchored dropdown =====
+   Still position: fixed (the panel is portaled to <body>), but placed at
+   coordinates measured from the trigger rather than filling the left edge. */
 @media (min-width: 768px) {
     .scrim {
         background: transparent;
     }
 
-    .panel {
-        position: absolute;
-        top: calc(100% + 10px);
+    .panelDesktop {
         left: auto;
-        right: 0;
         bottom: auto;
         width: 286px;
         border: 1px solid var(--border-color);

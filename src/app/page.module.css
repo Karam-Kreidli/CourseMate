@@ -95,7 +95,14 @@
     box-shadow: var(--shadow-md);
     border: 1px solid var(--glass-border);
     position: relative;
-    overflow: hidden;
+    /* Not hidden: the semester dropdown opens past the card's bottom edge and
+       would be clipped. The ::before ring is inset by only 1px, so letting it
+       show is the intended border glow rather than a bleed. */
+    overflow: visible;
+    /* backdrop-filter gives .hero its own stacking context, which traps the
+       dropdown's z-index inside it — so without an explicit z-index here the
+       later .quickAction siblings (also backdrop-filtered) paint on top of it. */
+    z-index: 5;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -114,37 +121,9 @@
     pointer-events: none;
 }
 
-.heroLeft {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    min-width: 0;
-    flex: 1;
-}
-
-.heroLogo {
-    width: 44px;
-    height: 44px;
-    border-radius: var(--radius-md);
-    overflow: hidden;
-    flex-shrink: 0;
-    border: 1px solid var(--border-color);
-    background: var(--bg-card);
-    box-shadow: var(--shadow-sm), 0 0 20px rgba(0, 195, 137, 0.12);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.heroLogoImage {
-    width: 100%;
-    height: 100%;
-    transform: scale(1.4);
-    object-fit: cover;
-}
-
 .heroText {
     min-width: 0;
+    flex: 1;
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -180,55 +159,6 @@
     gap: 12px;
     flex-wrap: wrap;
     justify-content: flex-end;
-}
-
-/* ===== Semester pill switcher ===== */
-.semesterToggle {
-    display: flex;
-    padding: 3px;
-    background: var(--bg-tertiary);
-    border-radius: var(--radius-full);
-    position: relative;
-    border: 1px solid var(--border-color-subtle);
-}
-
-.semesterBtn {
-    flex: 0 0 auto;
-    padding: 8px 14px;
-    border: none;
-    background: transparent;
-    color: var(--text-muted);
-    font-size: 0.8125rem;
-    font-weight: 600;
-    font-family: inherit;
-    cursor: pointer;
-    border-radius: var(--radius-full);
-    transition: color var(--transition-fast) var(--ease-out-expo);
-    position: relative;
-    z-index: 1;
-    -webkit-tap-highlight-color: transparent;
-    white-space: nowrap;
-}
-
-.semesterBtn:hover { color: var(--text-secondary); }
-
-.semesterBtnActive {
-    color: #FFFFFF !important;
-    -webkit-text-fill-color: #FFFFFF;
-}
-
-.semesterIndicator {
-    position: absolute;
-    top: 3px;
-    bottom: 3px;
-    left: 3px;
-    width: 0;
-    background: var(--gradient-accent-vivid);
-    border-radius: var(--radius-full);
-    transition: left 0.3s var(--ease-out-expo), width 0.3s var(--ease-out-expo);
-    box-shadow: var(--shadow-accent);
-    z-index: 0;
-    pointer-events: none;
 }
 
 /* ===== Profile completeness bar ===== */
@@ -626,20 +556,30 @@
         min-height: 100dvh;
     }
 
+    /* Stays a single row: the term switch belongs beside the greeting, not
+       stacked under it. nowrap + an ellipsising greeting keeps that true for
+       long names instead of silently wrapping back to two lines. */
     .hero {
-        padding: 16px;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 14px;
+        padding: 14px 16px;
+        flex-wrap: nowrap;
+        gap: 12px;
+    }
+
+    .heroText {
+        min-width: 0;
     }
 
     .heroRight {
-        width: 100%;
-        justify-content: space-between;
+        width: auto;
+        flex-shrink: 0;
     }
 
     .heroGreeting {
+        display: block;
         font-size: 1.25rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .quickActions {

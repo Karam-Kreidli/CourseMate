@@ -143,33 +143,6 @@
     margin-bottom: 6px;
 }
 
-.logoWrapper {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.logoFrame {
-    width: 38px;
-    height: 38px;
-    overflow: hidden;
-    border-radius: var(--radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: var(--shadow-sm), 0 0 20px rgba(0, 195, 137, 0.12);
-    border: 1px solid var(--border-color);
-    background: var(--bg-card);
-    flex-shrink: 0;
-}
-
-.logoImage {
-    width: 100%;
-    height: 100%;
-    transform: scale(1.4);
-    object-fit: cover;
-}
-
 .logoText {
     font-size: 1.25rem;
     font-weight: 800;

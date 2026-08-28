@@ -1,0 +1,130 @@
+/* ===== Semester picker =====
+   Replaces the old two-button sliding pill, which was gated on
+   `semesters.length === 2` and so vanished entirely with three or more active
+   terms. A chip + dropdown scales to any number and stays narrow enough to sit
+   beside the greeting on a phone. */
+
+.wrap {
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color-subtle);
+    border-radius: var(--radius-full);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all var(--transition-fast) var(--ease-out-expo);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.chip:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}
+
+.chip[aria-expanded='true'] {
+    background: var(--color-accent-muted);
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}
+
+.chevron {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    transition: transform var(--transition-fast) var(--ease-out-expo);
+}
+
+.chip[aria-expanded='true'] .chevron {
+    transform: rotate(180deg);
+}
+
+
+.menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 201;
+    min-width: 190px;
+    max-height: 320px;
+    overflow-y: auto;
+    margin: 0;
+    padding: 6px;
+    list-style: none;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xl);
+    animation: menuIn 0.16s var(--ease-out-expo);
+}
+
+@keyframes menuIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 12px;
+    background: none;
+    border: none;
+    border-radius: var(--radius-md);
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    cursor: pointer;
+    text-align: left;
+    white-space: nowrap;
+    transition: background var(--transition-fast);
+}
+
+.option:hover {
+    background: var(--bg-tertiary);
+}
+
+.selected {
+    color: var(--color-accent);
+    background: var(--color-accent-muted);
+}
+
+.selected:hover {
+    background: var(--color-accent-muted);
+}
+
+.check {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+}
+
+@media (max-width: 767px) {
+    .chip {
+        padding: 7px 11px;
+        font-size: 0.75rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .menu {
+        animation: none;
+    }
+    .chevron {
+        transition: none;
+    }
+}
