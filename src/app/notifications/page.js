@@ -86,7 +86,7 @@ export default function NotificationsPage() {
 
     return (
         <PageShell>
-            <PageHeader title="Notifications">
+            <PageHeader title="Notifications" bell={false}>
                 {items.length > 0 && (
                     <button className={styles.clearBtn} onClick={clearAll}>Clear all</button>
                 )}

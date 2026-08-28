@@ -7,6 +7,8 @@ import { createClient } from '@/lib/supabase/client';
 import { useSemester } from '@/lib/SemesterContext';
 import { useRequireProfile } from '@/lib/useRequireProfile';
 import BottomNav from '@/components/BottomNav';
+import AppMenu from '@/components/AppMenu';
+import AlertsBell from '@/components/AlertsBell';
 import DashboardCard, { StatBig } from '@/components/DashboardCard';
 import AnnouncementsModal from '@/components/AnnouncementsModal';
 import {
@@ -244,6 +246,13 @@ export default function DashboardPage() {
             <div className={`${styles.transitionOverlay} ${transitioning ? styles.active : ''}`} />
 
             <div className={styles.pageInner}>
+                {/* Same chrome as every other page — Home just wears it above
+                    the hero instead of inside a PageHeader card. */}
+                <div className={styles.topChrome}>
+                    <AppMenu />
+                    <AlertsBell />
+                </div>
+
                 {/* ===== Hero ===== */}
                 <section className={styles.hero}>
                     <div className={styles.heroLeft}>

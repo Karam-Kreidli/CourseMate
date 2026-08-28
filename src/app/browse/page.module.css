@@ -600,3 +600,11 @@
         width: 280px;
     }
 }
+/* Hamburger + bell inside the sidebar card, matching the chrome other pages
+   get from PageHeader. */
+.topChrome {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}

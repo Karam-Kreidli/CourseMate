@@ -665,3 +665,12 @@
         padding-bottom: 40px;
     }
 }
+
+/* Hamburger + bell row above the hero, so Home carries the same chrome as
+   every other page without adopting the PageHeader card. */
+.topChrome {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
