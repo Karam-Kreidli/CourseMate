@@ -1619,10 +1619,10 @@ export default function SchedulePage() {
 
                             <div className={styles.basketButtons}>
                                 <button className={styles.basketBtn} onClick={() => addCourse({ course_id: 'BASKET_1', name: 'University Elective (Basket 1)', is_basket: true, basket_name: 'Basket 1' })}>
-                                    + University Elective 1
+                                    + <span className={styles.basketBtnLong}>University</span><span className={styles.basketBtnShort}>Univ.</span> Elective 1
                                 </button>
                                 <button className={styles.basketBtn} onClick={() => addCourse({ course_id: 'BASKET_2', name: 'University Elective (Basket 2)', is_basket: true, basket_name: 'Basket 2' })}>
-                                    + University Elective 2
+                                    + <span className={styles.basketBtnLong}>University</span><span className={styles.basketBtnShort}>Univ.</span> Elective 2
                                 </button>
                                 {majorInfo?.dept_electives_count > 0 && majorInfo?.support_electives_count > 0 ? (
                                     <>
