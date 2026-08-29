@@ -15,6 +15,16 @@ const STATUSES = [
     { value: 'all', label: 'All' },
 ];
 
+// Surface what the server actually said. These used to alert('Failed'), which
+// hid real, actionable errors — e.g. a post still referenced by a live match.
+async function errorFrom(res, fallback) {
+    try {
+        const body = await res.json();
+        if (body?.error) return body.error;
+    } catch { /* non-JSON response */ }
+    return fallback;
+}
+
 function PostsProvider({ children }) {
     const [posts, setPosts] = useState([]);
     const [search, setSearch] = useState('');
@@ -70,8 +80,11 @@ function PostsProvider({ children }) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id, status: 'expired' }),
         });
-        if (res.ok) setPosts(prev => prev.map(p => p.id === id ? { ...p, status: 'expired' } : p));
-        else alert('Failed');
+        if (res.ok) {
+            setPosts(prev => prev.map(p => p.id === id ? { ...p, status: 'expired' } : p));
+        } else {
+            alert(await errorFrom(res, 'Could not expire this post.'));
+        }
     };
 
     const handleDelete = async (id) => {
@@ -81,8 +94,11 @@ function PostsProvider({ children }) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id }),
         });
-        if (res.ok) setPosts(prev => prev.filter(p => p.id !== id));
-        else alert('Failed');
+        if (res.ok) {
+            setPosts(prev => prev.filter(p => p.id !== id));
+        } else {
+            alert(await errorFrom(res, 'Could not delete this post.'));
+        }
     };
 
     return (
