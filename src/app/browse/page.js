@@ -228,17 +228,17 @@ export default function BrowsePage() {
             <div className={styles.pageInner}>
                 <aside className={styles.sidebar}>
                     <div className={styles.sidebarCard}>
+                        {/* Same chrome as every other page; Browse wears it in the
+                            sidebar card rather than a PageHeader, but in the same
+                            order: hamburger left of the title, bell on the right.
+                            Both stand down from 1024px up, where TopBar owns them. */}
                         <div className={styles.logoContainer}>
-                            <div>
+                            <span className={styles.mobileChrome}><AppMenu /></span>
+                            <div className={styles.logoTitle}>
                                 <span className={styles.logoText}>Browse</span>
                                 <p className={styles.logoSubtitle}>Find a section to swap</p>
                             </div>
-                            {/* Same chrome as every other page; Browse wears it in
-                                the sidebar card rather than a PageHeader. */}
-                            <div className={styles.topChrome}>
-                                <AppMenu />
-                                <AlertsBell />
-                            </div>
+                            <span className={styles.mobileChrome}><AlertsBell /></span>
                         </div>
                     </div>
 

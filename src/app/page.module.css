@@ -605,6 +605,22 @@
     text-transform: uppercase;
 }
 
+/* Second line of the row: course code, plus the section count on phones. */
+.electiveMeta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.electiveBadgeRight {
+    flex-shrink: 0;
+}
+
+.electiveBadgeInline {
+    display: none;
+}
+
 .electiveBadgeOpen {
     background: var(--color-accent-muted);
     color: var(--color-accent);
@@ -723,7 +739,7 @@
     .hero {
         padding: 14px 16px;
         flex-wrap: nowrap;
-        gap: 12px;
+        gap: 10px;
     }
 
     .heroText {
@@ -733,6 +749,7 @@
     .heroRight {
         width: auto;
         flex-shrink: 0;
+        gap: 8px;
     }
 
     .heroGreeting {
@@ -764,6 +781,17 @@
         padding-left: 10px;
     }
 
+    /* Swap which copy of the count is shown — see the note in page.js. */
+    .electiveBadgeRight {
+        display: none;
+    }
+
+    .electiveBadgeInline {
+        display: inline-block;
+        font-size: 0.62rem;
+        padding: 2px 6px;
+    }
+
     .sectionRow {
         gap: 8px;
         padding: 8px;
@@ -785,17 +813,17 @@
     }
 }
 
-/* Hamburger + bell row above the hero, so Home carries the same chrome as
-   every other page without adopting the PageHeader card. */
-.topChrome {
-    display: flex;
+/* Hamburger and bell, carried inside the hero so they sit on the greeting's
+   line. Named to match PageHeader's slot of the same name: shown on phone and
+   tablet, stood down from 1024px up where TopBar owns both. */
+.mobileChrome {
+    display: inline-flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+    flex-shrink: 0;
 }
 
 @media (min-width: 1024px) {
-    .topChrome {
+    .mobileChrome {
         display: none;
     }
 }

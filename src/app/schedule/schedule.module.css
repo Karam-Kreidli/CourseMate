@@ -1204,6 +1204,23 @@
     cursor: pointer;
     transition: all var(--transition-fast) var(--ease-out-expo);
     box-shadow: var(--shadow-sm);
+    /* One line, always. "+ University Elective 1" used to wrap in a half-width
+       phone column, which is what made these two buttons taller than the pair
+       beside them. If a label still can't fit it now truncates rather than
+       growing the button. */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* "University" is spelled out where there's room and abbreviated where there
+   isn't, rather than shrinking the type on every button to suit the longest. */
+.basketBtnLong {
+    display: inline;
+}
+
+.basketBtnShort {
+    display: none;
 }
 
 .basketBtn:hover {
@@ -1232,6 +1249,26 @@
 
     .main {
         padding: 0;
+    }
+
+    .basketBtn {
+        padding: 12px 10px;
+        font-size: 0.75rem;
+    }
+
+    .basketBtnLong {
+        display: none;
+    }
+
+    .basketBtnShort {
+        display: inline;
+    }
+}
+
+@media (max-width: 400px) {
+    .basketBtn {
+        padding: 12px 8px;
+        font-size: 0.7rem;
     }
 }
 

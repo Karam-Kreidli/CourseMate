@@ -295,15 +295,13 @@ export default function DashboardPage() {
             <TopBar />
 
             <div className={styles.pageInner}>
-                {/* Same chrome as every other page — Home just wears it above
-                    the hero instead of inside a PageHeader card. */}
-                <div className={styles.topChrome}>
-                    <AppMenu />
-                    <AlertsBell />
-                </div>
-
                 {/* ===== Hero ===== */}
+                {/* Home wears the app chrome inside the hero rather than in a
+                    PageHeader card, but in the same order every other page uses:
+                    hamburger left of the title, bell on the far right. Both are
+                    hidden from 1024px up, where TopBar owns them. */}
                 <section className={styles.hero}>
+                    <span className={styles.mobileChrome}><AppMenu /></span>
                     <div className={styles.heroText}>
                         <span className={styles.heroGreeting}>
                             Hi, <span className={styles.heroAccent}>{firstName}</span>
@@ -311,6 +309,7 @@ export default function DashboardPage() {
                     </div>
                     <div className={styles.heroRight}>
                         <SemesterPicker />
+                        <span className={styles.mobileChrome}><AlertsBell /></span>
                     </div>
                 </section>
 
@@ -447,6 +446,7 @@ export default function DashboardPage() {
                                         const isOpen = openElectives.has(key);
                                         const panelId = `sections-${key}`;
                                         const courseLabel = row.course_name || row.course_id;
+                                        const sectionsLabel = `${row.section_count} section${row.section_count === 1 ? '' : 's'}`;
                                         return (
                                             <div key={key} className={`${styles.electiveItem} ${isOpen ? styles.electiveItemOpen : ''}`}>
                                                 <div className={styles.electiveHead}>
@@ -462,10 +462,20 @@ export default function DashboardPage() {
                                                         </span>
                                                         <span className={styles.electiveMain}>
                                                             <span className={styles.electiveName}>{row.course_name || 'Unnamed course'}</span>
-                                                            <span className={styles.electiveCode}>{row.course_id}</span>
+                                                            <span className={styles.electiveMeta}>
+                                                                <span className={styles.electiveCode}>{row.course_id}</span>
+                                                                {/* Phone copy of the badge. On a 390px row the right-hand
+                                                                    one squeezed the course name down to nothing, so below
+                                                                    768px the count rides the code's line instead — same
+                                                                    row height, the name gets the width back. Only ever
+                                                                    one of the two is displayed. */}
+                                                                <span className={`${styles.electiveBadge} ${styles.electiveBadgeOpen} ${styles.electiveBadgeInline}`}>
+                                                                    {sectionsLabel}
+                                                                </span>
+                                                            </span>
                                                         </span>
-                                                        <span className={`${styles.electiveBadge} ${styles.electiveBadgeOpen}`}>
-                                                            {row.section_count} section{row.section_count === 1 ? '' : 's'}
+                                                        <span className={`${styles.electiveBadge} ${styles.electiveBadgeOpen} ${styles.electiveBadgeRight}`}>
+                                                            {sectionsLabel}
                                                         </span>
                                                         <ChevronIcon className={styles.electiveChevron} />
                                                     </button>

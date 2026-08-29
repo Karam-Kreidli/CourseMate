@@ -139,8 +139,15 @@
 .logoContainer {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 12px;
     margin-bottom: 6px;
+}
+
+/* Takes the slack so the bell stays pinned right and the hamburger stays
+   pinned left, whatever the title's width. */
+.logoTitle {
+    flex: 1;
+    min-width: 0;
 }
 
 .logoText {
@@ -575,15 +582,15 @@
 }
 /* Hamburger + bell inside the sidebar card, matching the chrome other pages
    get from PageHeader. */
-.topChrome {
-    display: flex;
+/* Named to match PageHeader's slot of the same name. */
+.mobileChrome {
+    display: inline-flex;
     align-items: center;
-    gap: 8px;
     flex-shrink: 0;
 }
 
 @media (min-width: 1024px) {
-    .topChrome {
+    .mobileChrome {
         display: none;
     }
 }
