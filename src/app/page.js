@@ -472,12 +472,12 @@ export default function DashboardPage() {
                                                     <Link
                                                         href={`/schedule?course=${encodeURIComponent(row.course_id)}`}
                                                         className={styles.addBtn}
-                                                        title={`Add ${courseLabel} to your basket`}
-                                                        aria-label={`Add ${courseLabel} to your basket`}
+                                                        title={`Add ${courseLabel} to your schedule`}
+                                                        aria-label={`Add ${courseLabel} to your schedule`}
                                                     >
                                                         <PlusIcon width={14} height={14} />
                                                         <span className={styles.addBtnLabel}>
-                                                            Add<span className={styles.addBtnLabelLong}> to basket</span>
+                                                            Add<span className={styles.addBtnLabelLong}> to schedule</span>
                                                         </span>
                                                     </Link>
                                                 </div>

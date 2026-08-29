@@ -434,7 +434,7 @@
 }
 
 /* Sits outside the toggle button so it is its own hit target — tapping the row
-   only expands it; adding to the basket is always a deliberate second action. */
+   only expands it; adding to the schedule is always a deliberate second action. */
 .addBtn {
     display: inline-flex;
     align-items: center;
@@ -467,7 +467,7 @@
     display: inline;
 }
 
-/* "to basket" is dropped on phones, where the row has no width to spare. */
+/* "to schedule" is dropped on phones, where the row has no width to spare. */
 .addBtnLabelLong {
     display: none;
 }
