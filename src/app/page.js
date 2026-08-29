@@ -25,6 +25,46 @@ import styles from './page.module.css';
 
 const PROFILE_FIELDS = ['name', 'student_id', 'phone', 'major', 'gender'];
 
+// Instructor names arrive from the registry scrape with entities still encoded.
+function decodeHtmlEntities(text) {
+    if (!text) return text;
+    return text
+        .replace(/&#39;/g, "'")
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>');
+}
+
+// class_time is one string holding both halves, e.g. "Mon/Wed 15:30-16:45".
+// Split it so the days can be styled apart from the clock range; anything that
+// doesn't match the expected shape is shown verbatim rather than dropped.
+function splitClassTime(classTime) {
+    const str = (classTime || '').trim();
+    if (!str) return { days: '', time: '' };
+    const m = str.match(/^(.+?)\s+(\d{1,2}:\d{2}(?:\s*[AP]M)?\s*-\s*\d{1,2}:\d{2}(?:\s*[AP]M)?)$/i);
+    if (!m) return { days: '', time: str };
+    return { days: m[1].trim(), time: m[2].replace(/\s*-\s*/, ' - ') };
+}
+
+// Trailing letters mark a lab or tutorial attached to a lecture section — except
+// A and E, which are language indicators on the lecture itself. Same rule the
+// schedule builder uses, so the two pages label sections identically.
+function sectionKind(sectionNum) {
+    const suffix = (sectionNum || '').match(/[A-Za-z]+$/);
+    if (!suffix) return null;
+    const first = suffix[0][0].toUpperCase();
+    if ((first === 'A' || first === 'E') && suffix[0].length === 1) return null;
+    return sectionNum.toUpperCase().endsWith('T') ? 'TUT' : 'LAB';
+}
+
+const ChevronIcon = (props) => (
+    <svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="currentColor"
+        strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+        <polyline points="6 9 12 15 18 9" />
+    </svg>
+);
+
 function relativeTime(iso) {
     if (!iso) return null;
     const then = new Date(iso).getTime();
@@ -50,6 +90,18 @@ export default function DashboardPage() {
 
     // Elective category filter (All / Department / University)
     const [electiveFilter, setElectiveFilter] = useState('all');
+    // Which elective rows have their section list expanded. A Set rather than a
+    // single id: picking an elective means comparing times across courses, so
+    // opening one must not collapse the one you were comparing it against.
+    const [openElectives, setOpenElectives] = useState(() => new Set());
+
+    const toggleElective = (key) => {
+        setOpenElectives(prev => {
+            const next = new Set(prev);
+            if (next.has(key)) next.delete(key); else next.add(key);
+            return next;
+        });
+    };
 
     // Group B: term-scoped, refires on selectedTerm change
     const [termLoading, setTermLoading] = useState(true);
@@ -130,10 +182,11 @@ export default function DashboardPage() {
                 courseIds.length > 0
                     ? supabase
                         .from('sections')
-                        .select('course_id, section_num, instructor, campus, term_code')
+                        .select('course_id, section_num, crn, class_time, instructor, campus, term_code')
                         .in('course_id', courseIds)
                         .in('campus', allowedCampuses)
                         .eq('term_code', selectedTerm)
+                        .order('section_num')
                     : Promise.resolve({ data: [] }),
             ]);
 
@@ -172,13 +225,23 @@ export default function DashboardPage() {
         return () => { cancelled = true; };
     }, [savedSchedules]);
 
+    // Sections offered this term, grouped by course. The section count on each
+    // elective row is this list's length, so the badge and the expanded list can
+    // never disagree.
+    const sectionsByCourse = useMemo(() => {
+        const map = {};
+        for (const sec of termSections) {
+            (map[sec.course_id] ||= []).push(sec);
+        }
+        for (const list of Object.values(map)) {
+            list.sort((a, b) => (a.section_num || '').localeCompare(b.section_num || ''));
+        }
+        return map;
+    }, [termSections]);
+
     // Unified elective rows (dept + university baskets), only offered courses
     const electiveRows = useMemo(() => {
         if (!majorCourses || !univElectives) return [];
-        const byCourse = termSections.reduce((acc, s) => {
-            acc[s.course_id] = (acc[s.course_id] || 0) + 1;
-            return acc;
-        }, {});
 
         const dept = majorCourses
             .filter(mc => mc.category === 'Major Elective' || mc.category === 'Support Elective')
@@ -187,7 +250,7 @@ export default function DashboardPage() {
                 course_name: mc.course_name,
                 kind: 'dept',
                 tag: mc.category === 'Support Elective' ? 'support' : 'major',
-                section_count: byCourse[mc.course_id] || 0,
+                section_count: (sectionsByCourse[mc.course_id] || []).length,
             }));
 
         const univ = univElectives.map(c => ({
@@ -195,13 +258,13 @@ export default function DashboardPage() {
             course_name: c.course_name || '',
             kind: 'univ',
             tag: 'univ',
-            section_count: byCourse[c.course_id] || 0,
+            section_count: (sectionsByCourse[c.course_id] || []).length,
         }));
 
         return [...dept, ...univ]
             .filter(r => r.section_count > 0)
             .sort((a, b) => a.course_id.localeCompare(b.course_id));
-    }, [majorCourses, univElectives, termSections]);
+    }, [majorCourses, univElectives, sectionsByCourse]);
 
     const filteredElectiveRows = useMemo(() => {
         if (electiveFilter === 'all') return electiveRows;
@@ -379,24 +442,75 @@ export default function DashboardPage() {
                                     </div>
                                 ) : (
                                 <div className={styles.electiveList}>
-                                    {filteredElectiveRows.map(row => (
-                                            <Link
-                                                key={`${row.kind}-${row.course_id}`}
-                                                href={`/schedule?course=${encodeURIComponent(row.course_id)}`}
-                                                className={styles.electiveRow}
-                                            >
-                                                <span className={`${styles.kindTag} ${styles[`kindTag_${row.tag}`]}`}>
-                                                    {row.tag === 'support' ? 'SUPPORT' : row.tag === 'major' ? 'DEPT' : 'UNIV'}
-                                                </span>
-                                                <div className={styles.electiveMain}>
-                                                    <span className={styles.electiveName}>{row.course_name || 'Unnamed course'}</span>
-                                                    <span className={styles.electiveCode}>{row.course_id}</span>
+                                    {filteredElectiveRows.map(row => {
+                                        const key = `${row.kind}-${row.course_id}`;
+                                        const isOpen = openElectives.has(key);
+                                        const panelId = `sections-${key}`;
+                                        const courseLabel = row.course_name || row.course_id;
+                                        return (
+                                            <div key={key} className={`${styles.electiveItem} ${isOpen ? styles.electiveItemOpen : ''}`}>
+                                                <div className={styles.electiveHead}>
+                                                    <button
+                                                        type="button"
+                                                        className={styles.electiveRow}
+                                                        onClick={() => toggleElective(key)}
+                                                        aria-expanded={isOpen}
+                                                        aria-controls={panelId}
+                                                    >
+                                                        <span className={`${styles.kindTag} ${styles[`kindTag_${row.tag}`]}`}>
+                                                            {row.tag === 'support' ? 'SUPPORT' : row.tag === 'major' ? 'DEPT' : 'UNIV'}
+                                                        </span>
+                                                        <span className={styles.electiveMain}>
+                                                            <span className={styles.electiveName}>{row.course_name || 'Unnamed course'}</span>
+                                                            <span className={styles.electiveCode}>{row.course_id}</span>
+                                                        </span>
+                                                        <span className={`${styles.electiveBadge} ${styles.electiveBadgeOpen}`}>
+                                                            {row.section_count} section{row.section_count === 1 ? '' : 's'}
+                                                        </span>
+                                                        <ChevronIcon className={styles.electiveChevron} />
+                                                    </button>
+                                                    <Link
+                                                        href={`/schedule?course=${encodeURIComponent(row.course_id)}`}
+                                                        className={styles.addBtn}
+                                                        title={`Add ${courseLabel} to your basket`}
+                                                        aria-label={`Add ${courseLabel} to your basket`}
+                                                    >
+                                                        <PlusIcon width={14} height={14} />
+                                                        <span className={styles.addBtnLabel}>
+                                                            Add<span className={styles.addBtnLabelLong}> to basket</span>
+                                                        </span>
+                                                    </Link>
                                                 </div>
-                                                <span className={`${styles.electiveBadge} ${styles.electiveBadgeOpen}`}>
-                                                    {row.section_count} section{row.section_count === 1 ? '' : 's'}
-                                                </span>
-                                            </Link>
-                                    ))}
+
+                                                {isOpen && (
+                                                    <ul id={panelId} className={styles.sectionList}>
+                                                        {(sectionsByCourse[row.course_id] || []).map(sec => {
+                                                            const { days, time } = splitClassTime(sec.class_time);
+                                                            const kind = sectionKind(sec.section_num);
+                                                            return (
+                                                                <li key={sec.crn || sec.section_num} className={styles.sectionRow}>
+                                                                    <span className={styles.sectionNum}>
+                                                                        {sec.section_num}
+                                                                        {kind && <span className={styles.sectionKind}>{kind}</span>}
+                                                                    </span>
+                                                                    <span className={styles.sectionMeta}>
+                                                                        <span className={styles.sectionWhen}>
+                                                                            {days && <span className={styles.sectionDays}>{days}</span>}
+                                                                            <span className={styles.sectionTime}>{time || 'Time TBA'}</span>
+                                                                        </span>
+                                                                        <span className={styles.sectionInstructor}>
+                                                                            {decodeHtmlEntities((sec.instructor || '').trim()) || 'Instructor TBA'}
+                                                                        </span>
+                                                                    </span>
+                                                                    <span className={styles.sectionCrn}>CRN {sec.crn}</span>
+                                                                </li>
+                                                            );
+                                                        })}
+                                                    </ul>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                                 )}
                             </>
