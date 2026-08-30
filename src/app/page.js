@@ -172,7 +172,7 @@ export default function DashboardPage() {
                 courseIds.length > 0
                     ? supabase
                         .from('sections')
-                        .select('course_id, section_num, crn, class_time, instructor, campus, term_code')
+                        .select('course_id, section_num, crn, class_time, instructor, location, campus, term_code')
                         .in('course_id', courseIds)
                         .in('campus', allowedCampuses)
                         .eq('term_code', selectedTerm)
@@ -498,8 +498,16 @@ export default function DashboardPage() {
                                                                             {days && <span className={styles.sectionDays}>{days}</span>}
                                                                             <span className={styles.sectionTime}>{time || 'Time TBA'}</span>
                                                                         </span>
-                                                                        <span className={styles.sectionInstructor}>
-                                                                            {decodeHtmlEntities((sec.instructor || '').trim()) || 'Instructor TBA'}
+                                                                        <span className={styles.sectionWho}>
+                                                                            <span className={styles.sectionInstructor}>
+                                                                                {decodeHtmlEntities((sec.instructor || '').trim()) || 'Instructor TBA'}
+                                                                            </span>
+                                                                            {sec.location && (
+                                                                                <>
+                                                                                    <span className={styles.sectionDot} aria-hidden="true">·</span>
+                                                                                    <span className={styles.sectionRoom}>{sec.location}</span>
+                                                                                </>
+                                                                            )}
                                                                         </span>
                                                                     </span>
                                                                     <span className={styles.sectionCrn}>CRN {sec.crn}</span>

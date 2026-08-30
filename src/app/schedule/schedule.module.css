@@ -1050,6 +1050,13 @@
     font-weight: 400;
 }
 
+/* Room codes are short and read as identifiers, so they get the same mono
+   treatment as the section number and CRN beside them. */
+.detailRoom {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-secondary);
+}
+
 .requestLink {
     font-size: 0.625rem;
     font-weight: 700;

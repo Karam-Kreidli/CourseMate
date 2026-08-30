@@ -546,6 +546,30 @@
     font-variant-numeric: tabular-nums;
 }
 
+/* Instructor and room share a line. The room is short and fixed, so it holds
+   its width and the name is what truncates when the row runs out. */
+.sectionWho {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    min-width: 0;
+}
+
+.sectionDot {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+.sectionRoom {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
 .sectionInstructor {
     font-size: 0.7rem;
     color: var(--text-muted);

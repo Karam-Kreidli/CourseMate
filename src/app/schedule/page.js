@@ -2117,6 +2117,12 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                                                     <span className={styles.detailProf}>{sec.instructor}</span>
                                                 </>
                                             )}
+                                            {sec.location && (
+                                                <>
+                                                    <span className={styles.detailSep}>•</span>
+                                                    <span className={styles.detailRoom}>{sec.location}</span>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
