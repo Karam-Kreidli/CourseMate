@@ -21,20 +21,10 @@ import {
     UserCheckIcon,
     ProfileIcon,
 } from '@/components/Icons';
+import { decodeHtmlEntities } from '@/lib/text';
 import styles from './page.module.css';
 
 const PROFILE_FIELDS = ['name', 'student_id', 'phone', 'major', 'gender'];
-
-// Instructor names arrive from the registry scrape with entities still encoded.
-function decodeHtmlEntities(text) {
-    if (!text) return text;
-    return text
-        .replace(/&#39;/g, "'")
-        .replace(/&quot;/g, '"')
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>');
-}
 
 // class_time is one string holding both halves, e.g. "Mon/Wed 15:30-16:45".
 // Split it so the days can be styled apart from the clock range; anything that

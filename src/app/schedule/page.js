@@ -8,6 +8,7 @@ import PageShell from '@/components/PageShell';
 import PageHeader from '@/components/PageHeader';
 import InstructorFinder from '@/components/InstructorFinder';
 import { ScheduleIcon, UserCheckIcon } from '@/components/Icons';
+import { decodeHtmlEntities } from '@/lib/text';
 import styles from './schedule.module.css';
 
 // ===== TIME PARSING UTILITIES =====
@@ -62,16 +63,6 @@ function parseClassTime(classTimeStr) {
     const startMin = parseTimeToMinutes(match[2]);
     const endMin = parseTimeToMinutes(match[3]);
     return days.map(day => ({ day, start: startMin, end: endMin }));
-}
-
-function decodeHtmlEntities(text) {
-    if (!text) return text;
-    return text
-        .replace(/&#39;/g, "'")
-        .replace(/&quot;/g, '"')
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>');
 }
 
 function mapSectionsData(data) {
@@ -605,10 +596,13 @@ export default function SchedulePage() {
         });
 
         // Fetch live section data
-        const { data: liveSections } = await supabase
+        const { data: rawLiveSections } = await supabase
             .from('sections')
             .select('*')
             .in('crn', Array.from(allCrns));
+        // Same decoding every other section fetch gets — without it a restored
+        // schedule showed "Mo&#39;ath" where a freshly built one showed "Mo'ath".
+        const liveSections = mapSectionsData(rawLiveSections);
 
         // Fetch courses to update names/credits
         const { data: coursesData } = await supabase

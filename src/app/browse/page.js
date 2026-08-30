@@ -11,6 +11,7 @@ import AppMenu from '@/components/AppMenu';
 import AlertsBell from '@/components/AlertsBell';
 import PostCard from '@/components/PostCard';
 import SectionAlerts from '@/components/SectionAlerts';
+import { decodeSectionInstructors } from '@/lib/text';
 import styles from './page.module.css';
 
 export default function BrowsePage() {
@@ -145,7 +146,9 @@ export default function BrowsePage() {
         const { data, error } = await query;
 
         if (!error && data) {
-            setSections(data);
+            // Decode here rather than in PostCard: every consumer of `sections`
+            // wants the readable name, and this is the only place it enters.
+            setSections(decodeSectionInstructors(data));
         }
     };
 
