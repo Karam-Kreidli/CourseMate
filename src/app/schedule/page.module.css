@@ -1,0 +1,20 @@
+
+/* Seat availability. Negative seats (over-enrolled sections) are clamped to
+   "Full" by lib/seats.js, so no number below 1 reaches these styles. */
+.detailSeats {
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.seats_open { background: rgba(27, 110, 82, 0.12); color: #1b6e52; }
+.seats_low { background: rgba(168, 78, 21, 0.14); color: #a84e15; }
+.seats_full { background: rgba(120, 120, 130, 0.16); color: #6b7280; }
+
+@media (prefers-color-scheme: dark) {
+    .seats_open { background: rgba(98, 195, 155, 0.16); color: #62c39b; }
+    .seats_low { background: rgba(224, 146, 86, 0.18); color: #e09256; }
+    .seats_full { background: rgba(150, 155, 165, 0.18); color: #9aa3ad; }
+}
