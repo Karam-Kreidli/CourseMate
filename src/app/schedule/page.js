@@ -2059,14 +2059,8 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
 
             {cardOpen && (<>
                 {fullSections.length > 0 && (
-                    <div className={styles.fullWarning} role="status">
-                        <span className={styles.fullWarningIcon} aria-hidden="true">!</span>
-                        <span>
-                            {fullSections.length === 1
-                                ? <>Section <strong>{fullSections[0].section_num}</strong> of <strong>{courseNameMap[fullSections[0].course_id] || fullSections[0].course_id}</strong> is full.</>
-                                : <><strong>{fullSections.length} sections</strong> in this schedule are full: {fullSections.map(s => `${courseNameMap[s.course_id] || s.course_id} ${s.section_num}`).join(', ')}.</>}
-                            {' '}You can still plan around it, but you will not be able to register until a seat opens.
-                        </span>
+                    <div className={styles.fullWarning}>
+                        Full: {fullSections.map(sec => `${courseNameMap[sec.course_id] || sec.course_id} ${sec.section_num}`).join(', ')}
                     </div>
                 )}
                 {result.xorSelected && (() => {
