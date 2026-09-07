@@ -1,11 +1,14 @@
 
 /* Seat availability. Negative seats (over-enrolled sections) are clamped to
    "Full" by lib/seats.js, so no number below 1 reaches these styles. */
+/* Sized to be read, not discovered. This sits among CRN, time and instructor,
+   and at 11px it disappeared into that row. */
 .detailSeats {
-    padding: 1px 6px;
-    border-radius: 3px;
-    font-size: 11px;
-    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
     white-space: nowrap;
 }
 
@@ -17,4 +20,42 @@
     .seats_open { background: rgba(98, 195, 155, 0.16); color: #62c39b; }
     .seats_low { background: rgba(224, 146, 86, 0.18); color: #e09256; }
     .seats_full { background: rgba(150, 155, 165, 0.18); color: #9aa3ad; }
+}
+
+/* Full sections do not block a schedule -- it is a plan, and seats free up --
+   but the badge alone sits inside a details panel that starts collapsed, so
+   nobody would see it. This states it on the card itself. */
+.fullWarning {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    margin: 0 0 12px;
+    padding: 10px 13px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    background: var(--post-request-bg, rgba(245, 158, 11, 0.15));
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    border-radius: var(--radius-md, 8px);
+}
+
+.fullWarningIcon {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: #7A4A06;
+    background: rgba(245, 158, 11, 0.55);
+    border-radius: 50%;
+}
+
+[data-theme="dark"] .fullWarningIcon,
+[data-theme="black"] .fullWarningIcon {
+    color: #1A1206;
+    background: rgba(245, 158, 11, 0.8);
 }

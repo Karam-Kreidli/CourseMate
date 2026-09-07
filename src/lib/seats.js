@@ -14,20 +14,28 @@ export function seatStatus(section) {
     if (available === null || available === undefined) return null;
 
     const capacity = section.max_enrollment;
+    const ofCapacity = capacity ? ` of ${capacity}` : '';
 
     if (available <= 0) {
-        return { tone: 'full', label: 'Full', title: capacity ? `0 of ${capacity} seats open` : 'No seats open' };
-    }
-    if (available <= 5) {
         return {
-            tone: 'low',
-            label: `${available} left`,
-            title: capacity ? `${available} of ${capacity} seats open` : `${available} seats open`
+            tone: 'full',
+            label: 'Full',
+            // Spelled out wherever there is room. "Full" alone does not say
+            // whether the section is at capacity or over it.
+            detail: capacity ? `Full — 0 of ${capacity} seats` : 'Full — no seats',
+            title: capacity ? `No seats open, capacity ${capacity}` : 'No seats open'
         };
     }
+
+    // Always "seats left", never a bare number: "2" beside a section number
+    // reads as part of the section, not as availability.
+    const noun = available === 1 ? 'seat' : 'seats';
     return {
-        tone: 'open',
-        label: `${available} seats`,
+        tone: available <= 5 ? 'low' : 'open',
+        label: `${available} ${noun} left`,
+        // With a capacity the plural follows the capacity, not the remainder:
+        // "1 of 30 seats left", never "1 of 30 seat left".
+        detail: capacity ? `${available} of ${capacity} seats left` : `${available} ${noun} left`,
         title: capacity ? `${available} of ${capacity} seats open` : `${available} seats open`
     };
 }

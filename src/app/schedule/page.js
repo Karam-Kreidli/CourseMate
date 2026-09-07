@@ -2034,6 +2034,16 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
         'rgba(139,92,246,0.15)', 'rgba(236,72,153,0.15)', 'rgba(20,184,166,0.15)', 'rgba(249,115,22,0.15)',
     ];
 
+    // Full sections do not stop a schedule being built -- it is a plan, and a
+    // seat may free up -- but burying that in a badge inside a collapsed
+    // details panel means nobody sees it until registration day.
+    const fullSections = schedule
+        .flatMap(group => group.sections)
+        .filter(sec => {
+            const seats = seatStatus(sec);
+            return seats && seats.tone === 'full';
+        });
+
     return (
         <div className={styles.scheduleCard}>
             <div className={styles.scheduleCardHeader} onClick={() => setCardOpen(!cardOpen)} style={{ cursor: 'pointer', userSelect: 'none' }}>
@@ -2048,6 +2058,17 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
             </div>
 
             {cardOpen && (<>
+                {fullSections.length > 0 && (
+                    <div className={styles.fullWarning} role="status">
+                        <span className={styles.fullWarningIcon} aria-hidden="true">!</span>
+                        <span>
+                            {fullSections.length === 1
+                                ? <>Section <strong>{fullSections[0].section_num}</strong> of <strong>{courseNameMap[fullSections[0].course_id] || fullSections[0].course_id}</strong> is full.</>
+                                : <><strong>{fullSections.length} sections</strong> in this schedule are full: {fullSections.map(s => `${courseNameMap[s.course_id] || s.course_id} ${s.section_num}`).join(', ')}.</>}
+                            {' '}You can still plan around it, but you will not be able to register until a seat opens.
+                        </span>
+                    </div>
+                )}
                 {result.xorSelected && (() => {
                     let displayName = result.xorSelected.name;
                     let displayId = result.xorSelected.id;
@@ -2158,7 +2179,7 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                                                             className={`${styles.detailSeats} ${styles[`seats_${seats.tone}`]}`}
                                                             title={seats.title}
                                                         >
-                                                            {seats.label}
+                                                            {seats.detail}
                                                         </span>
                                                     </>
                                                 ) : null;
