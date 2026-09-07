@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { seatStatus } from '@/lib/seats';
 import { useSemester } from '@/lib/SemesterContext';
 import { useRequireProfile } from '@/lib/useRequireProfile';
 import BottomNav from '@/components/BottomNav';
@@ -172,7 +173,7 @@ export default function DashboardPage() {
                 courseIds.length > 0
                     ? supabase
                         .from('sections')
-                        .select('course_id, section_num, crn, class_time, instructor, location, campus, term_code')
+                        .select('course_id, section_num, crn, class_time, instructor, location, campus, term_code, seats_available, max_enrollment')
                         .in('course_id', courseIds)
                         .in('campus', allowedCampuses)
                         .eq('term_code', selectedTerm)
@@ -487,11 +488,20 @@ export default function DashboardPage() {
                                                         {(sectionsByCourse[row.course_id] || []).map(sec => {
                                                             const { days, time } = splitClassTime(sec.class_time);
                                                             const kind = sectionKind(sec.section_num);
+                                                            const seats = seatStatus(sec);
                                                             return (
                                                                 <li key={sec.crn || sec.section_num} className={styles.sectionRow}>
                                                                     <span className={styles.sectionNum}>
                                                                         {sec.section_num}
                                                                         {kind && <span className={styles.sectionKind}>{kind}</span>}
+                                                                        {seats && (
+                                                                            <span
+                                                                                className={`${styles.sectionSeats} ${styles[`seats_${seats.tone}`]}`}
+                                                                                title={seats.title}
+                                                                            >
+                                                                                {seats.label}
+                                                                            </span>
+                                                                        )}
                                                                     </span>
                                                                     <span className={styles.sectionMeta}>
                                                                         <span className={styles.sectionWhen}>
