@@ -49,18 +49,35 @@
 /* Each option previews the ground it switches to, so the choice is legible
    without reading the labels. */
 .swatch {
-    width: 11px;
-    height: 11px;
+    /* Even width so the Auto swatch's halves land on whole pixels. */
+    width: 12px;
+    height: 12px;
     flex: none;
     border-radius: 50%;
     border: 1px solid var(--border-color);
+    /* The border is translucent; without this the fill paints underneath it
+       and muddies the edge. */
+    background-clip: padding-box;
 }
 
-/* A straight vertical cut gives two exact half-discs. A diagonal split reads
-   as two lopsided wedges at this size, because the cut misses the circle's
-   widest axis and the corners get clipped unevenly by the border radius. */
+/* Two solid halves, not a gradient. A hard colour stop still interpolates
+   across the boundary, and at 12px that fringe is a visible band of the wrong
+   colour on each side. Painting the dark half as its own element gives a clean
+   edge with nothing to blend. */
 .swatch_system {
-    background: linear-gradient(to right, #F5F7FA 0 50%, #0B1120 50% 100%);
+    position: relative;
+    overflow: hidden;
+    background: #F5F7FA;
+}
+
+.swatch_system::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 50%;
+    background: #0B1120;
 }
 
 .swatch_light { background: #F5F7FA; }
@@ -85,7 +102,7 @@
 @media (max-width: 560px) {
     .label { display: none; }
     .option { padding: 6px 8px; }
-    .swatch { width: 13px; height: 13px; }
+    .swatch { width: 14px; height: 14px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
