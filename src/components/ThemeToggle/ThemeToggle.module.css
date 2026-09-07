@@ -1,65 +1,86 @@
-.toggle {
-    position: relative;
-    width: 52px;
-    height: 28px;
+/* Segmented control: four discrete themes, current one filled.
+   A slider was considered and rejected — themes are named choices, not a
+   quantity along an axis, and Navy is not "half as dark" as Black. */
+
+.group {
+    display: inline-flex;
+    align-items: stretch;
+    gap: 2px;
+    padding: 2px;
     background: var(--bg-tertiary);
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-full);
-    cursor: pointer;
-    transition: background var(--transition-fast), border-color var(--transition-fast);
-    padding: 0;
-    overflow: hidden;
+    border-radius: var(--radius-full, 999px);
 }
 
-.toggle:hover {
-    border-color: var(--color-accent);
-}
-
-/* Subtle track gradient */
-.toggle::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: var(--radius-full);
-    background: linear-gradient(90deg, rgba(245, 158, 11, 0.08) 0%, rgba(99, 102, 241, 0.08) 100%);
-    pointer-events: none;
-}
-
-.thumb {
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 22px;
-    height: 22px;
-    background: var(--bg-secondary);
-    border-radius: 50%;
-    transition: transform 0.35s var(--ease-spring), background-color var(--transition-fast), box-shadow var(--transition-fast);
-    display: flex;
+.option {
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    box-shadow: var(--shadow-sm);
-    z-index: 2;
+    gap: 6px;
+    padding: 5px 11px;
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 500;
+    line-height: 1;
+    color: var(--text-secondary);
+    background: transparent;
+    border: 0;
+    border-radius: var(--radius-full, 999px);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color var(--transition-fast, 150ms), background var(--transition-fast, 150ms);
 }
 
-[data-theme="dark"] .thumb {
-    transform: translateX(24px);
-    background: var(--color-primary-light);
+.option:hover:not(.selected) {
+    color: var(--text-primary);
+    background: var(--bg-elevated);
+}
+
+.option:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+}
+
+.selected {
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+    box-shadow: var(--shadow-xs);
+}
+
+/* Each option previews the ground it switches to, so the choice is legible
+   without reading the labels. */
+.swatch {
+    width: 11px;
+    height: 11px;
+    flex: none;
+    border-radius: 50%;
     border: 1px solid var(--border-color);
-    box-shadow: var(--shadow-sm), 0 0 12px rgba(99, 102, 241, 0.15);
 }
 
-.icon {
-    width: 14px;
-    height: 14px;
-    transition: opacity var(--transition-fast), transform var(--transition-fast);
+.swatch_system {
+    background: linear-gradient(135deg, #F5F7FA 0%, #F5F7FA 50%, #0B1120 50%, #0B1120 100%);
 }
 
-.sunIcon {
-    color: #F59E0B;
-    fill: #F59E0B;
+.swatch_light { background: #F5F7FA; }
+.swatch_dark  { background: #0B1120; }
+.swatch_black { background: #000000; }
+
+/* On black the darkest swatches would vanish into the control. */
+[data-theme="black"] .swatch_dark,
+[data-theme="black"] .swatch_black {
+    border-color: rgba(255, 255, 255, 0.28);
 }
 
-.moonIcon {
-    color: #F8F9FA;
-    fill: #F8F9FA;
+.label {
+    /* Labels are the affordance on wide layouts; the swatch carries it when
+       space is tight. */
+}
+
+@media (max-width: 560px) {
+    .label { display: none; }
+    .option { padding: 6px 8px; }
+    .swatch { width: 13px; height: 13px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .option { transition: none; }
 }
