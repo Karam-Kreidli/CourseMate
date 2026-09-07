@@ -56,8 +56,11 @@
     border: 1px solid var(--border-color);
 }
 
+/* A straight vertical cut gives two exact half-discs. A diagonal split reads
+   as two lopsided wedges at this size, because the cut misses the circle's
+   widest axis and the corners get clipped unevenly by the border radius. */
 .swatch_system {
-    background: linear-gradient(135deg, #F5F7FA 0%, #F5F7FA 50%, #0B1120 50%, #0B1120 100%);
+    background: linear-gradient(to right, #F5F7FA 0 50%, #0B1120 50% 100%);
 }
 
 .swatch_light { background: #F5F7FA; }
