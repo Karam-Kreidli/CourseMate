@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import styles from './AppMenu.module.css';
+import ThemeToggle from '@/components/ThemeToggle';
 
 const MenuIcon = () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -55,7 +56,6 @@ export default function AppMenu() {
     const [isDesktop, setIsDesktop] = useState(false);
     const [anchorRect, setAnchorRect] = useState(null);
     const [profile, setProfile] = useState(null);
-    const [theme, setTheme] = useState('dark');
 
     const panelRef = useRef(null);
     const triggerRef = useRef(null);
@@ -65,12 +65,6 @@ export default function AppMenu() {
 
     useEffect(() => {
         setMounted(true);
-        try {
-            const saved = localStorage.getItem('theme')
-                || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-            setTheme(saved);
-        } catch { /* storage unavailable — fall back to the default */ }
-
         const mq = window.matchMedia(DESKTOP_QUERY);
         const sync = () => setIsDesktop(mq.matches);
         sync();
@@ -128,12 +122,6 @@ export default function AppMenu() {
         setOpen(o => !o);
     };
 
-    const toggleTheme = () => {
-        const next = theme === 'light' ? 'dark' : 'light';
-        setTheme(next);
-        try { localStorage.setItem('theme', next); } catch { /* not fatal */ }
-        document.documentElement.setAttribute('data-theme', next);
-    };
 
     const signOut = async () => {
         setOpen(false);
@@ -176,14 +164,11 @@ export default function AppMenu() {
                         Profile &amp; settings
                     </Link>
 
-                    <button type="button" className={styles.row} role="menuitem" onClick={toggleTheme}>
+                    <div className={`${styles.row} ${styles.themeRow}`}>
                         <MoonIcon />
-                        Dark mode
-                        <span
-                            className={`${styles.switch} ${mounted && theme === 'dark' ? styles.switchOn : ''}`}
-                            aria-hidden="true"
-                        />
-                    </button>
+                        Theme
+                        <ThemeToggle compact />
+                    </div>
                 </div>
 
                 <div className={styles.spacer} />

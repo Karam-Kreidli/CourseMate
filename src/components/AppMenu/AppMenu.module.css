@@ -279,3 +279,20 @@
         animation: none;
     }
 }
+
+/* The theme row is no longer a button — it holds the shared theme picker,
+   and a button cannot contain buttons. It keeps the row's look but is not
+   itself clickable. */
+.themeRow {
+    cursor: default;
+    justify-content: flex-start;
+    gap: 10px;
+}
+
+.themeRow:hover {
+    background: transparent;
+}
+
+.themeRow > :last-child {
+    margin-left: auto;
+}
