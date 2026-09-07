@@ -27,7 +27,9 @@ function applyTheme(preference) {
     document.documentElement.setAttribute('data-theme', resolveTheme(preference));
 }
 
-export default function ThemeToggle() {
+// `compact` drops the text labels, for tight places like the account menu
+// where the swatches alone carry the choice.
+export default function ThemeToggle({ compact = false }) {
     const [preference, setPreference] = useState('system');
     const [mounted, setMounted] = useState(false);
 
@@ -59,7 +61,7 @@ export default function ThemeToggle() {
     if (!mounted) return null;
 
     return (
-        <div className={styles.group} role="radiogroup" aria-label="Colour theme">
+        <div className={`${styles.group} ${compact ? styles.compact : ''}`} role="radiogroup" aria-label="Colour theme">
             {OPTIONS.map(option => (
                 <button
                     key={option.value}
@@ -69,9 +71,10 @@ export default function ThemeToggle() {
                     title={option.title}
                     className={`${styles.option} ${preference === option.value ? styles.selected : ''}`}
                     onClick={() => choose(option.value)}
+                    aria-label={option.label}
                 >
                     <span className={`${styles.swatch} ${styles[`swatch_${option.value}`]}`} aria-hidden="true" />
-                    <span className={styles.label}>{option.label}</span>
+                    {!compact && <span className={styles.label}>{option.label}</span>}
                 </button>
             ))}
         </div>

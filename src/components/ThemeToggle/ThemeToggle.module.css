@@ -75,6 +75,10 @@
        space is tight. */
 }
 
+/* Compact: swatches only, for the account menu. */
+.compact .option { padding: 6px; }
+.compact .swatch { width: 14px; height: 14px; }
+
 @media (max-width: 560px) {
     .label { display: none; }
     .option { padding: 6px 8px; }
