@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useSemester } from '@/lib/SemesterContext';
+import { decodeHtmlEntities } from '@/lib/text';
 import styles from './InstructorFinder.module.css';
 
 // ===== TIME PARSING UTILITIES (reused from schedule) =====
@@ -54,16 +55,6 @@ function formatTimeShort(minutes) {
     const period = h >= 12 ? 'PM' : 'AM';
     const displayH = h > 12 ? h - 12 : h === 0 ? 12 : h;
     return `${displayH} ${period}`;
-}
-
-function decodeHtmlEntities(text) {
-    if (!text) return text;
-    return text
-        .replace(/&#39;/g, "'")
-        .replace(/&quot;/g, '"')
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>');
 }
 
 function encodeForSearch(text) {

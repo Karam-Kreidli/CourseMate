@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAdminUser, createAdminClient } from '@/lib/admin';
+import { decodeSectionInstructors } from '@/lib/text';
 
 export async function GET(request, { params }) {
     const admin = await getAdminUser();
@@ -35,7 +36,7 @@ export async function GET(request, { params }) {
     ]);
 
     const sectionMap = {};
-    (liveSections || []).forEach(s => { sectionMap[s.crn] = s; });
+    decodeSectionInstructors(liveSections || []).forEach(s => { sectionMap[s.crn] = s; });
 
     const courseMap = {};
     (coursesData || []).forEach(c => {

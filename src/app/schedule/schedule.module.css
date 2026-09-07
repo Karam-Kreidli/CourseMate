@@ -1050,6 +1050,13 @@
     font-weight: 400;
 }
 
+/* Room codes are short and read as identifiers, so they get the same mono
+   treatment as the section number and CRN beside them. */
+.detailRoom {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-secondary);
+}
+
 .requestLink {
     font-size: 0.625rem;
     font-weight: 700;
@@ -1173,6 +1180,47 @@
     border-bottom: 1px solid var(--border-color);
 }
 
+/* Same strip as .xorSelectedInfo, in the warning colour. A full section is a
+   caveat on the schedule, not an error, so it reads like the other note on
+   the card rather than an alert box. */
+.fullWarning {
+    padding: 6px 16px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: #B45309;
+    background: rgba(245, 158, 11, 0.12);
+    border-bottom: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .fullWarning,
+[data-theme="black"] .fullWarning {
+    color: #FBBF24;
+    background: rgba(245, 158, 11, 0.14);
+}
+
+/* Sits among CRN, time and instructor, so it needs to out-weigh them
+   slightly to register as availability rather than more metadata. */
+.detailSeats {
+    padding: 1px 7px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.seats_open { background: rgba(27, 110, 82, 0.14); color: #1B6E52; }
+.seats_low { background: rgba(180, 83, 9, 0.16); color: #B45309; }
+.seats_full { background: rgba(120, 120, 130, 0.16); color: #6B7280; }
+
+[data-theme="dark"] .seats_open,
+[data-theme="black"] .seats_open { background: rgba(46, 219, 163, 0.16); color: #2EDBA3; }
+
+[data-theme="dark"] .seats_low,
+[data-theme="black"] .seats_low { background: rgba(245, 158, 11, 0.18); color: #FBBF24; }
+
+[data-theme="dark"] .seats_full,
+[data-theme="black"] .seats_full { background: rgba(148, 163, 184, 0.16); color: #94A3B8; }
+
 /* ===== Error ===== */
 .error {
     padding: 12px 16px;
@@ -1204,6 +1252,23 @@
     cursor: pointer;
     transition: all var(--transition-fast) var(--ease-out-expo);
     box-shadow: var(--shadow-sm);
+    /* One line, always. "+ University Elective 1" used to wrap in a half-width
+       phone column, which is what made these two buttons taller than the pair
+       beside them. If a label still can't fit it now truncates rather than
+       growing the button. */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* "University" is spelled out where there's room and abbreviated where there
+   isn't, rather than shrinking the type on every button to suit the longest. */
+.basketBtnLong {
+    display: inline;
+}
+
+.basketBtnShort {
+    display: none;
 }
 
 .basketBtn:hover {
@@ -1232,6 +1297,26 @@
 
     .main {
         padding: 0;
+    }
+
+    .basketBtn {
+        padding: 12px 10px;
+        font-size: 0.75rem;
+    }
+
+    .basketBtnLong {
+        display: none;
+    }
+
+    .basketBtnShort {
+        display: inline;
+    }
+}
+
+@media (max-width: 400px) {
+    .basketBtn {
+        padding: 12px 8px;
+        font-size: 0.7rem;
     }
 }
 

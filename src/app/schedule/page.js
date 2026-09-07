@@ -3,11 +3,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { seatStatus } from '@/lib/seats';
 import { useSemester } from '@/lib/SemesterContext';
 import PageShell from '@/components/PageShell';
 import PageHeader from '@/components/PageHeader';
 import InstructorFinder from '@/components/InstructorFinder';
 import { ScheduleIcon, UserCheckIcon } from '@/components/Icons';
+import { decodeHtmlEntities } from '@/lib/text';
 import styles from './schedule.module.css';
 
 // ===== TIME PARSING UTILITIES =====
@@ -64,16 +66,6 @@ function parseClassTime(classTimeStr) {
     return days.map(day => ({ day, start: startMin, end: endMin }));
 }
 
-function decodeHtmlEntities(text) {
-    if (!text) return text;
-    return text
-        .replace(/&#39;/g, "'")
-        .replace(/&quot;/g, '"')
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>');
-}
-
 function mapSectionsData(data) {
     if (!data) return [];
     return data.map(sec => ({
@@ -84,6 +76,8 @@ function mapSectionsData(data) {
 
 
 
+// Display helper only -- used to label and order sections in the picker, never
+// to decide which sections go together. Pairing comes from Banner (linkMap).
 function getBaseSection(sectionNum) {
     // Strip trailing lab/tutorial letters, but preserve language indicators (A, E)
     // For example, '01A' -> '01A', '01AL' -> '01A', '51AT' -> '51A', '01X' -> '01', '01' -> '01'
@@ -96,6 +90,21 @@ function getBaseSection(sectionNum) {
         return '';
     });
 }
+
+// Banner states outright which sections must be taken together; section_links
+// holds that answer, and it is the only source of pairing in this file.
+//
+// Returns the partner sections, or null when Banner links this section to
+// nothing -- which means it stands alone, not that we should guess.
+function linkedPartners(section, courseSecs, linkMap) {
+    const crns = linkMap && linkMap[section.crn];
+    if (!crns || crns.length === 0) return null;
+    const byCrn = new Map(courseSecs.map(s => [s.crn, s]));
+    const found = crns.map(crn => byCrn.get(crn)).filter(Boolean);
+    return found.length > 0 ? found : null;
+}
+
+const isTutorial = sec => sec.section_num.endsWith('T');
 
 function timeSlotsConflict(slotsA, slotsB) {
     for (const a of slotsA) {
@@ -110,78 +119,80 @@ function timeSlotsConflict(slotsA, slotsB) {
 
 // ===== SCHEDULE ALGORITHM =====
 
-function buildSectionGroups(sections, courseId) {
+// Which sections must be taken together comes entirely from Banner
+// (section_links). There is no naming rule here on purpose: section numbers
+// stopped predicting the pairing once registration was reorganised. 1502232
+// has lectures 01/31 with labs 61L-64L, 0402202 pairs lecture 61 with either
+// 61T or 65T, and 1502201 pairs link group D7 with T3. Any rule that guesses
+// from '61L' -> '61' gets those wrong.
+//
+// Sections Banner does not link are standalone options: an all-lab course like
+// 0402203 (61L-64L, no lecture) is four separate choices, not a lab hanging off
+// something that does not exist.
+function buildSectionGroups(sections, courseId, linkMap) {
     const courseSecs = sections.filter(sec => sec.course_id === courseId);
     if (courseSecs.length === 0) return [];
 
-    // Find all base sections
-    const baseMap = {}; // base -> lecture section
-    courseSecs.forEach(sec => {
-        const base = getBaseSection(sec.section_num);
-        if (sec.section_num === base) {
-            baseMap[base] = sec;
-        }
-    });
+    const byCrn = new Map(courseSecs.map(s => [s.crn, s]));
+    const partnersOf = sec => ((linkMap && linkMap[sec.crn]) || [])
+        .map(crn => byCrn.get(crn))
+        .filter(Boolean);
 
     const result = [];
-    const lectures = Object.values(baseMap);
+    const visited = new Set();
 
-    // If no lectures at all (e.g. standalone lab/project), return each section as a standalone option
-    if (lectures.length === 0) {
-        return courseSecs.map(sec => ({
-            sections: [sec],
-            slots: parseClassTime(sec.class_time),
-            courseId
-        }));
-    }
+    for (const start of courseSecs) {
+        if (visited.has(start.crn)) continue;
 
-    // Categorize non-base sections
-    const tutsByBase = {};
-    const labsByBase = {};
-    const unattachedTuts = [];
-    const unattachedLabs = [];
-
-    courseSecs.forEach(sec => {
-        const base = getBaseSection(sec.section_num);
-        if (sec.section_num !== base) {
-            const isTut = sec.section_num.endsWith('T');
-            if (baseMap[base]) {
-                if (isTut) {
-                    if (!tutsByBase[base]) tutsByBase[base] = [];
-                    tutsByBase[base].push(sec);
-                } else {
-                    if (!labsByBase[base]) labsByBase[base] = [];
-                    labsByBase[base].push(sec);
+        // Walk the links to collect everything that must be registered together.
+        const component = [];
+        const queue = [start];
+        visited.add(start.crn);
+        while (queue.length > 0) {
+            const current = queue.shift();
+            component.push(current);
+            for (const partner of partnersOf(current)) {
+                if (!visited.has(partner.crn)) {
+                    visited.add(partner.crn);
+                    queue.push(partner);
                 }
-            } else {
-                if (isTut) unattachedTuts.push(sec);
-                else unattachedLabs.push(sec);
             }
         }
-    });
 
-    // Generate combinations of [lecture, tut, lab]
-    for (const lec of lectures) {
-        const base = lec.section_num;
+        if (component.length === 1) {
+            result.push({
+                sections: component,
+                slots: parseClassTime(start.class_time),
+                courseId
+            });
+            continue;
+        }
 
-        let tutOptions = tutsByBase[base] || unattachedTuts;
-        let labOptions = labsByBase[base] || unattachedLabs;
+        // Banner wants one section from each link group in the component. Every
+        // cross-group pair in the current data is linked, so the product of the
+        // groups is exactly the set of legal combinations.
+        const groups = new Map();
+        for (const sec of component) {
+            const key = sec.link_identifier || sec.crn;
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push(sec);
+        }
 
-        if (tutOptions.length === 0) tutOptions = [null];
-        if (labOptions.length === 0) labOptions = [null];
-
-        for (const tut of tutOptions) {
-            for (const lab of labOptions) {
-                const combined = [lec];
-                if (tut) combined.push(tut);
-                if (lab) combined.push(lab);
-
-                result.push({
-                    sections: combined,
-                    slots: combined.flatMap(s => parseClassTime(s.class_time)),
-                    courseId
-                });
+        let combos = [[]];
+        for (const members of groups.values()) {
+            const next = [];
+            for (const combo of combos) {
+                for (const member of members) next.push([...combo, member]);
             }
+            combos = next;
+        }
+
+        for (const combined of combos) {
+            result.push({
+                sections: combined,
+                slots: combined.flatMap(sec => parseClassTime(sec.class_time)),
+                courseId
+            });
         }
     }
 
@@ -484,6 +495,9 @@ export default function SchedulePage() {
     const [courseSearch, setCourseSearch] = useState('');
     const [showDropdown, setShowDropdown] = useState(false);
     const [allSections, setAllSections] = useState({});
+    // crn -> [partner crns], straight from Banner. Loaded once per term; the
+    // whole term is a couple of hundred rows.
+    const [linkMap, setLinkMap] = useState({});
     const [prefsOpen, setPrefsOpen] = useState(false);
     const [prefs, setPrefs] = useState({
         noClassesBefore: '',
@@ -519,6 +533,26 @@ export default function SchedulePage() {
     useEffect(() => { checkAuth(); }, []);
 
     // Reset state when semester changes
+    // Load Banner's section pairings for the term.
+    useEffect(() => {
+        if (!selectedTerm) { setLinkMap({}); return; }
+        let cancelled = false;
+        (async () => {
+            const { data, error } = await supabase
+                .from('section_links')
+                .select('crn, linked_crn')
+                .eq('term_code', selectedTerm);
+            if (cancelled) return;
+            if (error || !data) { setLinkMap({}); return; }
+            const map = {};
+            for (const row of data) {
+                (map[row.crn] = map[row.crn] || []).push(row.linked_crn);
+            }
+            setLinkMap(map);
+        })();
+        return () => { cancelled = true; };
+    }, [selectedTerm]);
+
     useEffect(() => {
         if (!selectedTerm || !profile) return;
         setAllSections({});
@@ -605,10 +639,13 @@ export default function SchedulePage() {
         });
 
         // Fetch live section data
-        const { data: liveSections } = await supabase
+        const { data: rawLiveSections } = await supabase
             .from('sections')
             .select('*')
             .in('crn', Array.from(allCrns));
+        // Same decoding every other section fetch gets — without it a restored
+        // schedule showed "Mo&#39;ath" where a freshly built one showed "Mo'ath".
+        const liveSections = mapSectionsData(rawLiveSections);
 
         // Fetch courses to update names/credits
         const { data: coursesData } = await supabase
@@ -1245,25 +1282,22 @@ export default function SchedulePage() {
         );
     };
 
-    // Get lab sections (filter out T suffixes, and filter by pinned base if set)
+    // Labs offered for a pinned lecture come from Banner's links only. A course
+    // Banner does not link has no attached labs by definition -- its lab
+    // sections are standalone options and appear in their own right.
     const getLabSections = (courseId, pinnedBase) => {
         const secs = allSections[courseId] || [];
-        const allLabs = secs.filter(s => {
-            const base = getBaseSection(s.section_num);
-            return s.section_num !== base && !s.section_num.endsWith('T');
-        }).sort((a, b) => a.section_num.localeCompare(b.section_num));
-
-        if (!pinnedBase) return allLabs;
-
-        // If pinnedBase is set, check if it has specifically attached labs
-        const attachedLabs = allLabs.filter(s => getBaseSection(s.section_num) === pinnedBase);
-        if (attachedLabs.length > 0) {
-            return attachedLabs;
+        if (!pinnedBase) {
+            return secs.filter(s => linkMap[s.crn] && !isTutorial(s))
+                .sort((a, b) => a.section_num.localeCompare(b.section_num));
         }
 
-        // If it doesn't have attached labs, return the "unattached" pool of labs
-        const baseSet = new Set(secs.filter(s => s.section_num === getBaseSection(s.section_num)).map(s => s.section_num));
-        return allLabs.filter(s => !baseSet.has(getBaseSection(s.section_num)));
+        const pinnedSec = secs.find(s => s.section_num === pinnedBase);
+        const partners = pinnedSec ? linkedPartners(pinnedSec, secs, linkMap) : null;
+        if (!partners) return [];
+
+        return partners.filter(s => !isTutorial(s))
+            .sort((a, b) => a.section_num.localeCompare(b.section_num));
     };
 
     const handleGenerate = () => {
@@ -1292,13 +1326,13 @@ export default function SchedulePage() {
                         }
                         let basketOptions = [];
                         for (const [subCourseId, subSections] of Object.entries(sectionsByCourse)) {
-                            const subGroups = buildSectionGroups(subSections, subCourseId);
+                            const subGroups = buildSectionGroups(subSections, subCourseId, linkMap);
                             subGroups.forEach(g => g.originalCourseId = c.course_id);
                             basketOptions = basketOptions.concat(subGroups);
                         }
                         return basketOptions;
                     } else {
-                        return buildSectionGroups(sections, c.course_id);
+                        return buildSectionGroups(sections, c.course_id, linkMap);
                     }
                 };
 
@@ -1394,13 +1428,13 @@ export default function SchedulePage() {
                         }
                         let basketOptions = [];
                         for (const [subCourseId, subSections] of Object.entries(sectionsByCourse)) {
-                            const subGroups = buildSectionGroups(subSections, subCourseId);
+                            const subGroups = buildSectionGroups(subSections, subCourseId, linkMap);
                             subGroups.forEach(g => g.originalCourseId = c.course_id);
                             basketOptions = basketOptions.concat(subGroups);
                         }
                         return basketOptions;
                     } else {
-                        return buildSectionGroups(sections, c.course_id);
+                        return buildSectionGroups(sections, c.course_id, linkMap);
                     }
                 };
 
@@ -1619,10 +1653,10 @@ export default function SchedulePage() {
 
                             <div className={styles.basketButtons}>
                                 <button className={styles.basketBtn} onClick={() => addCourse({ course_id: 'BASKET_1', name: 'University Elective (Basket 1)', is_basket: true, basket_name: 'Basket 1' })}>
-                                    + University Elective 1
+                                    + <span className={styles.basketBtnLong}>University</span><span className={styles.basketBtnShort}>Univ.</span> Elective 1
                                 </button>
                                 <button className={styles.basketBtn} onClick={() => addCourse({ course_id: 'BASKET_2', name: 'University Elective (Basket 2)', is_basket: true, basket_name: 'Basket 2' })}>
-                                    + University Elective 2
+                                    + <span className={styles.basketBtnLong}>University</span><span className={styles.basketBtnShort}>Univ.</span> Elective 2
                                 </button>
                                 {majorInfo?.dept_electives_count > 0 && majorInfo?.support_electives_count > 0 ? (
                                     <>
@@ -1840,7 +1874,7 @@ export default function SchedulePage() {
                                                                     const baseNum = getBaseSection(s.section_num);
                                                                     return (
                                                                         <option key={baseNum} value={baseNum}>
-                                                                            Section {baseNum}{s.class_time ? ` — ${s.class_time}` : ''}{s.instructor ? ` — ${s.instructor}` : ''}
+                                                                            Section {baseNum}{s.class_time ? ` — ${s.class_time}` : ''}{s.instructor ? ` — ${s.instructor}` : ''}{(() => { const q = seatStatus(s); return q ? ` — ${q.label}` : ''; })()}
                                                                         </option>
                                                                     );
                                                                 })}
@@ -1854,7 +1888,7 @@ export default function SchedulePage() {
                                                                 <option value="">Any lab</option>
                                                                 {labSections.map(s => (
                                                                     <option key={s.section_num} value={s.section_num}>
-                                                                        Lab {s.section_num}{s.class_time ? ` — ${s.class_time}` : ''}{s.instructor ? ` — ${s.instructor}` : ''}
+                                                                        Lab {s.section_num}{s.class_time ? ` — ${s.class_time}` : ''}{s.instructor ? ` — ${s.instructor}` : ''}{(() => { const q = seatStatus(s); return q ? ` — ${q.label}` : ''; })()}
                                                                     </option>
                                                                 ))}
                                                             </select>
@@ -2000,6 +2034,16 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
         'rgba(139,92,246,0.15)', 'rgba(236,72,153,0.15)', 'rgba(20,184,166,0.15)', 'rgba(249,115,22,0.15)',
     ];
 
+    // Full sections do not stop a schedule being built -- it is a plan, and a
+    // seat may free up -- but burying that in a badge inside a collapsed
+    // details panel means nobody sees it until registration day.
+    const fullSections = schedule
+        .flatMap(group => group.sections)
+        .filter(sec => {
+            const seats = seatStatus(sec);
+            return seats && seats.tone === 'full';
+        });
+
     return (
         <div className={styles.scheduleCard}>
             <div className={styles.scheduleCardHeader} onClick={() => setCardOpen(!cardOpen)} style={{ cursor: 'pointer', userSelect: 'none' }}>
@@ -2014,6 +2058,11 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
             </div>
 
             {cardOpen && (<>
+                {fullSections.length > 0 && (
+                    <div className={styles.fullWarning}>
+                        Full: {fullSections.map(sec => `${courseNameMap[sec.course_id] || sec.course_id} ${sec.section_num}`).join(', ')}
+                    </div>
+                )}
                 {result.xorSelected && (() => {
                     let displayName = result.xorSelected.name;
                     let displayId = result.xorSelected.id;
@@ -2115,12 +2164,32 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                                                     <span className={styles.detailCrn}>CRN {sec.crn}</span>
                                                 </>
                                             )}
+                                            {(() => {
+                                                const seats = seatStatus(sec);
+                                                return seats ? (
+                                                    <>
+                                                        <span className={styles.detailSep}>•</span>
+                                                        <span
+                                                            className={`${styles.detailSeats} ${styles[`seats_${seats.tone}`]}`}
+                                                            title={seats.title}
+                                                        >
+                                                            {seats.detail}
+                                                        </span>
+                                                    </>
+                                                ) : null;
+                                            })()}
                                             <span className={styles.detailSep}>•</span>
                                             <span className={styles.detailTime}>{sec.class_time}</span>
                                             {sec.instructor && (
                                                 <>
                                                     <span className={styles.detailSep}>•</span>
                                                     <span className={styles.detailProf}>{sec.instructor}</span>
+                                                </>
+                                            )}
+                                            {sec.location && (
+                                                <>
+                                                    <span className={styles.detailSep}>•</span>
+                                                    <span className={styles.detailRoom}>{sec.location}</span>
                                                 </>
                                             )}
                                         </div>

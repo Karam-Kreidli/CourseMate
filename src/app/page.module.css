@@ -372,33 +372,219 @@
     border-radius: 3px;
 }
 
-.electiveRow {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
+/* Each elective is a card that expands to list its sections. The card owns the
+   border and background; .electiveRow inside it is the expand button and stays
+   transparent, so "click the box" hits the toggle everywhere except the
+   deliberately separate add-to-basket button. */
+.electiveItem {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
-    text-decoration: none;
-    color: inherit;
-    transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
+    transition: border-color var(--transition-fast), background var(--transition-fast);
 }
 
-.electiveRow:hover {
+.electiveItem:hover {
     border-color: var(--color-accent);
     background: var(--bg-elevated);
-    transform: translateX(2px);
 }
 
-.electiveRowMuted {
-    opacity: 0.55;
+.electiveItemOpen {
+    border-color: var(--color-accent);
+    background: var(--bg-elevated);
 }
 
-.electiveRowMuted:hover {
-    transform: none;
-    border-color: var(--border-color);
-    background: var(--bg-secondary);
+.electiveHead {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-right: 8px;
+}
+
+.electiveRow {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 2px 10px 12px;
+    background: none;
+    border: none;
+    border-radius: var(--radius-md);
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.electiveRow:focus-visible,
+.addBtn:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: -2px;
+}
+
+.electiveChevron {
+    flex-shrink: 0;
+    color: var(--text-muted);
+    transition: transform var(--transition-fast) var(--ease-out-expo);
+}
+
+.electiveItemOpen .electiveChevron {
+    transform: rotate(180deg);
+    color: var(--color-accent);
+}
+
+/* Sits outside the toggle button so it is its own hit target — tapping the row
+   only expands it; adding to the schedule is always a deliberate second action. */
+.addBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    flex-shrink: 0;
+    min-height: 32px;
+    padding: 0 10px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    background: var(--color-accent-muted);
+    color: var(--color-accent);
+    /* Icons.js strokes with var(--icon-color), which globals.css defines, so the
+       plus would ignore this button entirely without the local override. */
+    --icon-color: currentColor;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.addBtn:hover {
+    background: var(--gradient-accent-vivid);
+    color: #fff;
+}
+
+.addBtnLabel {
+    display: inline;
+}
+
+/* "to schedule" is dropped on phones, where the row has no width to spare. */
+.addBtnLabelLong {
+    display: none;
+}
+
+/* ===== Section list inside an expanded elective ===== */
+.sectionList {
+    list-style: none;
+    margin: 0;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border-top: 1px solid var(--border-color);
+}
+
+.sectionRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+}
+
+.sectionNum {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    font-family: var(--font-mono), monospace;
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Labs and tutorials are listed alongside their lecture because the section
+   count above includes them; the tag keeps them from reading as standalone
+   offerings. */
+.sectionKind {
+    font-size: 0.55rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    padding: 1px 4px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+}
+
+.sectionMeta {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sectionWhen {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.sectionDays {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.sectionTime {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Instructor and room share a line. The room is short and fixed, so it holds
+   its width and the name is what truncates when the row runs out. */
+.sectionWho {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    min-width: 0;
+}
+
+.sectionDot {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+.sectionRoom {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.sectionInstructor {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sectionCrn {
+    flex-shrink: 0;
+    font-family: var(--font-mono), monospace;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
 }
 
 .electiveMain {
@@ -407,6 +593,11 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
+}
+
+.electiveName,
+.electiveCode {
+    display: block;
 }
 
 .electiveName {
@@ -438,16 +629,26 @@
     text-transform: uppercase;
 }
 
+/* Second line of the row: course code, plus the section count on phones. */
+.electiveMeta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.electiveBadgeRight {
+    flex-shrink: 0;
+}
+
+.electiveBadgeInline {
+    display: none;
+}
+
 .electiveBadgeOpen {
     background: var(--color-accent-muted);
     color: var(--color-accent);
     border: 1px solid var(--color-accent-muted);
-}
-
-.electiveBadgeClosed {
-    background: var(--bg-tertiary);
-    color: var(--text-muted);
-    border: 1px solid var(--border-color);
 }
 
 /* ===== Elective filter pills ===== */
@@ -562,7 +763,7 @@
     .hero {
         padding: 14px 16px;
         flex-wrap: nowrap;
-        gap: 12px;
+        gap: 10px;
     }
 
     .heroText {
@@ -572,6 +773,7 @@
     .heroRight {
         width: auto;
         flex-shrink: 0;
+        gap: 8px;
     }
 
     .heroGreeting {
@@ -597,6 +799,31 @@
     .electiveList {
         max-height: 50vh;
     }
+
+    .electiveRow {
+        gap: 8px;
+        padding-left: 10px;
+    }
+
+    /* Swap which copy of the count is shown — see the note in page.js. */
+    .electiveBadgeRight {
+        display: none;
+    }
+
+    .electiveBadgeInline {
+        display: inline-block;
+        font-size: 0.62rem;
+        padding: 2px 6px;
+    }
+
+    .sectionRow {
+        gap: 8px;
+        padding: 8px;
+    }
+
+    .sectionCrn {
+        font-size: 0.62rem;
+    }
 }
 
 @media (min-width: 768px) {
@@ -604,19 +831,23 @@
         padding: 32px;
         padding-bottom: 40px;
     }
+
+    .addBtnLabelLong {
+        display: inline;
+    }
 }
 
-/* Hamburger + bell row above the hero, so Home carries the same chrome as
-   every other page without adopting the PageHeader card. */
-.topChrome {
-    display: flex;
+/* Hamburger and bell, carried inside the hero so they sit on the greeting's
+   line. Named to match PageHeader's slot of the same name: shown on phone and
+   tablet, stood down from 1024px up where TopBar owns both. */
+.mobileChrome {
+    display: inline-flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+    flex-shrink: 0;
 }
 
 @media (min-width: 1024px) {
-    .topChrome {
+    .mobileChrome {
         display: none;
     }
 }
@@ -633,4 +864,39 @@
         min-height: 0;
         padding-bottom: 48px;
     }
+}
+
+/* Seat availability. Banner reports negative seats on over-enrolled sections,
+   so seats.js clamps those to "Full" -- these styles never show a number
+   below 1. */
+.sectionSeats {
+    margin-left: 6px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.5;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.seats_open {
+    background: rgba(27, 110, 82, 0.12);
+    color: #1b6e52;
+}
+
+.seats_low {
+    background: rgba(168, 78, 21, 0.14);
+    color: #a84e15;
+}
+
+.seats_full {
+    background: rgba(120, 120, 130, 0.16);
+    color: #6b7280;
+}
+
+@media (prefers-color-scheme: dark) {
+    .seats_open { background: rgba(98, 195, 155, 0.16); color: #62c39b; }
+    .seats_low { background: rgba(224, 146, 86, 0.18); color: #e09256; }
+    .seats_full { background: rgba(150, 155, 165, 0.18); color: #9aa3ad; }
 }

@@ -25,7 +25,14 @@ export default function RootLayout({ children }) {
                     __html: `
                         (function () {
                             try {
-                                const theme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                                // Runs before paint so the saved theme is applied without a flash.
+                                // 'system' (and anything unrecognised) resolves here rather than
+                                // reaching the CSS, which only defines light, dark and black.
+                                var saved = localStorage.getItem('theme');
+                                var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                                var theme = (saved === 'light' || saved === 'dark' || saved === 'black')
+                                    ? saved
+                                    : (prefersDark ? 'dark' : 'light');
                                 document.documentElement.setAttribute('data-theme', theme);
                             } catch (e) { }
                         })();

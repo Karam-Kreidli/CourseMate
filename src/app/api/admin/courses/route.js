@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAdminUser, createAdminClient } from '@/lib/admin';
+import { decodeSectionInstructors } from '@/lib/text';
 
 // Categories an admin sets by hand, per major.
 const ALLOWED_CATEGORIES = ['Core', 'Major Elective', 'Support Elective'];
@@ -96,12 +97,16 @@ export async function GET(request) {
     }
 
     // Sections for these courses.
-    const { data: secRows } = await supabase
+    const { data: rawSecRows } = await supabase
         .from('sections')
         .select('course_id, section_num, crn, instructor, class_time, campus, term_code')
         .in('course_id', ids)
         .order('term_code', { ascending: false })
         .order('section_num');
+
+    // Decoded here so both the per-section rows and the derived instructor list
+    // below carry the readable name.
+    const secRows = decodeSectionInstructors(rawSecRows || []);
 
     const sectionsByCourse = new Map();
     for (const s of secRows || []) {

@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useSemester } from '@/lib/SemesterContext';
 import PageShell from '@/components/PageShell';
 import PageHeader from '@/components/PageHeader';
+import { decodeSectionInstructors } from '@/lib/text';
 import styles from './post.module.css';
 
 const POST_TYPES = [
@@ -177,7 +178,7 @@ function PostContent() {
         if (selectedTerm) query = query.eq('term_code', selectedTerm);
 
         const { data } = await query;
-        setSections(data || []);
+        setSections(decodeSectionInstructors(data || []));
     };
 
     // Tutorial sections (e.g. "62T") are bound to their parent lecture ("62") and
@@ -369,7 +370,7 @@ function PostContent() {
                                     <option value="">Select section</option>
                                     {selectableSections.map(s => (
                                         <option key={s.section_num} value={s.section_num}>
-                                            Section {s.section_num} {s.professor ? `- ${s.professor}` : ''}
+                                            Section {s.section_num}{s.instructor ? ` - ${s.instructor}` : ''}
                                         </option>
                                     ))}
                                 </select>
@@ -382,7 +383,7 @@ function PostContent() {
                                         <option value="">Select section</option>
                                         {selectableSections.filter(s => s.section_num !== haveSection).map(s => (
                                             <option key={s.section_num} value={s.section_num}>
-                                                Section {s.section_num} {s.professor ? `- ${s.professor}` : ''}
+                                                Section {s.section_num}{s.instructor ? ` - ${s.instructor}` : ''}
                                             </option>
                                         ))}
                                     </select>
