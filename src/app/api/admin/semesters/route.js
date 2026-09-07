@@ -35,12 +35,31 @@ export async function PATCH(request) {
     const admin = await getAdminUser();
     if (!admin) return new NextResponse('Not found', { status: 404 });
 
-    const { term_code, is_active, name } = await request.json();
+    const { term_code, is_active, name, registration_starts_at, registration_ends_at } = await request.json();
     if (!term_code) return NextResponse.json({ error: 'term_code required' }, { status: 400 });
 
     const update = {};
     if (typeof is_active === 'boolean') update.is_active = is_active;
     if (typeof name === 'string') update.name = name;
+
+    // The registration window drives the seat refresh: it only polls the
+    // university while this term is open. Undefined leaves a column alone;
+    // null clears it, which switches the refresh off for this semester.
+    for (const field of ['registration_starts_at', 'registration_ends_at']) {
+        const value = field === 'registration_starts_at' ? registration_starts_at : registration_ends_at;
+        if (value === undefined) continue;
+        if (value === null || value === '') { update[field] = null; continue; }
+        const when = new Date(value);
+        if (Number.isNaN(when.getTime())) {
+            return NextResponse.json({ error: `${field} is not a valid date` }, { status: 400 });
+        }
+        update[field] = when.toISOString();
+    }
+
+    if (update.registration_starts_at && update.registration_ends_at
+        && update.registration_starts_at >= update.registration_ends_at) {
+        return NextResponse.json({ error: 'Registration must start before it ends' }, { status: 400 });
+    }
 
     const supabase = createAdminClient();
     const { error } = await supabase.from('semesters').update(update).eq('term_code', term_code);
