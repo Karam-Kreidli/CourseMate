@@ -18,6 +18,7 @@ const Ctx = createContext(null);
 
 function SemestersProvider({ children }) {
     const [semesters, setSemesters] = useState([]);
+    const [savingWindow, setSavingWindow] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [newTerm, setNewTerm] = useState('');
@@ -38,6 +39,33 @@ function SemestersProvider({ children }) {
     }, []);
 
     useEffect(() => { load(); }, [load]);
+
+    // datetime-local gives "2026-09-01T00:00" in the admin's own timezone;
+    // toISOString() converts to UTC, which is what the database stores.
+    const toLocalInput = (iso) => {
+        if (!iso) return '';
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return '';
+        const pad = n => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
+
+    const handleWindow = async (term_code, field, value) => {
+        setSavingWindow(term_code);
+        const body = { term_code, [field]: value ? new Date(value).toISOString() : null };
+        const res = await fetch('/api/admin/semesters', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        setSavingWindow(null);
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            alert(err.error || 'Could not save the registration window');
+            return;
+        }
+        setSemesters(prev => prev.map(s => s.term_code === term_code ? { ...s, [field]: body[field] } : s));
+    };
 
     const handleToggle = async (term_code, is_active) => {
         const res = await fetch('/api/admin/semesters', {
@@ -83,6 +111,7 @@ function SemestersProvider({ children }) {
         <Ctx.Provider value={{
             semesters, loading, error, newTerm, setNewTerm,
             handleToggle, handleAdd, handleDelete,
+            handleWindow, savingWindow, toLocalInput,
         }}>
             {children}
         </Ctx.Provider>
@@ -131,7 +160,7 @@ function SemestersSidebar() {
 function SemestersMain() {
     const ctx = useContext(Ctx);
     if (!ctx) return null;
-    const { semesters, loading, error, handleToggle, handleDelete } = ctx;
+    const { semesters, loading, error, handleToggle, handleDelete, handleWindow, savingWindow, toLocalInput } = ctx;
 
     return (
         <div className={styles.feedCard}>
@@ -154,6 +183,63 @@ function SemestersMain() {
                                     <span className={`${styles.badge} ${s.is_active ? styles.badgeActive : styles.badgeExpired}`}>
                                         {s.is_active ? 'active' : 'inactive'}
                                     </span>
+                                    {(() => {
+                                        // Mirrors seat_refresh_term() in the database: the seat
+                                        // refresh only polls while an active term is inside its window.
+                                        if (!s.registration_starts_at || !s.registration_ends_at) {
+                                            return <span className={styles.badge}>seats: off</span>;
+                                        }
+                                        const now = Date.now();
+                                        const open = now >= new Date(s.registration_starts_at).getTime()
+                                            && now < new Date(s.registration_ends_at).getTime();
+                                        return (
+                                            <span className={`${styles.badge} ${open && s.is_active ? styles.badgeActive : styles.badgeExpired}`}>
+                                                {open && s.is_active ? 'seats: refreshing' : 'seats: outside window'}
+                                            </span>
+                                        );
+                                    })()}
+                                </div>
+                                <div className={styles.windowRow}>
+                                    <label className={styles.windowField}>
+                                        <span className={styles.windowLabel}>Registration opens</span>
+                                        <input
+                                            type="datetime-local"
+                                            className={styles.windowInput}
+                                            value={toLocalInput(s.registration_starts_at)}
+                                            max={toLocalInput(s.registration_ends_at) || undefined}
+                                            disabled={savingWindow === s.term_code}
+                                            onClick={e => e.currentTarget.showPicker?.()}
+                                            onChange={e => handleWindow(s.term_code, 'registration_starts_at', e.target.value)}
+                                        />
+                                    </label>
+                                    <span className={styles.windowArrow}>&rarr;</span>
+                                    <label className={styles.windowField}>
+                                        <span className={styles.windowLabel}>Registration closes</span>
+                                        <input
+                                            type="datetime-local"
+                                            className={styles.windowInput}
+                                            value={toLocalInput(s.registration_ends_at)}
+                                            min={toLocalInput(s.registration_starts_at) || undefined}
+                                            disabled={savingWindow === s.term_code}
+                                            onClick={e => e.currentTarget.showPicker?.()}
+                                            onChange={e => handleWindow(s.term_code, 'registration_ends_at', e.target.value)}
+                                        />
+                                    </label>
+                                    {(s.registration_starts_at || s.registration_ends_at) && (
+                                        <button
+                                            type="button"
+                                            className={styles.windowClear}
+                                            disabled={savingWindow === s.term_code}
+                                            title="Clear the window — stops the seat refresh for this semester"
+                                            onClick={() => {
+                                                handleWindow(s.term_code, 'registration_starts_at', '');
+                                                handleWindow(s.term_code, 'registration_ends_at', '');
+                                            }}
+                                        >
+                                            Clear
+                                        </button>
+                                    )}
+                                    {savingWindow === s.term_code && <span className={styles.windowSaving}>Saving…</span>}
                                 </div>
                             </div>
                             <div className={styles.rowActions}>
