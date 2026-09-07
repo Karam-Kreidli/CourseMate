@@ -22,11 +22,10 @@ npm-debug.log*
 .idea/
 
 # Data files
-sections/
 extract-sections.js
 sync-semester.js
 
 # Database scripts
 supabase/
 
-uos-curriculum-scraper/
+scraper/
