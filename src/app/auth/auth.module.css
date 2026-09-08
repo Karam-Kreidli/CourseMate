@@ -114,6 +114,17 @@
     z-index: 5;
 }
 
+/* The card corner is tight and the logo starts just below, so on small screens
+   the picker moves to the flow above the logo rather than overlapping it. */
+@media (max-width: 420px) {
+    .themeToggleWrapper {
+        position: static;
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 4px;
+    }
+}
+
 /* ===== Logo ===== */
 .logoWrapper {
     text-align: center;
