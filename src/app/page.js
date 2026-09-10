@@ -174,7 +174,7 @@ export default function DashboardPage() {
                         .from('sections')
                         .select('course_id, section_num, crn, class_time, instructor, location, campus, term_code, seats_available, max_enrollment')
                         .in('course_id', courseIds)
-                        .or(campusFilterFor)
+                        .or(campusFilterFor).eq('is_active', true)
                         .eq('term_code', selectedTerm)
                         .order('section_num')
                     : Promise.resolve({ data: [] }),
