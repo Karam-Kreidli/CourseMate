@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { campusFilter } from '@/lib/campus';
 import { seatStatus } from '@/lib/seats';
 import { useSemester } from '@/lib/SemesterContext';
 import PageShell from '@/components/PageShell';
@@ -961,7 +962,7 @@ export default function SchedulePage() {
     const fetchSectionsForCourse = async (courseId, profileOverride) => {
         setLoadingCourseIds(prev => new Set([...prev, courseId]));
         const prof = profileOverride || profile;
-        const allowedCampuses = prof?.gender === 'male' ? ['main', 'men'] : ['main', 'women'];
+        const campusFilterFor = campusFilter(prof?.gender);
 
         try {
             // Handle Department Electives
@@ -1007,7 +1008,7 @@ export default function SchedulePage() {
                     .from('sections')
                     .select('*')
                     .in('course_id', electiveIds)
-                    .in('campus', allowedCampuses)
+                    .or(campusFilterFor)
                     .order('section_num');
                 if (selectedTerm) electiveQuery = electiveQuery.eq('term_code', selectedTerm);
                 const { data } = await electiveQuery;
@@ -1057,7 +1058,7 @@ export default function SchedulePage() {
                     .from('sections')
                     .select('*')
                     .in('course_id', electiveIds)
-                    .in('campus', allowedCampuses)
+                    .or(campusFilterFor)
                     .order('section_num');
                 if (selectedTerm) supportQuery = supportQuery.eq('term_code', selectedTerm);
                 const { data } = await supportQuery;
@@ -1104,7 +1105,7 @@ export default function SchedulePage() {
                     .from('sections')
                     .select('*')
                     .in('course_id', courseIds)
-                    .in('campus', allowedCampuses)
+                    .or(campusFilterFor)
                     .order('section_num');
                 if (selectedTerm) basketQuery = basketQuery.eq('term_code', selectedTerm);
                 const { data } = await basketQuery;
@@ -1115,7 +1116,7 @@ export default function SchedulePage() {
 
             let regularQuery = supabase
                 .from('sections').select('*').eq('course_id', courseId)
-                .in('campus', allowedCampuses).order('section_num');
+                .or(campusFilterFor).order('section_num');
             if (selectedTerm) regularQuery = regularQuery.eq('term_code', selectedTerm);
             const { data } = await regularQuery;
             const mapped = await applyMajorRules(courseId, mapSectionsData(data) || [], prof);

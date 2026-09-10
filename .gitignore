@@ -24,8 +24,12 @@ npm-debug.log*
 # Data files
 extract-sections.js
 sync-semester.js
+fetch-campus-restrictions.js
+refresh-seats.js
+campus-restrictions.json
 
 # Database scripts
 supabase/
 
 scraper/
+graphify-out/

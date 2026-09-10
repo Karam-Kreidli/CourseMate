@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { campusFilter } from '@/lib/campus';
 import { useSemester } from '@/lib/SemesterContext';
 import { isPushSupported, getPushState, subscribeToPush, unsubscribeFromPush } from '@/lib/push/client';
 import PageShell from '@/components/PageShell';
@@ -139,14 +140,14 @@ function ProfileContent() {
             const validMajorCourseIds = new Set((majorCourses || []).map(mc => mc.course_id));
 
             // 2. Validate Gender/Campus
-            const allowedCampuses = newGender === 'male' ? ['main', 'men'] : ['main', 'women'];
+            const campusFilterFor = campusFilter(newGender);
 
             // Check if courses have sections in allowed campuses
             let sectionQuery = supabase
                 .from('sections')
                 .select('course_id')
                 .in('course_id', courseIds)
-                .in('campus', allowedCampuses);
+                .or(campusFilterFor);
 
             if (selectedTerm) sectionQuery = sectionQuery.eq('term_code', selectedTerm);
 
