@@ -147,7 +147,7 @@ function ProfileContent() {
                 .from('sections')
                 .select('course_id')
                 .in('course_id', courseIds)
-                .or(campusFilterFor);
+                .or(campusFilterFor).eq('is_active', true);
 
             if (selectedTerm) sectionQuery = sectionQuery.eq('term_code', selectedTerm);
 

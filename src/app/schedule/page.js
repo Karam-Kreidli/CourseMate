@@ -1008,7 +1008,7 @@ export default function SchedulePage() {
                     .from('sections')
                     .select('*')
                     .in('course_id', electiveIds)
-                    .or(campusFilterFor)
+                    .or(campusFilterFor).eq('is_active', true)
                     .order('section_num');
                 if (selectedTerm) electiveQuery = electiveQuery.eq('term_code', selectedTerm);
                 const { data } = await electiveQuery;
@@ -1058,7 +1058,7 @@ export default function SchedulePage() {
                     .from('sections')
                     .select('*')
                     .in('course_id', electiveIds)
-                    .or(campusFilterFor)
+                    .or(campusFilterFor).eq('is_active', true)
                     .order('section_num');
                 if (selectedTerm) supportQuery = supportQuery.eq('term_code', selectedTerm);
                 const { data } = await supportQuery;
@@ -1105,7 +1105,7 @@ export default function SchedulePage() {
                     .from('sections')
                     .select('*')
                     .in('course_id', courseIds)
-                    .or(campusFilterFor)
+                    .or(campusFilterFor).eq('is_active', true)
                     .order('section_num');
                 if (selectedTerm) basketQuery = basketQuery.eq('term_code', selectedTerm);
                 const { data } = await basketQuery;
@@ -1116,7 +1116,7 @@ export default function SchedulePage() {
 
             let regularQuery = supabase
                 .from('sections').select('*').eq('course_id', courseId)
-                .or(campusFilterFor).order('section_num');
+                .or(campusFilterFor).eq('is_active', true).order('section_num');
             if (selectedTerm) regularQuery = regularQuery.eq('term_code', selectedTerm);
             const { data } = await regularQuery;
             const mapped = await applyMajorRules(courseId, mapSectionsData(data) || [], prof);

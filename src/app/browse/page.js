@@ -138,7 +138,7 @@ export default function BrowsePage() {
         let query = supabase
             .from('sections')
             .select('*')
-            .or(campusFilterFor);
+            .or(campusFilterFor).eq('is_active', true);
 
         if (selectedTerm) query = query.eq('term_code', selectedTerm);
 

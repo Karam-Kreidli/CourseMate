@@ -130,6 +130,7 @@ export default function InstructorFinder() {
                 .from('sections')
                 .select('instructor')
                 .eq('term_code', selectedTerm)
+                .eq('is_active', true)
                 .ilike('instructor', `%${encodedQuery}%`)
                 .not('instructor', 'is', null)
                 .limit(300);
@@ -153,6 +154,7 @@ export default function InstructorFinder() {
             .from('sections')
             .select('*')
             .eq('term_code', selectedTerm)
+            .eq('is_active', true)
             .eq('instructor', name);
 
         if (!sections || sections.length === 0) {

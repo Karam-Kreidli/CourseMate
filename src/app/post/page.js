@@ -135,7 +135,7 @@ function PostContent() {
                     .select('course_id')
                     .eq('term_code', activeTerm)
                     .in('course_id', courseIds)
-                    .or(campusFilterFor);
+                    .or(campusFilterFor).eq('is_active', true);
 
                 const termCourseIds = new Set((termSections || []).map(s => s.course_id));
                 mappedData = mappedData.filter(c => termCourseIds.has(c.course_id));
@@ -169,7 +169,7 @@ function PostContent() {
             .from('sections')
             .select('*')
             .eq('course_id', courseId)
-            .or(campusFilterFor)
+            .or(campusFilterFor).eq('is_active', true)
             .order('section_num');
 
         if (selectedTerm) query = query.eq('term_code', selectedTerm);
