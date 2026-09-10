@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { campusFilter } from '@/lib/campus';
 import { seatStatus } from '@/lib/seats';
 import { useSemester } from '@/lib/SemesterContext';
 import { useRequireProfile } from '@/lib/useRequireProfile';
@@ -141,9 +142,7 @@ export default function DashboardPage() {
 
         setTermLoading(true);
 
-        const allowedCampuses = profile?.gender === 'male'
-            ? ['main', 'men']
-            : ['main', 'women'];
+        const campusFilterFor = campusFilter(profile?.gender);
 
         const courseIds = Array.from(new Set([
             ...majorCourses.map(mc => mc.course_id),
@@ -175,7 +174,7 @@ export default function DashboardPage() {
                         .from('sections')
                         .select('course_id, section_num, crn, class_time, instructor, location, campus, term_code, seats_available, max_enrollment')
                         .in('course_id', courseIds)
-                        .in('campus', allowedCampuses)
+                        .or(campusFilterFor)
                         .eq('term_code', selectedTerm)
                         .order('section_num')
                     : Promise.resolve({ data: [] }),

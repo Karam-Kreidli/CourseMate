@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { campusFilter } from '@/lib/campus';
 import { useSemester } from '@/lib/SemesterContext';
 import PageShell from '@/components/PageShell';
 import PageHeader from '@/components/PageHeader';
@@ -126,9 +127,7 @@ function PostContent() {
             // Filter to only courses that have sections in the selected term AND on allowed campuses
             const activeTerm = selectedTerm || localStorage.getItem('selectedTerm');
             const userGender = gender || profile?.gender;
-            const allowedCampuses = userGender === 'male'
-                ? ['main', 'men']
-                : ['main', 'women'];
+            const campusFilterFor = campusFilter(userGender);
 
             if (activeTerm) {
                 const { data: termSections } = await supabase
@@ -136,7 +135,7 @@ function PostContent() {
                     .select('course_id')
                     .eq('term_code', activeTerm)
                     .in('course_id', courseIds)
-                    .in('campus', allowedCampuses);
+                    .or(campusFilterFor);
 
                 const termCourseIds = new Set((termSections || []).map(s => s.course_id));
                 mappedData = mappedData.filter(c => termCourseIds.has(c.course_id));
@@ -164,15 +163,13 @@ function PostContent() {
 
     const fetchSections = async (courseId) => {
         // Filter sections by campus based on user gender
-        const allowedCampuses = profile?.gender === 'male'
-            ? ['main', 'men']
-            : ['main', 'women'];
+        const campusFilterFor = campusFilter(profile?.gender);
 
         let query = supabase
             .from('sections')
             .select('*')
             .eq('course_id', courseId)
-            .in('campus', allowedCampuses)
+            .or(campusFilterFor)
             .order('section_num');
 
         if (selectedTerm) query = query.eq('term_code', selectedTerm);

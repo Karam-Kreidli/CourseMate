@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { campusFilter } from '@/lib/campus';
 import { useSemester } from '@/lib/SemesterContext';
 import { SearchIcon } from '@/components/Icons';
 import BottomNav from '@/components/BottomNav';
@@ -132,14 +133,12 @@ export default function BrowsePage() {
     };
 
     const fetchSections = async (gender) => {
-        const allowedCampuses = gender === 'male'
-            ? ['main', 'men']
-            : ['main', 'women'];
+        const campusFilterFor = campusFilter(gender);
 
         let query = supabase
             .from('sections')
             .select('*')
-            .in('campus', allowedCampuses);
+            .or(campusFilterFor);
 
         if (selectedTerm) query = query.eq('term_code', selectedTerm);
 
