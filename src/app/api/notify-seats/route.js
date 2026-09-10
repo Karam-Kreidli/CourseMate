@@ -47,6 +47,12 @@ export async function POST(request) {
 
     const nameOf = new Map((courses || []).map(c => [c.course_id, c.course_name]));
 
+    // The caller only sends sections that are genuinely joinable (open seat,
+    // empty waitlist), but this is the last gate before a student's phone
+    // buzzes, so re-check rather than trust the payload.
+    const joinable = opened.filter(s => Number(s.seats_available) > 0);
+    if (joinable.length === 0) return NextResponse.json({ success: true, notified: 0 });
+
     // A watch with no want_section follows the whole course; one with a
     // section only fires for that section.
     const perUser = new Map();
@@ -60,12 +66,6 @@ export async function POST(request) {
         }
     }
     if (perUser.size === 0) return NextResponse.json({ success: true, notified: 0 });
-
-    // The caller only sends sections that are genuinely joinable (open seat,
-    // empty waitlist), but this is the last gate before a student's phone
-    // buzzes, so re-check rather than trust the payload.
-    const joinable = opened.filter(s => Number(s.seats_available) > 0);
-    if (joinable.length === 0) return NextResponse.json({ success: true, notified: 0 });
 
     const describe = s => {
         const label = nameOf.get(s.course_code)
