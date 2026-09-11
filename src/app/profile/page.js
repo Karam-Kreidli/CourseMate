@@ -608,6 +608,10 @@ function ProfileContent() {
                             { field: 'email_match_alerts', label: 'Swap match alerts', sub: 'When a swap match is found for you' },
                             { field: 'email_interest_alerts', label: 'Interest alerts', sub: "When someone's interested in your giveaway or request" },
                             { field: 'email_watch_alerts', label: 'Section alerts', sub: "When a section you're watching becomes available" },
+                            // Separate from the watch alert above: that one fires when a
+                            // section you already know about frees a seat, this one when a
+                            // section appears that was never there before.
+                            { field: 'email_new_section_alerts', label: 'New section alerts', sub: "When a new section opens in a course you're planning" },
                         ].map(p => (
                             <div key={p.field} className={styles.settingRow}>
                                 <div className={styles.settingText}>
