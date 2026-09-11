@@ -3,9 +3,19 @@ import { updateSession } from '@/lib/supabase/middleware';
 
 const STATE_CHANGING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
+// The Supabase seat and section jobs POST to /api/notify-seats and
+// /api/notify-new-sections from a server, so they send no Origin at all. They
+// prove themselves with CRON_SECRET instead, which a cross-site page cannot
+// know, so letting them past the Origin check does not reopen CSRF.
+function isCronCaller(request) {
+    const secret = process.env.CRON_SECRET;
+    return !!secret && request.headers.get('authorization') === `Bearer ${secret}`;
+}
+
 function isCsrfSafe(request) {
     if (!STATE_CHANGING.has(request.method)) return true;
     if (!request.nextUrl.pathname.startsWith('/api/')) return true;
+    if (isCronCaller(request)) return true;
 
     const origin = request.headers.get('origin');
     if (!origin) return false;
