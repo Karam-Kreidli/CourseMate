@@ -55,9 +55,9 @@ export async function DELETE(request) {
 
     const supabase = createAdminClient();
 
-    // match_participants.post_id is ON DELETE NO ACTION (conversations and
-    // post_interests both cascade), so any post that was ever part of a match
-    // blocks a plain delete with a foreign-key violation. The user-facing path
+    // match_participants.post_id is ON DELETE NO ACTION (post_interests
+    // cascades), so any post that was ever part of a match blocks a plain
+    // delete with a foreign-key violation. The user-facing path
     // solves this with the cancel_post RPC, but that is SECURITY DEFINER and
     // checks auth.uid() against the post owner — an admin deleting someone
     // else's post would be rejected — so the same cleanup is done here.
