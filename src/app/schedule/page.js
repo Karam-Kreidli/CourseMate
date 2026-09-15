@@ -1552,7 +1552,7 @@ export default function SchedulePage() {
         const one = names.length === 1;
         const list = one ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
         return `${list} ${one ? 'is' : 'are'} listed as ${one ? 'a prerequisite' : 'prerequisites'}. `
-            + `Taking both together only works if ${one ? "it's a co-requisite" : "they're co-requisites"} — check before you register.`;
+            + `Taking both together only works if ${one ? "it's a co-requisite" : "they're co-requisites"}. Check before you register.`;
     };
 
     // Close dropdown on outside click
