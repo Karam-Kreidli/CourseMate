@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useSemester } from '@/lib/SemesterContext';
+import { ACTIVITY_TYPES } from '@/lib/useUnreadCount';
 import PageShell from '@/components/PageShell';
 import PageHeader from '@/components/PageHeader';
 import styles from './matches.module.css';
@@ -65,7 +66,20 @@ export default function MatchesPage() {
         fetchMyPosts(user.id);
         fetchHistory(user.id);
         fetchCourses();
+        markActivityRead(user.id);
         liveChannelRef.current = subscribeToLiveUpdates(user.id);
+    };
+
+    // Opening Activity is reading its notifications: this page shows every match
+    // they point to, so the Activity badge clears here rather than only on
+    // /notifications. Other types stay unread for the bell.
+    const markActivityRead = async (userId) => {
+        await supabase
+            .from('notifications')
+            .update({ read: true })
+            .eq('user_id', userId)
+            .is('read', false)
+            .in('type', ACTIVITY_TYPES);
     };
 
     // Live updates: a new match, an accept/decline from the other side, or a

@@ -26,7 +26,7 @@ const isActiveRoute = (pathname, href) =>
  */
 export default function TopBar() {
     const pathname = usePathname();
-    const unread = useUnreadCount();
+    const unread = useUnreadCount('activity');
 
     return (
         <header className={styles.topBar}>
