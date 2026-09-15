@@ -22,7 +22,7 @@ export function seatStatus(section) {
             label: 'Full',
             // Spelled out wherever there is room. "Full" alone does not say
             // whether the section is at capacity or over it.
-            detail: capacity ? `Full — 0 of ${capacity} seats` : 'Full — no seats',
+            detail: capacity ? `Full, 0 of ${capacity} seats` : 'Full, no seats',
             title: capacity ? `No seats open, capacity ${capacity}` : 'No seats open'
         };
     }

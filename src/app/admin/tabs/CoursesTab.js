@@ -150,8 +150,8 @@ function CourseDetail({ course }) {
     return (
         <div style={{ padding: '12px 14px', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                <span><strong style={{ color: 'var(--text-primary)' }}>College:</strong> {course.college_name || '—'}</span>
-                <span><strong style={{ color: 'var(--text-primary)' }}>Credits:</strong> {course.credit_hours ?? '—'}</span>
+                <span><strong style={{ color: 'var(--text-primary)' }}>College:</strong> {course.college_name || 'Not set'}</span>
+                <span><strong style={{ color: 'var(--text-primary)' }}>Credits:</strong> {course.credit_hours ?? 'Not set'}</span>
                 {course.university_elective_basket && (
                     <span><strong style={{ color: 'var(--text-primary)' }}>Elective basket:</strong> {course.university_elective_basket}</span>
                 )}

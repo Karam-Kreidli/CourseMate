@@ -71,7 +71,7 @@ function StatTile({ label, value, sub }) {
 }
 
 const LABELS = {
-    male: 'Male', female: 'Female', unknown: '—',
+    male: 'Male', female: 'Female', unknown: 'Not set',
     swap: 'Swap', giveaway: 'Giveaway', request: 'Request',
     active: 'Active', pending: 'Pending', completed: 'Completed', expired: 'Expired', declined: 'Declined',
 };

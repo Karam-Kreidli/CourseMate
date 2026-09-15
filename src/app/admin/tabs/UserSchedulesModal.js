@@ -175,7 +175,7 @@ export default function UserSchedulesModal({ user, onClose }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
                     <div>
                         <div style={{ fontSize: 18, fontWeight: 700 }}>{user.name || '(no name)'}</div>
-                        <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{user.email} · {user.student_id || '—'}</div>
+                        <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{user.email} · {user.student_id || 'no ID'}</div>
                     </div>
                     <button className={styles.btn} onClick={onClose}>Close</button>
                 </div>

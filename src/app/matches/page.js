@@ -497,7 +497,7 @@ export default function MatchesPage() {
                                                         {!allAccepted && myAccepted && (
                                                             <div className={styles.matchStatus}>
                                                                 <span className={styles.waitingThem}>
-                                                                    You accepted — waiting for {waitingOn} {waitingOn === 1 ? 'other' : 'others'} to accept
+                                                                    You accepted. Waiting for {waitingOn} {waitingOn === 1 ? 'other' : 'others'} to accept
                                                                 </span>
                                                             </div>
                                                         )}
@@ -619,7 +619,7 @@ export default function MatchesPage() {
                                                                 <button onClick={() => handleDelete(post.id)} className={styles.deletePostBtn} title="Cancel and remove this post">Cancel</button>
                                                             </div>
                                                         ) : (
-                                                            <p className={styles.hint}>Part of a pending match — accept, decline, or complete it from the Matches tab.</p>
+                                                            <p className={styles.hint}>Part of a pending match. Accept, decline, or complete it from the Matches tab.</p>
                                                         )}
                                                     </div>
                                                 </div>

@@ -212,7 +212,7 @@ function PostsMain() {
                                         {p.course_name} · have {p.have_section}{p.want_section ? ` → want ${p.want_section}` : ''}
                                     </div>
                                     <div className={styles.rowMeta}>
-                                        {p.profile?.name || '(unknown)'} ({p.profile?.student_id || '—'}) · {p.profile?.email || '—'}
+                                        {p.profile?.name || '(unknown)'} ({p.profile?.student_id || 'no ID'}) · {p.profile?.email || 'no email'}
                                     </div>
                                 </div>
                                 <div className={styles.rowActions}>

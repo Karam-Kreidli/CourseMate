@@ -35,7 +35,7 @@ function emailHtml({ recipientName, kindLabel, courseLine, section, appUrl }) {
             <div style="padding: 32px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 8px 8px;">
                 <p style="font-size: 16px; line-height: 1.5; margin: 0 0 24px 0;">Hello <strong>${safeName}</strong>,</p>
                 <p style="font-size: 16px; line-height: 1.5; margin: 0 0 24px 0;">
-                    A new <strong>${safeKind}</strong> just appeared for <strong>${safeCourse}</strong> — Section <strong>${safeSection}</strong>, which you're watching.
+                    A new <strong>${safeKind}</strong> just appeared for <strong>${safeCourse}</strong>: Section <strong>${safeSection}</strong>, which you're watching.
                 </p>
                 <div style="text-align: center;">
                     <a href="${safeAppUrl}/browse"
@@ -44,7 +44,7 @@ function emailHtml({ recipientName, kindLabel, courseLine, section, appUrl }) {
                     </a>
                 </div>
                 <p style="margin-top: 40px; font-size: 12px; color: #888888; text-align: center; border-top: 1px solid #eaeaea; padding-top: 20px;">
-                    CourseMate — University Section Exchange Platform
+                    CourseMate · University Section Exchange Platform
                 </p>
             </div>
         </div>
@@ -101,7 +101,7 @@ export async function POST(request) {
         const kindLabel = post.type === 'giveaway' ? 'giveaway' : 'swap';
         const courseLine = post.course_name ? `${post.course_code} - ${post.course_name}` : post.course_code;
         const title = `Section ${post.have_section} is available`;
-        const message = `A new ${kindLabel} for ${courseLine} (Section ${post.have_section}) — a section you're watching.`;
+        const message = `A new ${kindLabel} for ${courseLine} (Section ${post.have_section}), a section you're watching.`;
 
         // In-app notifications (one per watcher).
         const rows = watcherIds.map(uid => ({

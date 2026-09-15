@@ -208,7 +208,7 @@ export default function PostCard({
                 {showInterest && (
                     <div className={styles.interestCluster}>
                         {interestState === 'sent' ? (
-                            <span className={styles.interestSent} title="The poster has been notified — they'll contact you">
+                            <span className={styles.interestSent} title="The poster has been notified and will contact you">
                                 Sent
                             </span>
                         ) : (

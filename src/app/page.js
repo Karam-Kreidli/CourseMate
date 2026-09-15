@@ -364,7 +364,7 @@ export default function DashboardPage() {
                                 <>
                                     <div className={styles.statDivider} />
                                     <StatBig
-                                        value={latestScheduleCredits ?? '—'}
+                                        value={latestScheduleCredits ?? '-'}
                                         label="Credits"
                                         sub="In latest schedule"
                                         tone="accent"

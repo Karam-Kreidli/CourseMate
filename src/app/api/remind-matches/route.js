@@ -48,8 +48,8 @@ function emailHtml({ recipientName, courseLine, hours, appUrl }) {
                 </p>
                 <p style="font-size: 16px; line-height: 1.5; margin: 0 0 24px 0;">
                     You have a pending swap match for <strong>${safeCourseLine}</strong> that you haven't
-                    responded to. It expires in about <strong>${hours} hour${hours === 1 ? '' : 's'}</strong> —
-                    after that the match dissolves for everyone in it.
+                    responded to. It expires in about <strong>${hours} hour${hours === 1 ? '' : 's'}</strong>.
+                    After that the match dissolves for everyone in it.
                 </p>
                 <div style="text-align: center;">
                     <a href="${safeAppUrl}/matches"

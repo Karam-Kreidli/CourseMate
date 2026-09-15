@@ -88,7 +88,7 @@ export async function POST(request) {
         const label = nameOf.get(s.course_code)
             ? `${s.course_code} - ${nameOf.get(s.course_code)}`
             : s.course_code;
-        const when = s.class_time ? ` — ${s.class_time}` : '';
+        const when = s.class_time ? ` · ${s.class_time}` : '';
         const who = s.instructor ? `, ${s.instructor}` : '';
         return `${label} (Section ${s.section_num}, CRN ${s.crn})${when}${who}`;
     };

@@ -71,7 +71,7 @@ export async function POST(request) {
         const label = nameOf.get(s.course_code)
             ? `${s.course_code} - ${nameOf.get(s.course_code)}`
             : s.course_code;
-        return `${label} (Section ${s.section_num}, CRN ${s.crn}) — ${s.seats_available} seat${s.seats_available === 1 ? '' : 's'} open`;
+        return `${label} (Section ${s.section_num}, CRN ${s.crn}): ${s.seats_available} seat${s.seats_available === 1 ? '' : 's'} open`;
     };
 
     const userIds = [...perUser.keys()];
@@ -119,7 +119,7 @@ export async function POST(request) {
                 html: `<p>Hi ${escapeHtml(r.name || 'Student')},</p>
 <p>A section you're watching has seats available:</p>
 <ul>${items}</ul>
-<p>Seats move quickly — check the registration portal to enrol.</p>
+<p>Seats move quickly, so check the registration portal to enrol.</p>
 <p><a href="${escapeHtml(appUrl)}/schedule">Open CourseMate</a></p>`
             }).catch(() => null);
         }));
