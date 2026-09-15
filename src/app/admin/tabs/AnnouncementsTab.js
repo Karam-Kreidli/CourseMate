@@ -215,7 +215,7 @@ function DismissedList({ announcementId, count }) {
                     {users && users.map(u => (
                         <div key={u.id} style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', lineHeight: 1.35 }}>
                             <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{u.name || '(no name)'}</span>
-                            {' · '}{u.student_id || '—'}{' · '}{u.email || '—'}
+                            {' · '}{u.student_id || 'no ID'}{' · '}{u.email || 'no email'}
                         </div>
                     ))}
                 </div>
@@ -360,7 +360,7 @@ function UserPicker({ value, onChange, picked, setPicked }) {
                             <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
                                 <span style={{ fontWeight: 700 }}>{u.name || '(no name)'}</span>
                                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                                    {u.student_id || '—'} · {u.email || '—'}
+                                    {u.student_id || 'no ID'} · {u.email || 'no email'}
                                 </span>
                             </span>
                         </button>
@@ -426,7 +426,7 @@ function AnnouncementsMain() {
                     <RichTextEditor
                         value={form.body_html}
                         onChange={(html) => update({ body_html: html })}
-                        placeholder="Describe the update — paste images, add links, format lists…"
+                        placeholder="Describe the update. Paste images, add links, format lists…"
                     />
                 </div>
 
@@ -453,7 +453,7 @@ function AnnouncementsMain() {
                 </div>
 
                 <div className={styles.fieldGroup}>
-                    <label className={styles.fieldLabel}>Targeting — current: {targetingSummary}</label>
+                    <label className={styles.fieldLabel}>Targeting (current: {targetingSummary})</label>
                     <p className={styles.previewMuted} style={{ textAlign: 'left', padding: 0 }}>
                         Leave a section empty to skip that filter. Filters within a section are OR; across sections, AND.
                     </p>

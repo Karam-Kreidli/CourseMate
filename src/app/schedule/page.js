@@ -1635,7 +1635,7 @@ export default function SchedulePage() {
                                                 {loadingCourseIds.has(c.course_id) && <span className={styles.spinner} style={{ width: 12, height: 12, borderWidth: 2, marginLeft: 8 }}></span>}
                                             </div>
                                             <div className={styles.courseChipActions}>
-                                                <button className={`${styles.xorToggle} ${xorCourseIds.has(c.course_id) ? styles.xorToggleActive : ''}`} onClick={() => toggleXor(c.course_id)} title="Exclusive Or — only one XOR course will appear per schedule">XOR</button>
+                                                <button className={`${styles.xorToggle} ${xorCourseIds.has(c.course_id) ? styles.xorToggleActive : ''}`} onClick={() => toggleXor(c.course_id)} title="Exclusive Or: only one XOR course will appear per schedule">XOR</button>
                                                 <button className={styles.removeBtn} onClick={() => removeCourse(c.course_id)}>×</button>
                                             </div>
                                         </div>
@@ -1843,7 +1843,7 @@ export default function SchedulePage() {
 
                                             return (
                                                 <div key={c.course_id} className={styles.prefCourseItem}>
-                                                    <div className={styles.prefCourseName}>{c.course_id} — {c.name}</div>
+                                                    <div className={styles.prefCourseName}>{c.course_id} · {c.name}</div>
                                                     {instructors.length > 1 && (
                                                         <div className={styles.prefGroup}>
                                                             <span className={styles.prefLabel}>Preferred Instructor</span>
@@ -1875,7 +1875,7 @@ export default function SchedulePage() {
                                                                     const baseNum = getBaseSection(s.section_num);
                                                                     return (
                                                                         <option key={baseNum} value={baseNum}>
-                                                                            Section {baseNum}{s.class_time ? ` — ${s.class_time}` : ''}{s.instructor ? ` — ${s.instructor}` : ''}{(() => { const q = seatStatus(s); return q ? ` — ${q.label}` : ''; })()}
+                                                                            Section {baseNum}{s.class_time ? ` · ${s.class_time}` : ''}{s.instructor ? ` · ${s.instructor}` : ''}{(() => { const q = seatStatus(s); return q ? ` · ${q.label}` : ''; })()}
                                                                         </option>
                                                                     );
                                                                 })}
@@ -1889,7 +1889,7 @@ export default function SchedulePage() {
                                                                 <option value="">Any lab</option>
                                                                 {labSections.map(s => (
                                                                     <option key={s.section_num} value={s.section_num}>
-                                                                        Lab {s.section_num}{s.class_time ? ` — ${s.class_time}` : ''}{s.instructor ? ` — ${s.instructor}` : ''}{(() => { const q = seatStatus(s); return q ? ` — ${q.label}` : ''; })()}
+                                                                        Lab {s.section_num}{s.class_time ? ` · ${s.class_time}` : ''}{s.instructor ? ` · ${s.instructor}` : ''}{(() => { const q = seatStatus(s); return q ? ` · ${q.label}` : ''; })()}
                                                                     </option>
                                                                 ))}
                                                             </select>

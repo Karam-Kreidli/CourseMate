@@ -166,7 +166,7 @@ export default function CourseEditModal({ course, majors, onClose, onSaved }) {
                 {basket && (
                     <div className={styles.fieldGroup}>
                         <label className={styles.fieldLabel}>
-                            Restrict to majors {restricted.length === 0 ? '(none — shared with all majors)' : `(${restricted.length})`}
+                            Restrict to majors {restricted.length === 0 ? '(none, shared with all majors)' : `(${restricted.length})`}
                         </label>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                             {(majors || []).map(m => (

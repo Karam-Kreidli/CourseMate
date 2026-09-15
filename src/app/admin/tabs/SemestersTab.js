@@ -230,7 +230,7 @@ function SemestersMain() {
                                             type="button"
                                             className={styles.windowClear}
                                             disabled={savingWindow === s.term_code}
-                                            title="Clear the window — stops the seat refresh for this semester"
+                                            title="Clear the window. This stops the seat refresh for this semester"
                                             onClick={() => {
                                                 handleWindow(s.term_code, 'registration_starts_at', '');
                                                 handleWindow(s.term_code, 'registration_ends_at', '');

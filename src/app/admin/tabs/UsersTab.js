@@ -182,7 +182,7 @@ function UsersMain() {
                                         {u.gender && <span className={styles.badge}>{u.gender}</span>}
                                     </div>
                                     <div className={styles.rowMeta}>
-                                        {u.email || '—'} · {u.student_id || 'no ID'} · {u.phone || 'no phone'}
+                                        {u.email || 'no email'} · {u.student_id || 'no ID'} · {u.phone || 'no phone'}
                                     </div>
                                 </div>
                                 <div className={styles.rowActions}>
