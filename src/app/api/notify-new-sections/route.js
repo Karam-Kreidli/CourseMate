@@ -99,7 +99,11 @@ export async function POST(request) {
 
     const userIds = [...perUser.keys()];
 
-    await admin.from('notifications').insert(userIds.map(uid => {
+    // Checked, not fire-and-forget: this insert once failed on every row (the
+    // notification_type enum lacked 'new_section') while the route went on to
+    // report students as notified. A failure here must reach sync-sections,
+    // which logs any non-2xx.
+    const { error: insertErr } = await admin.from('notifications').insert(userIds.map(uid => {
         const { list } = perUser.get(uid);
         return {
             user_id: uid,
@@ -109,6 +113,9 @@ export async function POST(request) {
             data: { reason: 'new_section', term_code: termCode, sections: list },
         };
     }));
+    if (insertErr) {
+        return NextResponse.json({ error: insertErr.message, notified: 0 }, { status: 500 });
+    }
 
     // Email and push are the narrow channel: students actively planning the
     // course, who have not opted out.
