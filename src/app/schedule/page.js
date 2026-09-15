@@ -527,6 +527,9 @@ export default function SchedulePage() {
     const [restoringFromSave, setRestoringFromSave] = useState(false);
     const [xorCourseIds, setXorCourseIds] = useState(new Set());
     const [isSavingSchedule, setIsSavingSchedule] = useState(false);
+    // course_id -> [cart course ids Banner lists as its prerequisites]. UOS
+    // files corequisites in the same list, so this only ever drives a warning.
+    const [prereqMap, setPrereqMap] = useState({});
     const router = useRouter();
     const supabase = createClient();
     const { selectedTerm } = useSemester();
@@ -553,6 +556,33 @@ export default function SchedulePage() {
         })();
         return () => { cancelled = true; };
     }, [selectedTerm]);
+
+    // Prerequisite pairs inside the cart: a course and one it lists as a
+    // prerequisite, both selected. Filtering both ends to the cart keeps this
+    // to the handful of rows that can actually warn.
+    const cartCourseKey = selectedCourses
+        .map(c => c.course_id).filter(id => !id.startsWith('BASKET_')).sort().join(',');
+    useEffect(() => {
+        const ids = cartCourseKey ? cartCourseKey.split(',') : [];
+        if (!selectedTerm || ids.length < 2) { setPrereqMap({}); return; }
+        let cancelled = false;
+        (async () => {
+            const { data, error } = await supabase
+                .from('course_prerequisites')
+                .select('course_id, required_course_id')
+                .eq('term_code', selectedTerm)
+                .in('course_id', ids)
+                .in('required_course_id', ids);
+            if (cancelled) return;
+            if (error || !data) { setPrereqMap({}); return; }
+            const map = {};
+            for (const row of data) {
+                (map[row.course_id] = map[row.course_id] || []).push(row.required_course_id);
+            }
+            setPrereqMap(map);
+        })();
+        return () => { cancelled = true; };
+    }, [selectedTerm, cartCourseKey]);
 
     useEffect(() => {
         if (!selectedTerm || !profile) return;
@@ -1515,6 +1545,16 @@ export default function SchedulePage() {
         return m;
     }, [selectedCourses, extraCourseCredits]);
 
+    // Warning text for a course whose listed prerequisite is also in the cart.
+    const prereqNote = (courseId) => {
+        const names = (prereqMap[courseId] || []).map(id => courseNameMap[id] || id);
+        if (names.length === 0) return null;
+        const one = names.length === 1;
+        const list = one ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+        return `${list} ${one ? 'is' : 'are'} listed as ${one ? 'a prerequisite' : 'prerequisites'}. `
+            + `Taking both together only works if ${one ? "it's a co-requisite" : "they're co-requisites"} — check before you register.`;
+    };
+
     // Close dropdown on outside click
     useEffect(() => {
         const handler = () => setShowDropdown(false);
@@ -1601,7 +1641,11 @@ export default function SchedulePage() {
                         <div className={styles.compactBar}>
                             <div className={styles.compactCourses}>
                                 {selectedCourses.map(c => (
-                                    <span key={c.course_id} className={styles.compactChip}>{c.course_id}</span>
+                                    <span
+                                        key={c.course_id}
+                                        className={`${styles.compactChip} ${prereqMap[c.course_id] ? styles.compactChipPrereq : ''}`}
+                                        title={prereqNote(c.course_id) || undefined}
+                                    >{c.course_id}</span>
                                 ))}
                             </div>
                             <button className={styles.editCoursesBtn} onClick={() => setResults(null)}>Edit Courses</button>
@@ -1633,6 +1677,16 @@ export default function SchedulePage() {
                                                 <span className={styles.courseChipName}>{c.name}</span>
                                                 <span className={styles.courseChipId}>{c.course_id}</span>
                                                 {loadingCourseIds.has(c.course_id) && <span className={styles.spinner} style={{ width: 12, height: 12, borderWidth: 2, marginLeft: 8 }}></span>}
+                                                {prereqMap[c.course_id] && (
+                                                    <span className={styles.prereqNote}>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                                            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
+                                                            <path d="M12 9v4" />
+                                                            <path d="M12 17h.01" />
+                                                        </svg>
+                                                        <span>{prereqNote(c.course_id)}</span>
+                                                    </span>
+                                                )}
                                             </div>
                                             <div className={styles.courseChipActions}>
                                                 <button className={`${styles.xorToggle} ${xorCourseIds.has(c.course_id) ? styles.xorToggleActive : ''}`} onClick={() => toggleXor(c.course_id)} title="Exclusive Or — only one XOR course will appear per schedule">XOR</button>

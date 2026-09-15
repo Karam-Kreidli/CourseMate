@@ -277,6 +277,38 @@
     font-weight: 500;
 }
 
+/* A cart course whose listed prerequisite is also in the cart. A note, not an
+   error: UOS files corequisites in the same Banner list. Amber matches
+   .fullWarning. */
+.prereqNote {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin-top: 6px;
+    font-size: 0.71875rem;
+    font-weight: 500;
+    line-height: 1.4;
+    color: #D97706;
+}
+
+.prereqNote svg {
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.compactChipPrereq {
+    background: rgba(245, 158, 11, 0.15);
+    color: #D97706;
+    cursor: help;
+}
+
+[data-theme="dark"] .prereqNote,
+[data-theme="black"] .prereqNote,
+[data-theme="dark"] .compactChipPrereq,
+[data-theme="black"] .compactChipPrereq {
+    color: #FBBF24;
+}
+
 .emptyCourses {
     text-align: center;
     padding: 24px;
