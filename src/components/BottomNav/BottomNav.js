@@ -22,7 +22,7 @@ const isActiveRoute = (pathname, href) =>
 
 export default function BottomNav() {
     const pathname = usePathname();
-    const unread = useUnreadCount();
+    const unread = useUnreadCount('activity');
     const postActive = isActiveRoute(pathname, '/post');
 
     const renderItem = (item) => {

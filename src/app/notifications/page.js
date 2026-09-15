@@ -18,7 +18,7 @@ function timeAgo(dateString) {
 
 function linkFor(n) {
     if (!n?.type) return null;
-    if (n.type.startsWith('match')) return '/matches';
+    if (n.type.startsWith('match') || n.type === 'reminder') return '/matches';
     if (n.type === 'interest_received' || n.type === 'watch_alert' || n.type === 'giveaway_posted') return '/browse';
     if (n.type === 'new_section') return '/schedule';
     return null;
