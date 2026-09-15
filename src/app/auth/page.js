@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
-import ThemeToggle from '@/components/ThemeToggle';
 import { EyeIcon, EyeOffIcon } from '@/components/Icons';
 import styles from './auth.module.css';
 
@@ -216,11 +215,6 @@ export default function AuthPage() {
     return (
         <div className={styles.container}>
             <div className={`${styles.card} ${transitioning ? styles.cardFadeOut : ''}`}>
-                <div className={styles.themeToggleWrapper}>
-                    {/* Compact: the picker sits in the card's corner, where the
-                        four labelled options would run into the logo. */}
-                    <ThemeToggle compact />
-                </div>
                 {/* Logo */}
                 <div className={styles.logoWrapper}>
                     <div className={styles.logoFrame}>
