@@ -2191,11 +2191,31 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                                             .map((block, bi) => {
                                                 const top = (block.start - startHour * 60) * PX_PER_MIN;
                                                 const height = (block.end - block.start) * PX_PER_MIN;
+                                                // Course and section take two lines (about 30px with
+                                                // padding); the name gets whatever whole lines remain,
+                                                // so nothing is ever sliced through the middle.
+                                                const nameLines = Math.floor((height - 30) / 11);
+                                                const tint = bgColors[block.colorIdx];
                                                 return (
-                                                    <div key={bi} className={styles.ttBlock} style={{ top, height, background: bgColors[block.colorIdx], borderLeftColor: colors[block.colorIdx], color: colors[block.colorIdx] }}>
+                                                    <div
+                                                        key={bi}
+                                                        className={styles.ttBlock}
+                                                        title={`${block.courseId}${block.courseName ? ` ${block.courseName}` : ''}, section ${block.sectionNum}`}
+                                                        style={{
+                                                            top,
+                                                            height,
+                                                            // The tint over a solid base, so nothing behind the
+                                                            // block shows through its text.
+                                                            background: `linear-gradient(${tint}, ${tint}), var(--bg-secondary)`,
+                                                            borderLeftColor: colors[block.colorIdx],
+                                                            color: colors[block.colorIdx],
+                                                        }}
+                                                    >
                                                         <span className={styles.ttBlockCourse}>{block.courseId}</span>
-                                                        {block.courseName && <span className={styles.ttBlockName}>{block.courseName}</span>}
-                                                        <span className={styles.ttBlockSection}>{block.sectionNum}</span>
+                                                        {block.courseName && nameLines > 0 && (
+                                                            <span className={styles.ttBlockName} style={{ WebkitLineClamp: nameLines }}>{block.courseName}</span>
+                                                        )}
+                                                        {height >= 24 && <span className={styles.ttBlockSection}>{block.sectionNum}</span>}
                                                     </div>
                                                 );
                                             })}

@@ -274,6 +274,75 @@
     font-weight: 600;
 }
 
+/* Office hours from Find My Prof. Dashed and hatched so they never read as a
+   class; left and width come from the component, which splits the column
+   when slots overlap. */
+.officeBlock {
+    position: absolute;
+    border: 1.5px dashed var(--color-accent);
+    border-radius: 6px;
+    background: var(--bg-secondary);
+    color: var(--color-accent);
+    padding: 3px 4px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    line-height: 1.3;
+    overflow: hidden;
+    z-index: 2;
+    cursor: help;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.officeBlock::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(135deg, currentColor 0 1px, transparent 1px 7px);
+    opacity: 0.14;
+    pointer-events: none;
+}
+
+/* Wraps to "Office / hours" in a narrow phone column rather than cutting off;
+   the component sets the line clamp from the block's height. */
+.officeBlock > div {
+    position: relative;
+    max-width: 100%;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.instructorOffice {
+    margin-top: 2px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+/* Credit for Find My Prof, in its own box ahead of the note. The dashed edge
+   matches the office-hour blocks it is crediting. */
+.attribution {
+    margin: 0 0 8px;
+    padding: 8px 12px;
+    background: var(--bg-secondary);
+    border: 1px dashed var(--color-accent);
+    border-radius: var(--radius-sm);
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.attribution a {
+    color: var(--color-accent);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    overflow-wrap: anywhere;
+}
+
 .blockList {
     margin-top: 16px;
     display: flex;
