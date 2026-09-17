@@ -354,7 +354,11 @@ export default function InstructorFinder() {
     };
 
     // Find My Prof sometimes holds a placeholder like "M5-XXX" instead of a room.
-    const officeLocation = officeHours?.office && !/x{2,}/i.test(officeHours.office) ? officeHours.office : null;
+    // It files offices under M5/W5, the same buildings students know as A9/C9
+    // (and that its own office-hour rooms use), so the room is shown that way.
+    const officeLocation = officeHours?.office && !/x{2,}/i.test(officeHours.office)
+        ? officeHours.office.replace(/^(M5|W5)-/, (_, building) => (building === 'M5' ? 'A9-' : 'C9-'))
+        : null;
     const hasOfficeHours = (officeHours?.hours?.length || 0) > 0;
 
     return (
@@ -394,7 +398,7 @@ export default function InstructorFinder() {
                                 <div className={styles.resultsHeader}>
                                     <div>
                                         <div className={styles.instructorName}>{decodeHtmlEntities(selectedInstructor)}</div>
-                                        {officeLocation && <div className={styles.instructorOffice}>Office {officeLocation}</div>}
+                                        {officeLocation && <div className={styles.instructorOffice}>{officeLocation}</div>}
                                     </div>
                                 </div>
 
