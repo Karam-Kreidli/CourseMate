@@ -322,10 +322,10 @@
     color: var(--text-secondary);
 }
 
-/* Credit for Find My Prof, in its own box ahead of the note. The dashed edge
-   matches the office-hour blocks it is crediting. */
+/* Credit for Find My Prof, in its own box below the course list. The dashed
+   edge matches the office-hour blocks it is crediting. */
 .attribution {
-    margin: 0 0 8px;
+    margin: 16px 0 0;
     padding: 8px 12px;
     background: var(--bg-secondary);
     border: 1px dashed var(--color-accent);

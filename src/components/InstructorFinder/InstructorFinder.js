@@ -402,13 +402,6 @@ export default function InstructorFinder() {
                                     </div>
                                 </div>
 
-                                {officeHours && (
-                                    <p className={styles.attribution}>
-                                        Office hours and office locations come from Find My Prof. You can find them at{' '}
-                                        <a href={FIND_MY_PROF_URL} target="_blank" rel="noopener noreferrer">uos-findmyprof.vercel.app</a>.
-                                    </p>
-                                )}
-
                                 <p className={styles.disclaimer}>
                                     {hasOfficeHours
                                         ? <>Note: this timetable shows class times and office hours only. Meetings and other activities aren&rsquo;t shown.</>
@@ -430,6 +423,13 @@ export default function InstructorFinder() {
                                         </div>
                                     ))}
                                 </div>
+
+                                {officeHours && (
+                                    <p className={styles.attribution}>
+                                        Office hours and office locations come from Find My Prof. You can find them at{' '}
+                                        <a href={FIND_MY_PROF_URL} target="_blank" rel="noopener noreferrer">uos-findmyprof.vercel.app</a>.
+                                    </p>
+                                )}
                             </div>
                         )}
 
