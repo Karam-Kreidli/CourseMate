@@ -2056,7 +2056,6 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [cardOpen, setCardOpen] = useState(!initiallyCollapsed);
     const [exporting, setExporting] = useState(false);
-    const { selectedTerm, semesters } = useSemester();
 
     // Compute total credit hours for this schedule
     const totalCredits = schedule.reduce((sum, group) => {
@@ -2076,7 +2075,6 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                     courseId: group.courseId,
                     courseName: courseNameMap[group.courseId] || courseNameMap[group.originalCourseId] || null,
                     sectionNum: sec.section_num,
-                    crn: sec.crn || null,
                     instructor: sec.instructor || null,
                     location: sec.location || null,
                     colorIdx: courseIdx % 8,
@@ -2124,15 +2122,8 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
     const handleExportPng = async () => {
         setExporting(true);
         try {
-            const semesterName = semesters?.find(s => s.term_code === selectedTerm)?.name;
-            const courseCount = schedule.length;
             await downloadSchedulePng({
                 title: Number.isInteger(rank) ? `Schedule #${rank}` : String(rank),
-                subtitle: [
-                    semesterName,
-                    totalCredits > 0 && `${totalCredits} credit hours`,
-                    `${courseCount} ${courseCount === 1 ? 'course' : 'courses'}`,
-                ].filter(Boolean).join('  ·  '),
                 blocks,
                 // Sections with no set meeting time have no block to carry
                 // their details, so the image lists them under the grid.
@@ -2141,8 +2132,6 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                     .map(sec => ({
                         courseId: sec.course_id,
                         courseName: courseNameMap[sec.course_id] || null,
-                        sectionNum: sec.section_num,
-                        crn: sec.crn,
                     }))),
                 fileName: `coursemate-schedule-${Number.isInteger(rank) ? rank : 'export'}.png`,
             });
