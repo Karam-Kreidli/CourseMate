@@ -759,6 +759,37 @@
     gap: 8px;
 }
 
+/* Export as PNG. Negative margins keep the header row the height it was
+   before the button, while the tap target stays 28px. */
+.exportBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    margin: -4px -6px -4px 0;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    /* Icons.js strokes with var(--icon-color), set site-wide in globals.css;
+       following the button's color lets hover turn it green. */
+    --icon-color: currentColor;
+    cursor: pointer;
+    transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.exportBtn:hover:not(:disabled) {
+    color: var(--color-accent);
+    background: rgba(0, 195, 137, 0.1);
+}
+
+.exportBtn:disabled {
+    opacity: 0.5;
+    cursor: wait;
+}
+
 .scheduleCredits {
     font-size: 0.75rem;
     font-weight: 600;
@@ -809,35 +840,14 @@
     border-top: 1px solid var(--border-color);
     display: flex;
     justify-content: center;
-    gap: 8px;
 }
 
-.saveFooter > button {
-    flex: 1;
-    min-width: 0;
+.saveFooter .saveBtn {
+    width: 100%;
 }
 
-.exportBtn {
-    padding: 6px 14px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    background: transparent;
-    color: var(--text-secondary);
-    font-size: 0.75rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    white-space: nowrap;
-}
-
-.exportBtn:hover:not(:disabled) {
-    border-color: var(--color-accent);
-    color: var(--color-accent);
-}
-
-.exportBtn:disabled {
-    opacity: 0.7;
-    cursor: wait;
+.saveFooter .unsaveBtn {
+    width: 100%;
 }
 
 .savedHeader {

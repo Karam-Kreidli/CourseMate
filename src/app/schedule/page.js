@@ -9,7 +9,7 @@ import { useSemester } from '@/lib/SemesterContext';
 import PageShell from '@/components/PageShell';
 import PageHeader from '@/components/PageHeader';
 import InstructorFinder from '@/components/InstructorFinder';
-import { ScheduleIcon, UserCheckIcon } from '@/components/Icons';
+import { ScheduleIcon, UserCheckIcon, DownloadIcon } from '@/components/Icons';
 import { decodeHtmlEntities } from '@/lib/text';
 import { downloadSchedulePng } from '@/lib/schedulePng';
 import styles from './schedule.module.css';
@@ -2165,6 +2165,16 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                 <div className={styles.scheduleCardMeta}>
                     {totalCredits > 0 && <span className={styles.scheduleCredits}>{totalCredits} cr</span>}
                     <span className={styles.scheduleScore}>Score: {Math.round(score)}</span>
+                    <button
+                        type="button"
+                        className={styles.exportBtn}
+                        onClick={(e) => { e.stopPropagation(); handleExportPng(); }}
+                        disabled={exporting}
+                        title="Export as PNG"
+                        aria-label="Export this schedule as a PNG"
+                    >
+                        <DownloadIcon width={15} height={15} />
+                    </button>
                 </div>
             </div>
 
@@ -2331,21 +2341,21 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                     </div>
                 )}
 
-                <div className={styles.saveFooter}>
-                    {onSave && !isSaved && (
+                {onSave && !isSaved && (
+                    <div className={styles.saveFooter}>
                         <button className={styles.saveBtn} onClick={onSave} disabled={isSavingSchedule}>
                             {isSavingSchedule ? <span className={styles.spinner} style={{ width: 14, height: 14, borderWidth: 2, borderColor: '#fff', borderTopColor: 'transparent' }}></span> : 'Save Schedule'}
                         </button>
-                    )}
-                    {isSaved && onUnsave && (
+                    </div>
+                )}
+
+                {isSaved && onUnsave && (
+                    <div className={styles.saveFooter}>
                         <button className={styles.unsaveBtn} onClick={onUnsave} disabled={isSavingSchedule} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                             Unsave
                         </button>
-                    )}
-                    <button className={styles.exportBtn} onClick={handleExportPng} disabled={exporting}>
-                        {exporting ? 'Preparing image…' : 'Export PNG'}
-                    </button>
-                </div>
+                    </div>
+                )}
             </>)}
         </div>
     );
