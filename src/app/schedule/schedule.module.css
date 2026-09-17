@@ -745,6 +745,12 @@
     font-size: 0.8125rem;
     font-weight: 800;
     color: var(--color-accent);
+    /* A schedule the student named can be long; it gives way to the credits
+       and score rather than wrapping the row onto two lines. */
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .scheduleScore {
@@ -757,6 +763,8 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    flex: none;
+    white-space: nowrap;
 }
 
 /* Export as PNG. Negative margins keep the header row the height it was
@@ -847,6 +855,7 @@
     border-top: 1px solid var(--border-color);
     display: flex;
     justify-content: center;
+    gap: 8px;
 }
 
 .saveFooter .saveBtn {
@@ -855,6 +864,32 @@
 
 .saveFooter .unsaveBtn {
     width: 100%;
+}
+
+/* Naming a schedule puts an input in the same footer, so the buttons beside it
+   take only the room they need. */
+.saveNameInput {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+.saveNameInput:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px var(--color-accent-muted);
+}
+
+.saveFooter .saveNameInput ~ .saveBtn,
+.saveFooter .saveNameInput ~ .unsaveBtn {
+    width: auto;
+    flex: 0 0 auto;
 }
 
 .savedHeader {

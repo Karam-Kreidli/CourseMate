@@ -752,6 +752,7 @@ export default function SchedulePage() {
 
             computedSchedules.push({
                 dbId: dbObj.id,
+                name: dbObj.name || null,
                 schedule: reconstructedGroups,
                 score,
                 warnings: updatedWarnings,
@@ -777,7 +778,7 @@ export default function SchedulePage() {
         return map;
     }, [dbSavedSchedules]);
 
-    const handleSaveSchedule = async (resultToSave) => {
+    const handleSaveSchedule = async (resultToSave, name) => {
         if (isSavingSchedule) return;
 
         const newSig = getScheduleSignature(resultToSave.schedule);
@@ -807,7 +808,7 @@ export default function SchedulePage() {
 
             const { error: saveError } = await supabase
                 .from('saved_schedules')
-                .insert([{ user_id: profile.id, schedule_data: scheduleData, term_code: selectedTerm }]);
+                .insert([{ user_id: profile.id, schedule_data: scheduleData, term_code: selectedTerm, name: name?.trim().slice(0, 60) || null }]);
 
             if (saveError) {
                 setError('Database Error: ' + saveError.message);
@@ -1639,7 +1640,7 @@ export default function SchedulePage() {
                                 <ScheduleCard
                                     key={savedObj.dbId}
                                     result={savedObj}
-                                    rank={i + 1}
+                                    rank={savedObj.name || `Saved schedule ${i + 1}`}
                                     courseNameMap={courseNameMap}
                                     courseCreditsMap={courseCreditsMap}
                                     selectedCourses={savedObj.storedSelectedCourses}
@@ -2003,7 +2004,7 @@ export default function SchedulePage() {
                                             courseNameMap={courseNameMap}
                                             courseCreditsMap={courseCreditsMap}
                                             selectedCourses={selectedCourses}
-                                            onSave={isSaved ? null : () => handleSaveSchedule(result)}
+                                            onSave={isSaved ? null : (name) => handleSaveSchedule(result, name)}
                                             onUnsave={isSaved ? () => handleDeleteSavedSchedule(dbId) : null}
                                             isSaved={isSaved}
                                             initiallyCollapsed={false}
@@ -2057,6 +2058,8 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
     const [cardOpen, setCardOpen] = useState(!initiallyCollapsed);
     const [exporting, setExporting] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [naming, setNaming] = useState(false);
+    const [saveName, setSaveName] = useState('');
 
     // Compute total credit hours for this schedule
     const totalCredits = schedule.reduce((sum, group) => {
@@ -2362,12 +2365,37 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                     </div>
                 )}
 
-                {onSave && !isSaved && (
+                {onSave && !isSaved && !naming && (
                     <div className={styles.saveFooter}>
-                        <button className={styles.saveBtn} onClick={onSave} disabled={isSavingSchedule}>
-                            {isSavingSchedule ? <span className={styles.spinner} style={{ width: 14, height: 14, borderWidth: 2, borderColor: '#fff', borderTopColor: 'transparent' }}></span> : 'Save Schedule'}
+                        <button className={styles.saveBtn} onClick={() => setNaming(true)} disabled={isSavingSchedule}>
+                            Save Schedule
                         </button>
                     </div>
+                )}
+
+                {/* Three saved schedules all called "Saved schedule 2" help nobody,
+                    so saving asks what to call this one. */}
+                {onSave && !isSaved && naming && (
+                    <form
+                        className={styles.saveFooter}
+                        onSubmit={(e) => { e.preventDefault(); onSave(saveName); }}
+                    >
+                        <input
+                            className={styles.saveNameInput}
+                            value={saveName}
+                            onChange={(e) => setSaveName(e.target.value)}
+                            placeholder="Name this schedule"
+                            maxLength={60}
+                            autoFocus
+                            disabled={isSavingSchedule}
+                        />
+                        <button type="submit" className={styles.saveBtn} disabled={isSavingSchedule || !saveName.trim()}>
+                            {isSavingSchedule ? <span className={styles.spinner} style={{ width: 14, height: 14, borderWidth: 2, borderColor: '#fff', borderTopColor: 'transparent' }}></span> : 'Save'}
+                        </button>
+                        <button type="button" className={styles.unsaveBtn} onClick={() => setNaming(false)} disabled={isSavingSchedule}>
+                            Cancel
+                        </button>
+                    </form>
                 )}
 
                 {isSaved && onUnsave && (
