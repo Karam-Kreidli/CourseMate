@@ -336,7 +336,7 @@ export default function DashboardPage() {
                         <span className={styles.quickActionLabel}>Browse</span>
                         <span className={styles.quickActionSub}>See active posts from your major</span>
                     </Link>
-                    <Link href="/instructors" className={styles.quickAction}>
+                    <Link href="/schedule?mode=instructor" className={styles.quickAction}>
                         <span className={styles.quickActionIcon}><UserCheckIcon width={20} height={20} /></span>
                         <span className={styles.quickActionLabel}>Find instructor</span>
                         <span className={styles.quickActionSub}>Compare schedules across faculty</span>

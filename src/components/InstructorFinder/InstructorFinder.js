@@ -71,9 +71,10 @@ for (let h = 8; h <= 20; h++) {
 /**
  * Instructor timetable lookup.
  *
- * Rendered both as the /instructors route and as the "Find instructor" mode of
- * the Schedule page — it answers the same question the builder does (when does
- * this happen), so it sits beside it as a peer rather than in a settings menu.
+ * Rendered only as the "Find instructor" mode of the Schedule page
+ * (/schedule?mode=instructor; the old /instructors route redirects there). It
+ * answers the same question the builder does (when does this happen), so it
+ * sits beside it as a peer rather than in a settings menu.
  */
 export default function InstructorFinder() {
     const [searchQuery, setSearchQuery] = useState('');

@@ -1,18 +1,9 @@
-'use client';
-
-import PageShell from '@/components/PageShell';
-import PageHeader from '@/components/PageHeader';
-import InstructorFinder from '@/components/InstructorFinder';
+import { redirect } from 'next/navigation';
 
 /**
- * Kept as its own route so the Home quick action and existing bookmarks still
- * resolve. The same finder is also a mode of the Schedule page.
+ * The instructor finder lives on the Schedule page, as its "Find instructor"
+ * mode. This route only keeps old links and bookmarks working.
  */
 export default function InstructorsPage() {
-    return (
-        <PageShell>
-            <PageHeader title="Instructor Schedule" />
-            <InstructorFinder />
-        </PageShell>
-    );
+    redirect('/schedule?mode=instructor');
 }
