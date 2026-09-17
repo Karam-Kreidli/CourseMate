@@ -1,13 +1,16 @@
 /**
  * A schedule as a PNG. Drawn straight onto a canvas from the schedule's data
  * rather than screenshotting the card, so the image comes out the same on every
- * device and theme, and it carries what a student needs at registration (CRNs,
- * times, rooms, instructors), which the card keeps behind "Show details".
+ * device and theme. Each class block carries what a student needs at
+ * registration (time, room, section, CRN, instructor), so there is no separate
+ * list repeating the timetable.
  */
 import { decodeHtmlEntities } from '@/lib/text';
 
-// The schedule card's course colors, in the same order.
+// The schedule card's course colors, in the same order. Text uses a darker
+// shade of each, since amber or teal text on its own tint is hard to read.
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'];
+const TEXT_COLORS = ['#1D4ED8', '#047857', '#B45309', '#B91C1C', '#6D28D9', '#BE185D', '#0F766E', '#C2410C'];
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu'];
 
 // Light theme values from globals.css. An image gets shared and printed, so it
@@ -24,15 +27,21 @@ const PANEL = '#FFFFFF';
 const SANS = 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const MONO = '"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace';
 
-const WIDTH = 1000;
 const SCALE = 2;
-const PAD = 40;
-const AXIS = 64;
+const PAD = 36;
+const AXIS = 56;
 const DAY_HEADER = 40;
-const PX_PER_MIN = 1.1;
+// Space above the first hour line and below the last, so their labels are not
+// cut in half by the panel's edges.
+const BODY_PAD = 12;
+// Columns keep one width, so the image only gets wider with more days.
+const COL_W = 160;
+// A 75-minute class is 120px: room for the code, a two-line name, and the
+// time, room, section and instructor lines.
+const PX_PER_MIN = 1.6;
 
-function colorFor(idx) {
-    return COLORS[(((idx || 0) % COLORS.length) + COLORS.length) % COLORS.length];
+function paletteIndex(idx) {
+    return (((idx || 0) % COLORS.length) + COLORS.length) % COLORS.length;
 }
 
 function withAlpha(hex, alpha) {
@@ -41,9 +50,14 @@ function withAlpha(hex, alpha) {
 }
 
 function hourLabel(h) {
-    const period = h >= 12 ? 'PM' : 'AM';
-    const display = h > 12 ? h - 12 : h === 0 ? 12 : h;
+    const period = h >= 12 && h < 24 ? 'PM' : 'AM';
+    const display = h % 12 === 0 ? 12 : h % 12;
     return `${display} ${period}`;
+}
+
+// 24-hour, to match class times like "Mon/Wed 11:00-12:15" elsewhere on the site.
+function clock(minutes) {
+    return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
 }
 
 function roundedRect(ctx, x, y, w, h, r) {
@@ -88,103 +102,143 @@ function wrap(ctx, text, maxWidth, maxLines = Infinity) {
     return lines.map(l => fit(ctx, l, maxWidth));
 }
 
-function detailText(row) {
-    return [
-        row.sectionNum && `Section ${row.sectionNum}`,
-        row.crn && `CRN ${row.crn}`,
-        row.classTime,
-        row.instructor && decodeHtmlEntities(row.instructor),
-        row.location,
-    ].filter(Boolean).join('  ·  ');
+const ID_FONT = `700 13px ${MONO}`;
+const NAME_FONT = `600 11.5px ${SANS}`;
+const TIME_FONT = `600 11px ${SANS}`;
+const DETAIL_FONT = `500 11px ${SANS}`;
+const ID_LINE = 18;
+const LINE_H = 14;
+
+/**
+ * The lines one class block shows. When the block is too short for all of
+ * them, lines are kept in priority order (code, time, first name line, CRN,
+ * room, instructor, second name line) and then drawn in reading order.
+ */
+function blockLines(ctx, block, textWidth, room) {
+    ctx.font = NAME_FONT;
+    const nameLines = block.courseName ? wrap(ctx, block.courseName, textWidth, 2) : [];
+    const lines = [
+        { key: 'name0', order: 1, priority: 2, text: nameLines[0], font: NAME_FONT, color: INK },
+        { key: 'name1', order: 2, priority: 6, text: nameLines[1], font: NAME_FONT, color: INK },
+        { key: 'time', order: 3, priority: 1, text: `${clock(block.start)}-${clock(block.end)}`, font: TIME_FONT, color: INK },
+        { key: 'room', order: 4, priority: 4, text: block.location, font: DETAIL_FONT, color: INK_SECONDARY },
+        { key: 'crn', order: 5, priority: 3, text: [block.sectionNum && `Sec ${block.sectionNum}`, block.crn && `CRN ${block.crn}`].filter(Boolean).join(' · '), font: DETAIL_FONT, color: INK_SECONDARY },
+        { key: 'prof', order: 6, priority: 5, text: block.instructor && decodeHtmlEntities(block.instructor), font: DETAIL_FONT, color: INK_SECONDARY },
+    ].filter(l => l.text);
+
+    const fitsLines = Math.max(0, Math.floor((room - ID_LINE) / LINE_H));
+    const kept = [...lines].sort((a, b) => a.priority - b.priority).slice(0, fitsLines);
+    // A second name line without the first would read as a stray fragment.
+    const keys = new Set(kept.map(l => l.key));
+    return kept
+        .filter(l => l.key !== 'name1' || keys.has('name0'))
+        // A name cut to one line says so, rather than passing for the full name.
+        .map(l => (l.key === 'name0' && nameLines[1] && !keys.has('name1') ? { ...l, text: `${l.text}…` } : l))
+        .sort((a, b) => a.order - b.order);
 }
 
-function drawSchedule({ title, subtitle, blocks, rows }) {
+function drawSchedule({ title, subtitle, blocks, unscheduled }) {
     const days = DAYS.filter(d => blocks.some(b => b.day === d));
-    const startHour = Math.floor(Math.min(...blocks.map(b => b.start)) / 60);
-    const endHour = Math.ceil(Math.max(...blocks.map(b => b.end)) / 60);
-    const gridHeight = (endHour - startHour) * 60 * PX_PER_MIN;
-    const inner = WIDTH - PAD * 2;
+    // An hour of margin either side, so the day does not look cut off at the
+    // first and last class.
+    const startHour = Math.max(0, Math.floor(Math.min(...blocks.map(b => b.start)) / 60) - 1);
+    const endHour = Math.min(24, Math.ceil(Math.max(...blocks.map(b => b.end)) / 60) + 1);
+    const gridHeight = (endHour - startHour) * 60 * PX_PER_MIN + BODY_PAD * 2;
+    const gridWidth = AXIS + days.length * COL_W;
+    const width = Math.max(gridWidth + PAD * 2, 560);
+    const inner = width - PAD * 2;
 
     // Work out every height first; a canvas cannot grow once drawn on.
     const measure = document.createElement('canvas').getContext('2d');
-    measure.font = `500 14px ${SANS}`;
-    const listRows = rows.map(row => ({ ...row, details: wrap(measure, detailText(row), inner - 40) }));
+    measure.font = `500 13px ${SANS}`;
+    const extraLines = unscheduled.length
+        ? unscheduled.flatMap(sec => wrap(measure, [
+            sec.courseId,
+            sec.courseName,
+            sec.sectionNum && `Sec ${sec.sectionNum}`,
+            sec.crn && `CRN ${sec.crn}`,
+        ].filter(Boolean).join(' · '), inner))
+        : [];
 
-    const gridTop = PAD + 80;
-    const listTop = gridTop + DAY_HEADER + gridHeight + 36;
-    let y = listTop + 30;
-    listRows.forEach(row => {
-        row.y = y;
-        row.h = 14 + 22 + row.details.length * 20 + 12;
-        y += row.h + 10;
-    });
-    const footerY = y + 8;
+    const gridTop = PAD + 74;
+    let y = gridTop + DAY_HEADER + gridHeight + 22;
+    const extraTop = y;
+    if (extraLines.length) y += 22 + extraLines.length * 19 + 12;
+    const footerY = y;
     const height = footerY + 16 + PAD;
 
     const canvas = document.createElement('canvas');
-    canvas.width = WIDTH * SCALE;
+    canvas.width = width * SCALE;
     canvas.height = Math.ceil(height * SCALE);
     const ctx = canvas.getContext('2d');
     ctx.scale(SCALE, SCALE);
     ctx.textBaseline = 'top';
 
     ctx.fillStyle = PAGE;
-    ctx.fillRect(0, 0, WIDTH, height);
+    ctx.fillRect(0, 0, width, height);
 
     // Header: title and summary, CourseMate on the right.
-    ctx.fillStyle = INK;
-    ctx.font = `800 30px ${SANS}`;
-    ctx.fillText(fit(ctx, title, inner - 180), PAD, PAD);
-    ctx.fillStyle = INK_SECONDARY;
-    ctx.font = `500 16px ${SANS}`;
-    ctx.fillText(fit(ctx, subtitle, inner), PAD, PAD + 42);
     ctx.fillStyle = ACCENT;
-    ctx.font = `800 18px ${SANS}`;
+    ctx.font = `800 16px ${SANS}`;
     ctx.textAlign = 'right';
-    ctx.fillText('CourseMate', WIDTH - PAD, PAD + 8);
+    ctx.fillText('CourseMate', width - PAD, PAD + 8);
+    const brandWidth = ctx.measureText('CourseMate').width;
     ctx.textAlign = 'left';
+    ctx.fillStyle = INK;
+    ctx.font = `800 28px ${SANS}`;
+    ctx.fillText(fit(ctx, title, inner - brandWidth - 16), PAD, PAD);
+    ctx.fillStyle = INK_SECONDARY;
+    ctx.font = `500 15px ${SANS}`;
+    ctx.fillText(fit(ctx, subtitle, inner), PAD, PAD + 38);
 
-    // Timetable panel.
-    const bodyTop = gridTop + DAY_HEADER;
-    const colW = (inner - AXIS) / days.length;
+    // Timetable panel, centred when the header is wider than the grid.
+    const gx = PAD + Math.floor((inner - gridWidth) / 2);
+    const bodyTop = gridTop + DAY_HEADER + BODY_PAD;
     ctx.save();
-    roundedRect(ctx, PAD, gridTop, inner, DAY_HEADER + gridHeight, 14);
+    roundedRect(ctx, gx, gridTop, gridWidth, DAY_HEADER + gridHeight, 14);
     ctx.fillStyle = PANEL;
     ctx.fill();
     ctx.clip();
     ctx.fillStyle = LINE_SOFT;
-    ctx.fillRect(PAD, gridTop, inner, DAY_HEADER);
+    ctx.fillRect(gx, gridTop, gridWidth, DAY_HEADER);
+    ctx.fillStyle = LINE;
+    ctx.fillRect(gx, gridTop + DAY_HEADER - 1, gridWidth, 1);
 
-    for (let h = startHour; h < endHour; h++) {
+    for (let h = startHour; h <= endHour; h++) {
         const lineY = bodyTop + (h - startHour) * 60 * PX_PER_MIN;
+        if (h < endHour) {
+            ctx.fillStyle = LINE_SOFT;
+            ctx.fillRect(gx + AXIS, lineY + 30 * PX_PER_MIN, gridWidth - AXIS, 1);
+        }
         ctx.fillStyle = LINE;
-        ctx.fillRect(PAD, lineY, inner, 1);
-        ctx.fillStyle = LINE_SOFT;
-        ctx.fillRect(PAD + AXIS, lineY + 30 * PX_PER_MIN, inner - AXIS, 1);
+        ctx.fillRect(gx + AXIS - 6, lineY, gridWidth - AXIS + 6, 1);
+        // Labels sit on their hour line, as on the site's own timetable.
         ctx.fillStyle = INK_MUTED;
-        ctx.font = `600 12px ${SANS}`;
+        ctx.font = `600 11px ${SANS}`;
         ctx.textAlign = 'right';
-        ctx.fillText(hourLabel(h), PAD + AXIS - 10, lineY + 6);
+        ctx.textBaseline = 'middle';
+        ctx.fillText(hourLabel(h), gx + AXIS - 10, lineY);
         ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
     }
 
     days.forEach((day, i) => {
-        const colX = PAD + AXIS + i * colW;
+        const colX = gx + AXIS + i * COL_W;
         ctx.fillStyle = LINE;
         ctx.fillRect(colX, gridTop, 1, DAY_HEADER + gridHeight);
         ctx.fillStyle = INK_SECONDARY;
         ctx.font = `700 14px ${SANS}`;
         ctx.textAlign = 'center';
-        ctx.fillText(day, colX + colW / 2, gridTop + 13);
+        ctx.fillText(day, colX + COL_W / 2, gridTop + 13);
         ctx.textAlign = 'left';
     });
 
     blocks.forEach(block => {
         const col = days.indexOf(block.day);
         if (col === -1) return;
-        const color = colorFor(block.colorIdx);
-        const bx = PAD + AXIS + col * colW + 4;
-        const bw = colW - 8;
+        const color = COLORS[paletteIndex(block.colorIdx)];
+        const bx = gx + AXIS + col * COL_W + 4;
+        const bw = COL_W - 7;
         const by = bodyTop + (block.start - startHour * 60) * PX_PER_MIN + 1;
         const bh = (block.end - block.start) * PX_PER_MIN - 2;
 
@@ -192,81 +246,46 @@ function drawSchedule({ title, subtitle, blocks, rows }) {
         roundedRect(ctx, bx, by, bw, bh, 8);
         ctx.fillStyle = PANEL;
         ctx.fill();
-        ctx.fillStyle = withAlpha(color, 0.14);
+        ctx.fillStyle = withAlpha(color, 0.16);
         ctx.fill();
         ctx.clip();
         ctx.fillStyle = color;
         ctx.fillRect(bx, by, 4, bh);
 
-        const tx = bx + 12;
-        const tw = bw - 18;
-        ctx.fillStyle = color;
-        ctx.font = `700 14px ${MONO}`;
-        ctx.fillText(fit(ctx, block.courseId, tw), tx, by + 8);
-
-        // The section line sits at the bottom; the name takes the whole lines
-        // left between, so text is never cut through the middle.
-        const bottomLine = [block.sectionNum && `Sec ${block.sectionNum}`, block.location].filter(Boolean).join('  ·  ');
-        const hasBottom = bottomLine && bh >= 48;
-        const nameTop = by + 28;
-        const nameBottom = hasBottom ? by + bh - 26 : by + bh - 6;
-        if (block.courseName) {
-            ctx.fillStyle = INK;
-            ctx.font = `600 12px ${SANS}`;
-            wrap(ctx, block.courseName, tw, Math.floor((nameBottom - nameTop) / 16)).forEach((line, li) => {
-                ctx.fillText(line, tx, nameTop + li * 16);
-            });
-        }
-        if (hasBottom) {
-            ctx.fillStyle = INK_SECONDARY;
-            ctx.font = `600 12px ${SANS}`;
-            ctx.fillText(fit(ctx, bottomLine, tw), tx, by + bh - 22);
-        }
+        const tx = bx + 11;
+        const tw = bw - 17;
+        let ty = by + 7;
+        ctx.fillStyle = TEXT_COLORS[paletteIndex(block.colorIdx)];
+        ctx.font = ID_FONT;
+        ctx.fillText(fit(ctx, block.courseId, tw), tx, ty);
+        ty += ID_LINE;
+        blockLines(ctx, block, tw, bh - 13).forEach(line => {
+            ctx.fillStyle = line.color;
+            ctx.font = line.font;
+            ctx.fillText(fit(ctx, line.text, tw), tx, ty);
+            ty += LINE_H;
+        });
         ctx.restore();
     });
     ctx.restore();
 
     ctx.strokeStyle = LINE;
     ctx.lineWidth = 1;
-    roundedRect(ctx, PAD + 0.5, gridTop + 0.5, inner - 1, DAY_HEADER + gridHeight - 1, 14);
+    roundedRect(ctx, gx + 0.5, gridTop + 0.5, gridWidth - 1, DAY_HEADER + gridHeight - 1, 14);
     ctx.stroke();
 
-    // Section list.
-    ctx.fillStyle = INK_MUTED;
-    ctx.font = `700 13px ${SANS}`;
-    ctx.fillText('SECTIONS', PAD, listTop);
-
-    listRows.forEach(row => {
-        const color = colorFor(row.colorIdx);
-        ctx.save();
-        roundedRect(ctx, PAD, row.y, inner, row.h, 10);
-        ctx.fillStyle = PANEL;
-        ctx.fill();
-        ctx.strokeStyle = LINE;
-        ctx.stroke();
-        ctx.clip();
-        ctx.fillStyle = color;
-        ctx.fillRect(PAD, row.y, 5, row.h);
-        ctx.restore();
-
-        const tx = PAD + 22;
-        ctx.fillStyle = color;
-        ctx.font = `700 15px ${MONO}`;
-        ctx.fillText(row.courseId, tx, row.y + 14);
-        const idWidth = ctx.measureText(row.courseId).width;
-        if (row.courseName) {
-            ctx.fillStyle = INK;
-            ctx.font = `700 15px ${SANS}`;
-            ctx.fillText(fit(ctx, row.courseName, inner - 40 - idWidth - 10), tx + idWidth + 10, row.y + 14);
-        }
+    if (extraLines.length) {
+        ctx.fillStyle = INK_MUTED;
+        ctx.font = `700 12px ${SANS}`;
+        ctx.fillText('NO SET TIME', PAD, extraTop);
         ctx.fillStyle = INK_SECONDARY;
-        ctx.font = `500 14px ${SANS}`;
-        row.details.forEach((line, li) => ctx.fillText(line, tx, row.y + 36 + li * 20));
-    });
+        ctx.font = `500 13px ${SANS}`;
+        extraLines.forEach((line, i) => ctx.fillText(line, PAD, extraTop + 22 + i * 19));
+    }
 
     ctx.fillStyle = INK_MUTED;
-    ctx.font = `500 12px ${SANS}`;
-    ctx.fillText('Made with CourseMate. Seats and times can change, so check Banner before you register.', PAD, footerY);
+    ctx.font = `500 11px ${SANS}`;
+    ctx.fillText(fit(ctx, 'Made with CourseMate. Seats and times can change, so check Banner before you register.', inner), PAD, footerY);
 
     return canvas;
 }
@@ -298,19 +317,19 @@ async function deliver(blob, fileName, title) {
 /**
  * Draws the schedule and saves it as a PNG.
  *
- * blocks: [{ day, start, end, courseId, courseName, sectionNum, location, colorIdx }]
- *         with start and end in minutes after midnight.
- * rows:   [{ courseId, courseName, sectionNum, crn, classTime, instructor, location, colorIdx }]
+ * blocks:      [{ day, start, end, courseId, courseName, sectionNum, crn, instructor, location, colorIdx }]
+ *              with start and end in minutes after midnight.
+ * unscheduled: [{ courseId, courseName, sectionNum, crn }] for sections with no set time.
  */
-export async function downloadSchedulePng({ title, subtitle, blocks, rows, fileName }) {
+export async function downloadSchedulePng({ title, subtitle, blocks, unscheduled = [], fileName }) {
     if (!blocks.length) return;
     // The page already uses these fonts; waiting makes sure the canvas does too.
     if (document.fonts?.load) {
         await Promise.all(
-            [`800 30px ${SANS}`, `600 12px ${SANS}`, `700 14px ${MONO}`].map(f => document.fonts.load(f).catch(() => null)),
+            [`800 28px ${SANS}`, `600 11px ${SANS}`, `500 11px ${SANS}`, ID_FONT].map(f => document.fonts.load(f).catch(() => null)),
         );
     }
-    const canvas = drawSchedule({ title, subtitle, blocks, rows });
+    const canvas = drawSchedule({ title, subtitle, blocks, unscheduled });
     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
     if (!blob) throw new Error('The browser could not create the image.');
     await deliver(blob, fileName, title);

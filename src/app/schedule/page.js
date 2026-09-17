@@ -2076,6 +2076,8 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                     courseId: group.courseId,
                     courseName: courseNameMap[group.courseId] || courseNameMap[group.originalCourseId] || null,
                     sectionNum: sec.section_num,
+                    crn: sec.crn || null,
+                    instructor: sec.instructor || null,
                     location: sec.location || null,
                     colorIdx: courseIdx % 8,
                 });
@@ -2132,19 +2134,16 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                     `${courseCount} ${courseCount === 1 ? 'course' : 'courses'}`,
                 ].filter(Boolean).join('  ·  '),
                 blocks,
-                rows: schedule.flatMap(group => {
-                    const courseIdx = selectedCourses.findIndex(c => c.course_id === (group.originalCourseId || group.courseId));
-                    return group.sections.map(sec => ({
+                // Sections with no set meeting time have no block to carry
+                // their details, so the image lists them under the grid.
+                unscheduled: schedule.flatMap(group => group.sections
+                    .filter(sec => parseClassTime(sec.class_time).length === 0)
+                    .map(sec => ({
                         courseId: sec.course_id,
                         courseName: courseNameMap[sec.course_id] || null,
                         sectionNum: sec.section_num,
                         crn: sec.crn,
-                        classTime: sec.class_time,
-                        instructor: sec.instructor,
-                        location: sec.location,
-                        colorIdx: courseIdx % 8,
-                    }));
-                }),
+                    }))),
                 fileName: `coursemate-schedule-${Number.isInteger(rank) ? rank : 'export'}.png`,
             });
         } catch (err) {
