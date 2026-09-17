@@ -759,6 +759,37 @@
     gap: 8px;
 }
 
+/* Export as PNG. Negative margins keep the header row the height it was
+   before the button, while the tap target stays 28px. */
+.exportBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    margin: -4px -6px -4px 0;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    /* Icons.js strokes with var(--icon-color), set site-wide in globals.css;
+       following the button's color lets hover turn it green. */
+    --icon-color: currentColor;
+    cursor: pointer;
+    transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.exportBtn:hover:not(:disabled) {
+    color: var(--color-accent);
+    background: rgba(0, 195, 137, 0.1);
+}
+
+.exportBtn:disabled {
+    opacity: 0.5;
+    cursor: wait;
+}
+
 .scheduleCredits {
     font-size: 0.75rem;
     font-weight: 600;

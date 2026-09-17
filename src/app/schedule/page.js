@@ -9,8 +9,9 @@ import { useSemester } from '@/lib/SemesterContext';
 import PageShell from '@/components/PageShell';
 import PageHeader from '@/components/PageHeader';
 import InstructorFinder from '@/components/InstructorFinder';
-import { ScheduleIcon, UserCheckIcon } from '@/components/Icons';
+import { ScheduleIcon, UserCheckIcon, DownloadIcon } from '@/components/Icons';
 import { decodeHtmlEntities } from '@/lib/text';
+import { downloadSchedulePng } from '@/lib/schedulePng';
 import styles from './schedule.module.css';
 
 // ===== TIME PARSING UTILITIES =====
@@ -2054,6 +2055,7 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
     const { schedule, score, warnings } = result;
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [cardOpen, setCardOpen] = useState(!initiallyCollapsed);
+    const [exporting, setExporting] = useState(false);
 
     // Compute total credit hours for this schedule
     const totalCredits = schedule.reduce((sum, group) => {
@@ -2073,6 +2075,8 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                     courseId: group.courseId,
                     courseName: courseNameMap[group.courseId] || courseNameMap[group.originalCourseId] || null,
                     sectionNum: sec.section_num,
+                    instructor: sec.instructor || null,
+                    location: sec.location || null,
                     colorIdx: courseIdx % 8,
                 });
             });
@@ -2115,6 +2119,30 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
             return seats && seats.tone === 'full';
         });
 
+    const handleExportPng = async () => {
+        setExporting(true);
+        try {
+            await downloadSchedulePng({
+                title: Number.isInteger(rank) ? `Schedule #${rank}` : String(rank),
+                blocks,
+                // Sections with no set meeting time have no block to carry
+                // their details, so the image lists them under the grid.
+                unscheduled: schedule.flatMap(group => group.sections
+                    .filter(sec => parseClassTime(sec.class_time).length === 0)
+                    .map(sec => ({
+                        courseId: sec.course_id,
+                        courseName: courseNameMap[sec.course_id] || null,
+                    }))),
+                fileName: `coursemate-schedule-${Number.isInteger(rank) ? rank : 'export'}.png`,
+            });
+        } catch (err) {
+            console.error('PNG export failed:', err);
+            window.alert('Could not create the image. Please try again.');
+        } finally {
+            setExporting(false);
+        }
+    };
+
     return (
         <div className={styles.scheduleCard}>
             <div className={styles.scheduleCardHeader} onClick={() => setCardOpen(!cardOpen)} style={{ cursor: 'pointer', userSelect: 'none' }}>
@@ -2125,6 +2153,16 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                 <div className={styles.scheduleCardMeta}>
                     {totalCredits > 0 && <span className={styles.scheduleCredits}>{totalCredits} cr</span>}
                     <span className={styles.scheduleScore}>Score: {Math.round(score)}</span>
+                    <button
+                        type="button"
+                        className={styles.exportBtn}
+                        onClick={(e) => { e.stopPropagation(); handleExportPng(); }}
+                        disabled={exporting}
+                        title="Export as PNG"
+                        aria-label="Export this schedule as a PNG"
+                    >
+                        <DownloadIcon width={15} height={15} />
+                    </button>
                 </div>
             </div>
 
