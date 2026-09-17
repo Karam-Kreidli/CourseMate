@@ -955,13 +955,16 @@
     text-overflow: ellipsis;
 }
 
+/* Wraps to as many whole lines as the block has room for; page.js sets the
+   line clamp from the block's height. */
 .ttBlockName {
     font-weight: 500;
     opacity: 0.75;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     font-size: 0.5rem;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
 }
 
 .ttBlockSection {
@@ -975,14 +978,13 @@
 /* Office hours from Find My Prof. An outline with a faint hatch rather than a
    filled block, so it never reads as a class, and it sits behind the classes:
    where the two clash, the class is what shows. */
+/* left and width come from page.js, which splits the column when slots overlap. */
 .ttOfficeBlock {
     position: absolute;
-    left: 2px;
-    right: 2px;
     border-radius: 5px;
     border: 1.5px dashed;
     background: var(--bg-secondary);
-    padding: 3px 4px;
+    padding: 2px 4px;
     font-size: 0.5625rem;
     line-height: 1.3;
     overflow: hidden;
@@ -1107,15 +1109,19 @@
     text-overflow: ellipsis;
 }
 
+/* Wraps between items rather than clipping at the edge: on a phone the time,
+   instructor and room used to be cut off mid-word. Each item stays whole. */
 .detailMeta {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 6px;
+    gap: 2px 6px;
     font-size: 0.6875rem;
     color: var(--text-secondary);
+}
+
+.detailMeta > span {
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .detailSep {

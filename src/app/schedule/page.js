@@ -2164,7 +2164,51 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
             }));
         });
     });
-    const gridBlocks = showOfficeHours ? [...blocks, ...officeBlocks] : blocks;
+    // Office hours only fill time the schedule leaves free. The part of a slot
+    // that clashes with a class is cut away (a student in class cannot go), and
+    // slots that overlap each other share the column side by side instead of
+    // printing on top of one another.
+    const officeSegments = [];
+    if (showOfficeHours) {
+        const byDay = {};
+        officeBlocks.forEach(b => { (byDay[b.day] = byDay[b.day] || []).push(b); });
+        Object.entries(byDay).forEach(([day, list]) => {
+            const classes = blocks.filter(b => b.day === day).sort((a, b) => a.start - b.start);
+            const pieces = [];
+            list.forEach(b => {
+                let cursor = b.start;
+                for (const c of classes) {
+                    if (c.end <= cursor || c.start >= b.end) continue;
+                    // Gaps under 20 minutes would only draw an empty sliver.
+                    if (c.start - cursor >= 20) pieces.push({ ...b, start: cursor, end: c.start });
+                    cursor = Math.max(cursor, c.end);
+                }
+                if (b.end - cursor >= 20) pieces.push({ ...b, start: cursor, end: b.end });
+            });
+
+            pieces.sort((a, b) => (a.start - b.start) || (a.end - b.end));
+            let cluster = [];
+            let clusterEnd = -1;
+            const flush = () => {
+                const laneEnds = [];
+                cluster.forEach(p => {
+                    let lane = laneEnds.findIndex(end => end <= p.start);
+                    if (lane === -1) { lane = laneEnds.length; laneEnds.push(p.end); } else laneEnds[lane] = p.end;
+                    p.lane = lane;
+                });
+                cluster.forEach(p => { p.lanes = laneEnds.length; officeSegments.push(p); });
+                cluster = [];
+                clusterEnd = -1;
+            };
+            pieces.forEach(p => {
+                if (cluster.length && p.start >= clusterEnd) flush();
+                cluster.push(p);
+                clusterEnd = Math.max(clusterEnd, p.end);
+            });
+            if (cluster.length) flush();
+        });
+    }
+    const gridBlocks = [...blocks, ...officeSegments];
 
     // Find which days are used
     const usedDays = [...new Set(gridBlocks.map(b => b.day))];
@@ -2284,25 +2328,33 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                                             <div key={`half-${h}`} className={`${styles.ttGridLine} ${styles.ttGridLineHalf}`} style={{ top: ((h - startHour) * 60 + 30) * PX_PER_MIN }} />
                                         ))}
 
-                                        {/* Office hours, behind the classes */}
-                                        {showOfficeHours && officeBlocks
+                                        {/* Office hours, in the free time between classes */}
+                                        {officeSegments
                                             .filter(b => b.day === day)
-                                            .map((block, bi) => (
-                                                <div
-                                                    key={`oh-${bi}`}
-                                                    className={styles.ttOfficeBlock}
-                                                    title={block.title}
-                                                    style={{
-                                                        top: (block.start - startHour * 60) * PX_PER_MIN,
-                                                        height: (block.end - block.start) * PX_PER_MIN,
-                                                        borderColor: colors[block.colorIdx],
-                                                        color: colors[block.colorIdx],
-                                                    }}
-                                                >
-                                                    <span className={styles.ttBlockCourse}>Office hours</span>
-                                                    <span className={styles.ttBlockSection}>{block.surname}</span>
-                                                </div>
-                                            ))}
+                                            .map((block, bi) => {
+                                                const height = (block.end - block.start) * PX_PER_MIN;
+                                                const width = 100 / block.lanes;
+                                                return (
+                                                    <div
+                                                        key={`oh-${bi}`}
+                                                        className={styles.ttOfficeBlock}
+                                                        title={block.title}
+                                                        style={{
+                                                            top: (block.start - startHour * 60) * PX_PER_MIN,
+                                                            height,
+                                                            left: `calc(${block.lane * width}% + 2px)`,
+                                                            width: `calc(${width}% - 4px)`,
+                                                            borderColor: colors[block.colorIdx],
+                                                            color: colors[block.colorIdx],
+                                                        }}
+                                                    >
+                                                        {/* Only the lines that fit; the full text is in the tooltip. */}
+                                                        {/* Side-by-side slots are too narrow for the label; the hatch says it. */}
+                                                        {height >= 30 && block.lanes === 1 && <span className={styles.ttBlockCourse}>Office hours</span>}
+                                                        {height >= 14 && <span className={styles.ttBlockSection}>{block.surname}</span>}
+                                                    </div>
+                                                );
+                                            })}
 
                                         {/* Class blocks */}
                                         {blocks
@@ -2310,11 +2362,31 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                                             .map((block, bi) => {
                                                 const top = (block.start - startHour * 60) * PX_PER_MIN;
                                                 const height = (block.end - block.start) * PX_PER_MIN;
+                                                // Course and section take two lines (about 30px with
+                                                // padding); the name gets whatever whole lines remain,
+                                                // so nothing is ever sliced through the middle.
+                                                const nameLines = Math.floor((height - 30) / 11);
+                                                const tint = bgColors[block.colorIdx];
                                                 return (
-                                                    <div key={bi} className={styles.ttBlock} style={{ top, height, background: bgColors[block.colorIdx], borderLeftColor: colors[block.colorIdx], color: colors[block.colorIdx] }}>
+                                                    <div
+                                                        key={bi}
+                                                        className={styles.ttBlock}
+                                                        title={`${block.courseId}${block.courseName ? ` ${block.courseName}` : ''}, section ${block.sectionNum}`}
+                                                        style={{
+                                                            top,
+                                                            height,
+                                                            // The tint over a solid base, so nothing behind the
+                                                            // block shows through its text.
+                                                            background: `linear-gradient(${tint}, ${tint}), var(--bg-secondary)`,
+                                                            borderLeftColor: colors[block.colorIdx],
+                                                            color: colors[block.colorIdx],
+                                                        }}
+                                                    >
                                                         <span className={styles.ttBlockCourse}>{block.courseId}</span>
-                                                        {block.courseName && <span className={styles.ttBlockName}>{block.courseName}</span>}
-                                                        <span className={styles.ttBlockSection}>{block.sectionNum}</span>
+                                                        {block.courseName && nameLines > 0 && (
+                                                            <span className={styles.ttBlockName} style={{ WebkitLineClamp: nameLines }}>{block.courseName}</span>
+                                                        )}
+                                                        {height >= 24 && <span className={styles.ttBlockSection}>{block.sectionNum}</span>}
                                                     </div>
                                                 );
                                             })}
