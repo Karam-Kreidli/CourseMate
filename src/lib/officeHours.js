@@ -1,8 +1,8 @@
 /**
  * Office hours from Find My Prof (uos-findmyprof.vercel.app). fetch-office-hours.js
  * stores them in the faculty and faculty_office_hours tables, and they join to
- * sections through sections.instructor_email. Shared by the schedule builder
- * and the instructor finder so both read and draw them the same way.
+ * sections through sections.instructor_email. Shown in Schedule's
+ * "Find instructor" mode.
  */
 
 // Find My Prof numbers days 1 = Monday ... 7 = Sunday. Days the timetables have
@@ -20,22 +20,11 @@ export function formatClock(minutes) {
     return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
 }
 
-// "Mon/Wed 11:00-12:40 (A9-219); Tue 09:30-11:00 (A9-219)"
-export function describeOfficeHours(entry) {
-    return entry.hours
-        .map(h => {
-            const days = h.days.map(d => OFFICE_HOUR_DAYS[d]).filter(Boolean).join('/');
-            if (!days) return null;
-            return `${days} ${formatClock(h.start)}-${formatClock(h.end)}${h.location ? ` (${h.location})` : ''}`;
-        })
-        .filter(Boolean)
-        .join('; ');
-}
-
 /**
  * email -> { name, office, hours: [{ days, start, end, location }] } for the
- * given instructor emails. Only instructors Find My Prof lists with weekly
- * hours still running appear; entries past their end date are last semester's.
+ * given instructor emails. Every instructor Find My Prof lists appears, with
+ * `hours` empty when they post none; entries past their end date are last
+ * semester's and are left out.
  */
 export async function fetchOfficeHours(supabase, emails) {
     const list = [...new Set((emails || []).filter(Boolean))];
@@ -59,9 +48,8 @@ export async function fetchOfficeHours(supabase, emails) {
             location: h.location,
         });
     }
-    for (const email of Object.keys(map)) {
-        if (map[email].hours.length === 0) delete map[email];
-        else map[email].hours.sort((a, b) => (a.days[0] - b.days[0]) || (a.start - b.start));
+    for (const entry of Object.values(map)) {
+        entry.hours.sort((a, b) => (a.days[0] - b.days[0]) || (a.start - b.start));
     }
     return map;
 }

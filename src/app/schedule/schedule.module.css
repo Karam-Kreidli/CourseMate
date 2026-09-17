@@ -975,67 +975,6 @@
     text-overflow: ellipsis;
 }
 
-/* Office hours from Find My Prof. An outline with a faint hatch rather than a
-   filled block, so it never reads as a class, and it sits behind the classes:
-   where the two clash, the class is what shows. */
-/* left and width come from page.js, which splits the column when slots overlap. */
-.ttOfficeBlock {
-    position: absolute;
-    border-radius: 5px;
-    border: 1.5px dashed;
-    background: var(--bg-secondary);
-    padding: 2px 4px;
-    font-size: 0.5625rem;
-    line-height: 1.3;
-    overflow: hidden;
-    z-index: 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    cursor: help;
-}
-
-.ttOfficeBlock::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image: repeating-linear-gradient(135deg, currentColor 0 1px, transparent 1px 7px);
-    opacity: 0.14;
-    pointer-events: none;
-}
-
-.ttOfficeBlock > span {
-    position: relative;
-}
-
-.ohToggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    margin: 10px 16px 0;
-    padding: 4px 10px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-full);
-    background: var(--bg-secondary);
-    color: var(--text-secondary);
-    font-size: 0.6875rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: border-color var(--transition-fast), color var(--transition-fast);
-}
-
-.ohToggle:hover {
-    border-color: var(--color-accent);
-    color: var(--color-accent);
-}
-
-.ohSwatch {
-    width: 12px;
-    height: 9px;
-    border: 1.5px dashed currentColor;
-    border-radius: 2px;
-}
-
 /* Course colors */
 .courseColor0 { background: rgba(59, 130, 246, 0.15); border-color: #3B82F6; color: #3B82F6; }
 .courseColor1 { background: rgba(16, 185, 129, 0.15); border-color: #10B981; color: #10B981; }
@@ -1155,13 +1094,6 @@
 .detailRoom {
     font-family: 'JetBrains Mono', monospace;
     color: var(--text-secondary);
-}
-
-/* Wraps, unlike .detailMeta: an instructor can post several slots. */
-.detailOfficeHours {
-    font-size: 0.6875rem;
-    color: var(--text-muted);
-    line-height: 1.4;
 }
 
 .requestLink {

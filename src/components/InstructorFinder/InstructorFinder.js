@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useSemester } from '@/lib/SemesterContext';
 import { decodeHtmlEntities } from '@/lib/text';
-import { OFFICE_HOUR_DAYS, formatClock, describeOfficeHours, fetchOfficeHours, layoutOfficeHours } from '@/lib/officeHours';
+import { OFFICE_HOUR_DAYS, formatClock, fetchOfficeHours, layoutOfficeHours } from '@/lib/officeHours';
 import styles from './InstructorFinder.module.css';
 
 // ===== TIME PARSING UTILITIES (reused from schedule) =====
@@ -64,6 +64,9 @@ function encodeForSearch(text) {
 }
 
 const ALL_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu'];
+
+// Office hours and office locations are Find My Prof's work; credited below.
+const FIND_MY_PROF_URL = 'https://uos-findmyprof.vercel.app';
 const TIME_SLOTS = [];
 for (let h = 8; h <= 20; h++) {
     TIME_SLOTS.push(h * 60);
@@ -85,7 +88,7 @@ export default function InstructorFinder() {
     const [courseData, setCourseData] = useState({});
     const [loading, setLoading] = useState(false);
     // The selected instructor's Find My Prof entry ({ name, office, hours }),
-    // or null when they have no weekly hours posted.
+    // or null when Find My Prof does not list them.
     const [officeHours, setOfficeHours] = useState(null);
 
     const router = useRouter();
@@ -300,8 +303,7 @@ export default function InstructorFinder() {
                                                     width: `calc(${width}% - 4px)`,
                                                 }}
                                             >
-                                                {height >= 16 && <div>Office hours</div>}
-                                                {height >= 30 && block.location && <div className={styles.officeBlockRoom}>{block.location}</div>}
+                                                {height >= 16 && <div style={{ WebkitLineClamp: height >= 32 ? 2 : 1 }}>Office hours</div>}
                                             </div>
                                         );
                                     })}
@@ -351,6 +353,10 @@ export default function InstructorFinder() {
         );
     };
 
+    // Find My Prof sometimes holds a placeholder like "M5-XXX" instead of a room.
+    const officeLocation = officeHours?.office && !/x{2,}/i.test(officeHours.office) ? officeHours.office : null;
+    const hasOfficeHours = (officeHours?.hours?.length || 0) > 0;
+
     return (
                 <div className={styles.main}>
                     <div className={styles.card}>
@@ -386,20 +392,23 @@ export default function InstructorFinder() {
                         {!loading && selectedInstructor && instructorSections.length > 0 && (
                             <div style={{ marginTop: '24px' }}>
                                 <div className={styles.resultsHeader}>
-                                    <div className={styles.instructorName}>{decodeHtmlEntities(selectedInstructor)}</div>
+                                    <div>
+                                        <div className={styles.instructorName}>{decodeHtmlEntities(selectedInstructor)}</div>
+                                        {officeLocation && <div className={styles.instructorOffice}>Office {officeLocation}</div>}
+                                    </div>
                                 </div>
 
                                 {officeHours && (
-                                    <div className={styles.officeHoursLine}>
-                                        <span className={styles.officeSwatch} aria-hidden="true" />
-                                        <span>Office hours: {describeOfficeHours(officeHours)}</span>
-                                    </div>
+                                    <p className={styles.attribution}>
+                                        Office hours and office locations come from Find My Prof. You can find them at{' '}
+                                        <a href={FIND_MY_PROF_URL} target="_blank" rel="noopener noreferrer">uos-findmyprof.vercel.app</a>.
+                                    </p>
                                 )}
 
                                 <p className={styles.disclaimer}>
-                                    {officeHours
-                                        ? <>Class times come from the university. Office hours come from Find My Prof and can change, so confirm with the instructor. Meetings and other activities aren&rsquo;t shown.</>
-                                        : <>Note: this schedule reflects only the instructor&rsquo;s class times. They have no office hours posted on Find My Prof, and meetings and other activities aren&rsquo;t shown.</>}
+                                    {hasOfficeHours
+                                        ? <>Note: this timetable shows class times and office hours only. Meetings and other activities aren&rsquo;t shown.</>
+                                        : <>Note: this timetable shows only the instructor&rsquo;s class times. No office hours are posted for them, and meetings and other activities aren&rsquo;t shown.</>}
                                 </p>
 
                                 {renderTimetable()}
