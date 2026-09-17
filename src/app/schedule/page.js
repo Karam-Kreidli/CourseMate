@@ -536,6 +536,22 @@ export default function SchedulePage() {
 
     useEffect(() => { checkAuth(); }, []);
 
+    // /schedule?mode=instructor opens the finder directly. Home's quick action
+    // links here, and the old /instructors route redirects here.
+    useEffect(() => {
+        if (new URLSearchParams(window.location.search).get('mode') === 'instructor') setMode('instructor');
+    }, []);
+
+    // Keep the URL in step with the mode, so a refresh or a shared link lands
+    // on the same one.
+    const switchMode = (next) => {
+        setMode(next);
+        const url = new URL(window.location.href);
+        if (next === 'instructor') url.searchParams.set('mode', 'instructor');
+        else url.searchParams.delete('mode');
+        window.history.replaceState(null, '', url);
+    };
+
     // Reset state when semester changes
     // Load Banner's section pairings for the term.
     useEffect(() => {
@@ -1590,7 +1606,7 @@ export default function SchedulePage() {
                         role="tab"
                         aria-selected={mode === 'build'}
                         className={`${styles.modeBtn} ${mode === 'build' ? styles.modeBtnActive : ''}`}
-                        onClick={() => setMode('build')}
+                        onClick={() => switchMode('build')}
                     >
                         <ScheduleIcon width={16} height={16} />
                         Build schedule
@@ -1600,7 +1616,7 @@ export default function SchedulePage() {
                         role="tab"
                         aria-selected={mode === 'instructor'}
                         className={`${styles.modeBtn} ${mode === 'instructor' ? styles.modeBtnActive : ''}`}
-                        onClick={() => setMode('instructor')}
+                        onClick={() => switchMode('instructor')}
                     >
                         <UserCheckIcon width={16} height={16} />
                         Find instructor
