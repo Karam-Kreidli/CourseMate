@@ -9,9 +9,10 @@ import { useSemester } from '@/lib/SemesterContext';
 import PageShell from '@/components/PageShell';
 import PageHeader from '@/components/PageHeader';
 import InstructorFinder from '@/components/InstructorFinder';
-import { ScheduleIcon, UserCheckIcon, DownloadIcon, CopyIcon, CheckIcon } from '@/components/Icons';
+import { ScheduleIcon, UserCheckIcon, DownloadIcon, CopyIcon, CheckIcon, CalendarPlusIcon } from '@/components/Icons';
 import { decodeHtmlEntities } from '@/lib/text';
 import { downloadSchedulePng, copySchedulePng } from '@/lib/schedulePng';
+import { downloadScheduleIcs } from '@/lib/scheduleIcs';
 import styles from './schedule.module.css';
 
 // ===== TIME PARSING UTILITIES =====
@@ -2060,6 +2061,9 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
     const [copied, setCopied] = useState(false);
     const [naming, setNaming] = useState(false);
     const [saveName, setSaveName] = useState('');
+    const { selectedTerm, semesters } = useSemester();
+    // Carries the term's teaching dates, which the calendar export needs.
+    const termInfo = semesters?.find(s => s.term_code === selectedTerm);
 
     // Compute total credit hours for this schedule
     const totalCredits = schedule.reduce((sum, group) => {
@@ -2079,6 +2083,7 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                     courseId: group.courseId,
                     courseName: courseNameMap[group.courseId] || courseNameMap[group.originalCourseId] || null,
                     sectionNum: sec.section_num,
+                    crn: sec.crn || null,
                     instructor: sec.instructor || null,
                     location: sec.location || null,
                     colorIdx: courseIdx % 8,
@@ -2149,6 +2154,20 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
         }
     };
 
+    const handleExportIcs = () => {
+        const ok = downloadScheduleIcs({
+            blocks,
+            term: {
+                name: termInfo?.name,
+                classesStart: termInfo?.classes_start,
+                classesEnd: termInfo?.classes_end,
+                noClassDates: termInfo?.no_class_dates,
+            },
+            fileName: pngFileName.replace(/\.png$/, '.ics'),
+        });
+        if (!ok) window.alert('This semester has no class dates yet, so a calendar file cannot be made.');
+    };
+
     const handleCopyPng = async () => {
         setExporting(true);
         try {
@@ -2179,6 +2198,17 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                 <div className={styles.scheduleCardMeta}>
                     {totalCredits > 0 && <span className={styles.scheduleCredits}>{totalCredits} cr</span>}
                     <span className={styles.scheduleScore}>Score: {Math.round(score)}</span>
+                    {termInfo?.classes_start && termInfo?.classes_end && (
+                        <button
+                            type="button"
+                            className={styles.exportBtn}
+                            onClick={(e) => { e.stopPropagation(); handleExportIcs(); }}
+                            title="Add to a calendar"
+                            aria-label="Download this schedule as a calendar file"
+                        >
+                            <CalendarPlusIcon width={15} height={15} />
+                        </button>
+                    )}
                     <button
                         type="button"
                         className={`${styles.exportBtn} ${copied ? styles.exportBtnDone : ''}`}
