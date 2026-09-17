@@ -38,6 +38,7 @@ const COL_W = 160;
 // A 75-minute class is 120px: room for the code, a two-line name, the room
 // and the instructor, with space between them.
 const PX_PER_MIN = 1.6;
+const DAY_START_HOUR = 8;
 
 function paletteIndex(idx) {
     return (((idx || 0) % COLORS.length) + COLORS.length) % COLORS.length;
@@ -139,8 +140,10 @@ function blockLines(ctx, block, textWidth, room) {
 function drawSchedule({ blocks, unscheduled }) {
     const days = DAYS.filter(d => blocks.some(b => b.day === d));
     // An hour of margin either side, so the day does not look cut off at the
-    // first and last class.
-    const startHour = Math.max(0, Math.floor(Math.min(...blocks.map(b => b.start)) / 60) - 1);
+    // first and last class. The top margin stops at 8 AM, when the university
+    // day starts; only a class earlier than that moves the grid up.
+    const firstHour = Math.floor(Math.min(...blocks.map(b => b.start)) / 60);
+    const startHour = Math.min(firstHour, Math.max(DAY_START_HOUR, firstHour - 1));
     const endHour = Math.min(24, Math.ceil(Math.max(...blocks.map(b => b.end)) / 60) + 1);
     const gridHeight = (endHour - startHour) * 60 * PX_PER_MIN + BODY_PAD * 2;
     const gridWidth = AXIS + days.length * COL_W;
