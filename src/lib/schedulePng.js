@@ -289,6 +289,19 @@ async function deliver(blob, fileName, title) {
     setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
+async function renderBlob({ blocks, unscheduled }) {
+    // The page already uses these fonts; waiting makes sure the canvas does too.
+    if (document.fonts?.load) {
+        await Promise.all(
+            [ID_FONT, NAME_FONT, DETAIL_FONT, FOOTER_FONT].map(f => document.fonts.load(f).catch(() => null)),
+        );
+    }
+    const canvas = drawSchedule({ blocks, unscheduled });
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    if (!blob) throw new Error('The browser could not create the image.');
+    return blob;
+}
+
 /**
  * Draws the schedule and saves it as a PNG.
  *
@@ -299,14 +312,21 @@ async function deliver(blob, fileName, title) {
  */
 export async function downloadSchedulePng({ title, blocks, unscheduled = [], fileName }) {
     if (!blocks.length) return;
-    // The page already uses these fonts; waiting makes sure the canvas does too.
-    if (document.fonts?.load) {
-        await Promise.all(
-            [ID_FONT, NAME_FONT, DETAIL_FONT, FOOTER_FONT].map(f => document.fonts.load(f).catch(() => null)),
-        );
-    }
-    const canvas = drawSchedule({ blocks, unscheduled });
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-    if (!blob) throw new Error('The browser could not create the image.');
-    await deliver(blob, fileName, title);
+    await deliver(await renderBlob({ blocks, unscheduled }), fileName, title);
+}
+
+/**
+ * Copies the schedule to the clipboard, ready to paste into a chat.
+ *
+ * Returns 'copied', or 'unsupported' when the browser has no image clipboard
+ * (Firefox, and any page not served over HTTPS), so the caller can offer the
+ * download instead.
+ */
+export async function copySchedulePng({ blocks, unscheduled = [] }) {
+    if (!blocks.length) return 'unsupported';
+    if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') return 'unsupported';
+    // Safari only allows a write during the click that asked for it, so the
+    // item takes the promise rather than a blob awaited first.
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': renderBlob({ blocks, unscheduled }) })]);
+    return 'copied';
 }

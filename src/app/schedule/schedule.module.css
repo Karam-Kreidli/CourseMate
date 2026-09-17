@@ -790,6 +790,13 @@
     cursor: wait;
 }
 
+/* Held for a moment after a copy, so the tick is not mistaken for disabled. */
+.exportBtnDone,
+.exportBtnDone:disabled {
+    color: var(--color-accent);
+    opacity: 1;
+}
+
 .scheduleCredits {
     font-size: 0.75rem;
     font-weight: 600;

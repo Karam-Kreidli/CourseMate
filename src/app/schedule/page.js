@@ -9,9 +9,9 @@ import { useSemester } from '@/lib/SemesterContext';
 import PageShell from '@/components/PageShell';
 import PageHeader from '@/components/PageHeader';
 import InstructorFinder from '@/components/InstructorFinder';
-import { ScheduleIcon, UserCheckIcon, DownloadIcon } from '@/components/Icons';
+import { ScheduleIcon, UserCheckIcon, DownloadIcon, CopyIcon, CheckIcon } from '@/components/Icons';
 import { decodeHtmlEntities } from '@/lib/text';
-import { downloadSchedulePng } from '@/lib/schedulePng';
+import { downloadSchedulePng, copySchedulePng } from '@/lib/schedulePng';
 import styles from './schedule.module.css';
 
 // ===== TIME PARSING UTILITIES =====
@@ -2056,6 +2056,7 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [cardOpen, setCardOpen] = useState(!initiallyCollapsed);
     const [exporting, setExporting] = useState(false);
+    const [copied, setCopied] = useState(false);
 
     // Compute total credit hours for this schedule
     const totalCredits = schedule.reduce((sum, group) => {
@@ -2119,25 +2120,47 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
             return seats && seats.tone === 'full';
         });
 
+    const scheduleTitle = Number.isInteger(rank) ? `Schedule #${rank}` : String(rank);
+    const exportData = {
+        blocks,
+        // Sections with no set meeting time have no block to carry their
+        // details, so the image lists them under the grid.
+        unscheduled: schedule.flatMap(group => group.sections
+            .filter(sec => parseClassTime(sec.class_time).length === 0)
+            .map(sec => ({
+                courseId: sec.course_id,
+                courseName: courseNameMap[sec.course_id] || null,
+            }))),
+    };
+    const pngFileName = `coursemate-${scheduleTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'schedule'}.png`;
+
     const handleExportPng = async () => {
         setExporting(true);
         try {
-            await downloadSchedulePng({
-                title: Number.isInteger(rank) ? `Schedule #${rank}` : String(rank),
-                blocks,
-                // Sections with no set meeting time have no block to carry
-                // their details, so the image lists them under the grid.
-                unscheduled: schedule.flatMap(group => group.sections
-                    .filter(sec => parseClassTime(sec.class_time).length === 0)
-                    .map(sec => ({
-                        courseId: sec.course_id,
-                        courseName: courseNameMap[sec.course_id] || null,
-                    }))),
-                fileName: `coursemate-schedule-${Number.isInteger(rank) ? rank : 'export'}.png`,
-            });
+            await downloadSchedulePng({ ...exportData, title: scheduleTitle, fileName: pngFileName });
         } catch (err) {
             console.error('PNG export failed:', err);
             window.alert('Could not create the image. Please try again.');
+        } finally {
+            setExporting(false);
+        }
+    };
+
+    const handleCopyPng = async () => {
+        setExporting(true);
+        try {
+            const result = await copySchedulePng(exportData);
+            // Firefox and plain HTTP have no image clipboard; the image is
+            // still worth having, so it downloads instead.
+            if (result === 'copied') {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+            } else {
+                await downloadSchedulePng({ ...exportData, title: scheduleTitle, fileName: pngFileName });
+            }
+        } catch (err) {
+            console.error('PNG copy failed:', err);
+            window.alert('Could not copy the image. Please try again.');
         } finally {
             setExporting(false);
         }
@@ -2153,6 +2176,16 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                 <div className={styles.scheduleCardMeta}>
                     {totalCredits > 0 && <span className={styles.scheduleCredits}>{totalCredits} cr</span>}
                     <span className={styles.scheduleScore}>Score: {Math.round(score)}</span>
+                    <button
+                        type="button"
+                        className={`${styles.exportBtn} ${copied ? styles.exportBtnDone : ''}`}
+                        onClick={(e) => { e.stopPropagation(); handleCopyPng(); }}
+                        disabled={exporting}
+                        title={copied ? 'Copied' : 'Copy as an image'}
+                        aria-label="Copy this schedule as an image"
+                    >
+                        {copied ? <CheckIcon width={15} height={15} /> : <CopyIcon width={15} height={15} />}
+                    </button>
                     <button
                         type="button"
                         className={styles.exportBtn}

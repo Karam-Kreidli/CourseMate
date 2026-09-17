@@ -129,6 +129,19 @@ export const UserCheckIcon = (props) => (
     </IconWrapper>
 );
 
+export const CopyIcon = (props) => (
+    <IconWrapper {...props}>
+        <rect x="9" y="9" width="12" height="12" rx="2" ry="2" />
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </IconWrapper>
+);
+
+export const CheckIcon = (props) => (
+    <IconWrapper {...props}>
+        <polyline points="20 6 9 17 4 12" />
+    </IconWrapper>
+);
+
 export const DownloadIcon = (props) => (
     <IconWrapper {...props}>
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
