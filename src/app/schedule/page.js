@@ -11,6 +11,7 @@ import PageHeader from '@/components/PageHeader';
 import InstructorFinder from '@/components/InstructorFinder';
 import { ScheduleIcon, UserCheckIcon } from '@/components/Icons';
 import { decodeHtmlEntities } from '@/lib/text';
+import { downloadSchedulePng } from '@/lib/schedulePng';
 import styles from './schedule.module.css';
 
 // ===== TIME PARSING UTILITIES =====
@@ -2054,6 +2055,8 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
     const { schedule, score, warnings } = result;
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [cardOpen, setCardOpen] = useState(!initiallyCollapsed);
+    const [exporting, setExporting] = useState(false);
+    const { selectedTerm, semesters } = useSemester();
 
     // Compute total credit hours for this schedule
     const totalCredits = schedule.reduce((sum, group) => {
@@ -2073,6 +2076,7 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                     courseId: group.courseId,
                     courseName: courseNameMap[group.courseId] || courseNameMap[group.originalCourseId] || null,
                     sectionNum: sec.section_num,
+                    location: sec.location || null,
                     colorIdx: courseIdx % 8,
                 });
             });
@@ -2114,6 +2118,42 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
             const seats = seatStatus(sec);
             return seats && seats.tone === 'full';
         });
+
+    const handleExportPng = async () => {
+        setExporting(true);
+        try {
+            const semesterName = semesters?.find(s => s.term_code === selectedTerm)?.name;
+            const courseCount = schedule.length;
+            await downloadSchedulePng({
+                title: Number.isInteger(rank) ? `Schedule #${rank}` : String(rank),
+                subtitle: [
+                    semesterName,
+                    totalCredits > 0 && `${totalCredits} credit hours`,
+                    `${courseCount} ${courseCount === 1 ? 'course' : 'courses'}`,
+                ].filter(Boolean).join('  ·  '),
+                blocks,
+                rows: schedule.flatMap(group => {
+                    const courseIdx = selectedCourses.findIndex(c => c.course_id === (group.originalCourseId || group.courseId));
+                    return group.sections.map(sec => ({
+                        courseId: sec.course_id,
+                        courseName: courseNameMap[sec.course_id] || null,
+                        sectionNum: sec.section_num,
+                        crn: sec.crn,
+                        classTime: sec.class_time,
+                        instructor: sec.instructor,
+                        location: sec.location,
+                        colorIdx: courseIdx % 8,
+                    }));
+                }),
+                fileName: `coursemate-schedule-${Number.isInteger(rank) ? rank : 'export'}.png`,
+            });
+        } catch (err) {
+            console.error('PNG export failed:', err);
+            window.alert('Could not create the image. Please try again.');
+        } finally {
+            setExporting(false);
+        }
+    };
 
     return (
         <div className={styles.scheduleCard}>
@@ -2291,21 +2331,21 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                     </div>
                 )}
 
-                {onSave && !isSaved && (
-                    <div className={styles.saveFooter}>
+                <div className={styles.saveFooter}>
+                    {onSave && !isSaved && (
                         <button className={styles.saveBtn} onClick={onSave} disabled={isSavingSchedule}>
                             {isSavingSchedule ? <span className={styles.spinner} style={{ width: 14, height: 14, borderWidth: 2, borderColor: '#fff', borderTopColor: 'transparent' }}></span> : 'Save Schedule'}
                         </button>
-                    </div>
-                )}
-
-                {isSaved && onUnsave && (
-                    <div className={styles.saveFooter}>
+                    )}
+                    {isSaved && onUnsave && (
                         <button className={styles.unsaveBtn} onClick={onUnsave} disabled={isSavingSchedule} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                             Unsave
                         </button>
-                    </div>
-                )}
+                    )}
+                    <button className={styles.exportBtn} onClick={handleExportPng} disabled={exporting}>
+                        {exporting ? 'Preparing image…' : 'Export PNG'}
+                    </button>
+                </div>
             </>)}
         </div>
     );

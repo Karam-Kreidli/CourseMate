@@ -809,14 +809,35 @@
     border-top: 1px solid var(--border-color);
     display: flex;
     justify-content: center;
+    gap: 8px;
 }
 
-.saveFooter .saveBtn {
-    width: 100%;
+.saveFooter > button {
+    flex: 1;
+    min-width: 0;
 }
 
-.saveFooter .unsaveBtn {
-    width: 100%;
+.exportBtn {
+    padding: 6px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.exportBtn:hover:not(:disabled) {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}
+
+.exportBtn:disabled {
+    opacity: 0.7;
+    cursor: wait;
 }
 
 .savedHeader {
