@@ -484,6 +484,35 @@ function formatTimeShort(minutes) {
     return `${displayH} ${period}`;
 }
 
+// ===== OFFICE HOURS (Find My Prof) =====
+
+// Find My Prof numbers days 1 = Monday ... 7 = Sunday. Days the timetable has
+// no column for (Fri, Sat) are dropped.
+const OFFICE_HOUR_DAYS = { 0: 'Sun', 7: 'Sun', 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu' };
+
+// "09:30:00" (a Postgres time) to minutes after midnight.
+function timeToMinutes(t) {
+    const [h, m] = String(t).split(':').map(Number);
+    return h * 60 + (m || 0);
+}
+
+// 24-hour, to match class_time strings like "Tue/Thu 12:30-13:45".
+function formatClock(minutes) {
+    return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+}
+
+// "Mon/Wed 11:00-12:40 (A9-219); Tue 09:30-11:00 (A9-219)"
+function describeOfficeHours(entry) {
+    return entry.hours
+        .map(h => {
+            const days = h.days.map(d => OFFICE_HOUR_DAYS[d]).filter(Boolean).join('/');
+            if (!days) return null;
+            return `${days} ${formatClock(h.start)}-${formatClock(h.end)}${h.location ? ` (${h.location})` : ''}`;
+        })
+        .filter(Boolean)
+        .join('; ');
+}
+
 // ===== MAIN COMPONENT =====
 
 export default function SchedulePage() {
@@ -530,6 +559,9 @@ export default function SchedulePage() {
     // course_id -> [cart course ids Banner lists as its prerequisites]. UOS
     // files corequisites in the same list, so this only ever drives a warning.
     const [prereqMap, setPrereqMap] = useState({});
+    // instructor email -> { name, office, hours: [{ days, start, end, location }] }
+    // from Find My Prof. Only instructors with weekly hours posted appear.
+    const [officeHours, setOfficeHours] = useState({});
     const router = useRouter();
     const supabase = createClient();
     const { selectedTerm } = useSemester();
@@ -583,6 +615,47 @@ export default function SchedulePage() {
         })();
         return () => { cancelled = true; };
     }, [selectedTerm, cartCourseKey]);
+
+    // Office hours for every instructor a schedule card can show: sections
+    // loaded for the cart, and sections inside saved schedules.
+    const instructorEmailKey = useMemo(() => {
+        const emails = new Set();
+        const add = (s) => { if (s?.instructor_email) emails.add(s.instructor_email); };
+        Object.values(allSections).forEach(list => (list || []).forEach(add));
+        dbSavedSchedules.forEach(saved => (saved.schedule || []).forEach(g => (g.sections || []).forEach(add)));
+        return [...emails].sort().join(',');
+    }, [allSections, dbSavedSchedules]);
+    useEffect(() => {
+        const emails = instructorEmailKey ? instructorEmailKey.split(',') : [];
+        if (emails.length === 0) { setOfficeHours({}); return; }
+        let cancelled = false;
+        (async () => {
+            const [{ data: people }, { data: hours }] = await Promise.all([
+                supabase.from('faculty').select('email, name, office').eq('listed', true).in('email', emails),
+                supabase.from('faculty_office_hours').select('email, days, start_time, end_time, location, end_date').in('email', emails),
+            ]);
+            if (cancelled || !people || !hours) return;
+            const today = new Date().toISOString().slice(0, 10);
+            const map = {};
+            for (const p of people) map[p.email] = { name: p.name, office: p.office, hours: [] };
+            for (const h of hours) {
+                // Entries past their end date are last semester's.
+                if (!map[h.email] || (h.end_date && h.end_date < today)) continue;
+                map[h.email].hours.push({
+                    days: h.days,
+                    start: timeToMinutes(h.start_time),
+                    end: timeToMinutes(h.end_time),
+                    location: h.location,
+                });
+            }
+            for (const email of Object.keys(map)) {
+                if (map[email].hours.length === 0) delete map[email];
+                else map[email].hours.sort((a, b) => (a.days[0] - b.days[0]) || (a.start - b.start));
+            }
+            setOfficeHours(map);
+        })();
+        return () => { cancelled = true; };
+    }, [instructorEmailKey]);
 
     useEffect(() => {
         if (!selectedTerm || !profile) return;
@@ -1630,6 +1703,7 @@ export default function SchedulePage() {
                                     onUnsave={() => handleDeleteSavedSchedule(savedObj.dbId)}
                                     isSaved={true}
                                     initiallyCollapsed={true}
+                                    officeHours={officeHours}
                                     isSavingSchedule={isSavingSchedule}
                                 />
                             ))}
@@ -1990,6 +2064,7 @@ export default function SchedulePage() {
                                             onUnsave={isSaved ? () => handleDeleteSavedSchedule(dbId) : null}
                                             isSaved={isSaved}
                                             initiallyCollapsed={false}
+                                            officeHours={officeHours}
                                             isSavingSchedule={isSavingSchedule}
                                         />
                                     );
@@ -2034,10 +2109,11 @@ export default function SchedulePage() {
 
 // ===== SCHEDULE CARD COMPONENT =====
 
-function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedCourses, onSave, onUnsave, isSaved, initiallyCollapsed = false, isSavingSchedule = false }) {
+function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedCourses, onSave, onUnsave, isSaved, initiallyCollapsed = false, isSavingSchedule = false, officeHours = {} }) {
     const { schedule, score, warnings } = result;
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [cardOpen, setCardOpen] = useState(!initiallyCollapsed);
+    const [showOfficeHours, setShowOfficeHours] = useState(true);
 
     // Compute total credit hours for this schedule
     const totalCredits = schedule.reduce((sum, group) => {
@@ -2063,14 +2139,41 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
         });
     });
 
+    // Office hours for this schedule's instructors: once per instructor, in the
+    // colour of the first of their courses here, drawn behind the classes.
+    const officeBlocks = [];
+    const seenInstructors = new Set();
+    schedule.forEach((group) => {
+        const courseIdx = selectedCourses.findIndex(c => c.course_id === (group.originalCourseId || group.courseId));
+        group.sections.forEach(sec => {
+            const entry = officeHours[sec.instructor_email];
+            if (!entry || seenInstructors.has(sec.instructor_email)) return;
+            seenInstructors.add(sec.instructor_email);
+            const surname = (sec.instructor || entry.name || '').split(',')[0].trim();
+            entry.hours.forEach(h => h.days.forEach(d => {
+                const day = OFFICE_HOUR_DAYS[d];
+                if (!day) return;
+                officeBlocks.push({
+                    day,
+                    start: h.start,
+                    end: h.end,
+                    surname,
+                    colorIdx: Math.max(courseIdx, 0) % 8,
+                    title: `${entry.name || sec.instructor}: office hours ${formatClock(h.start)}-${formatClock(h.end)}${h.location ? `, ${h.location}` : ''}`,
+                });
+            }));
+        });
+    });
+    const gridBlocks = showOfficeHours ? [...blocks, ...officeBlocks] : blocks;
+
     // Find which days are used
-    const usedDays = [...new Set(blocks.map(b => b.day))];
+    const usedDays = [...new Set(gridBlocks.map(b => b.day))];
     const days = ALL_DAYS.filter(d => usedDays.includes(d));
     if (days.length === 0) return null;
 
     // Find time range
-    const minTime = Math.min(...blocks.map(b => b.start));
-    const maxTime = Math.max(...blocks.map(b => b.end));
+    const minTime = Math.min(...gridBlocks.map(b => b.start));
+    const maxTime = Math.max(...gridBlocks.map(b => b.end));
     const startHour = Math.floor(minTime / 60);
     const endHour = Math.ceil(maxTime / 60);
     const totalMinutes = (endHour - startHour) * 60;
@@ -2142,6 +2245,18 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                     </div>
                 )}
 
+                {officeBlocks.length > 0 && (
+                    <button
+                        type="button"
+                        className={styles.ohToggle}
+                        onClick={() => setShowOfficeHours(v => !v)}
+                        aria-pressed={showOfficeHours}
+                    >
+                        <span className={styles.ohSwatch} aria-hidden="true" />
+                        {showOfficeHours ? 'Hide office hours' : 'Show office hours'}
+                    </button>
+                )}
+
                 <div className={styles.timetable}>
                     <div className={styles.ttContainer} style={{ height: gridHeight + HEADER_HEIGHT }}>
                         {/* Time axis labels */}
@@ -2168,6 +2283,26 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                                         {hours.slice(0, -1).map(h => (
                                             <div key={`half-${h}`} className={`${styles.ttGridLine} ${styles.ttGridLineHalf}`} style={{ top: ((h - startHour) * 60 + 30) * PX_PER_MIN }} />
                                         ))}
+
+                                        {/* Office hours, behind the classes */}
+                                        {showOfficeHours && officeBlocks
+                                            .filter(b => b.day === day)
+                                            .map((block, bi) => (
+                                                <div
+                                                    key={`oh-${bi}`}
+                                                    className={styles.ttOfficeBlock}
+                                                    title={block.title}
+                                                    style={{
+                                                        top: (block.start - startHour * 60) * PX_PER_MIN,
+                                                        height: (block.end - block.start) * PX_PER_MIN,
+                                                        borderColor: colors[block.colorIdx],
+                                                        color: colors[block.colorIdx],
+                                                    }}
+                                                >
+                                                    <span className={styles.ttBlockCourse}>Office hours</span>
+                                                    <span className={styles.ttBlockSection}>{block.surname}</span>
+                                                </div>
+                                            ))}
 
                                         {/* Class blocks */}
                                         {blocks
@@ -2248,6 +2383,11 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                                                 </>
                                             )}
                                         </div>
+                                        {officeHours[sec.instructor_email] && (
+                                            <div className={styles.detailOfficeHours}>
+                                                Office hours: {describeOfficeHours(officeHours[sec.instructor_email])}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             ));
