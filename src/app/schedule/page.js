@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { campusFilter } from '@/lib/campus';
@@ -2065,6 +2066,14 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
     // Carries the term's teaching dates, which the calendar export needs.
     const termInfo = semesters?.find(s => s.term_code === selectedTerm);
 
+    // Escape closes the naming dialog, as it does for any other dialog.
+    useEffect(() => {
+        if (!naming) return undefined;
+        const onKey = (e) => { if (e.key === 'Escape' && !isSavingSchedule) setNaming(false); };
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+    }, [naming, isSavingSchedule]);
+
     // Compute total credit hours for this schedule
     const totalCredits = schedule.reduce((sum, group) => {
         // Use group.courseId to get the actual course selected (bypassing the basket generic ID)
@@ -2395,7 +2404,7 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                     </div>
                 )}
 
-                {onSave && !isSaved && !naming && (
+                {onSave && !isSaved && (
                     <div className={styles.saveFooter}>
                         <button className={styles.saveBtn} onClick={() => setNaming(true)} disabled={isSavingSchedule}>
                             Save Schedule
@@ -2404,29 +2413,51 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                 )}
 
                 {/* Three saved schedules all called "Saved schedule 2" help nobody,
-                    so saving asks what to call this one. */}
-                {onSave && !isSaved && naming && (
-                    <form
-                        className={styles.saveFooter}
-                        onSubmit={(e) => { e.preventDefault(); onSave(saveName); }}
+                    so saving asks what to call this one. A dialog, because the
+                    same question sat in the footer unnoticed. */}
+                {/* Through a portal: the card's own blur would otherwise pin the
+                    dialog inside the card instead of over the page. */}
+                {naming && createPortal((
+                    <div
+                        className={styles.saveDialogBackdrop}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Name this schedule"
+                        onClick={() => !isSavingSchedule && setNaming(false)}
                     >
-                        <input
-                            className={styles.saveNameInput}
-                            value={saveName}
-                            onChange={(e) => setSaveName(e.target.value)}
-                            placeholder="Name this schedule"
-                            maxLength={60}
-                            autoFocus
-                            disabled={isSavingSchedule}
-                        />
-                        <button type="submit" className={styles.saveBtn} disabled={isSavingSchedule || !saveName.trim()}>
-                            {isSavingSchedule ? <span className={styles.spinner} style={{ width: 14, height: 14, borderWidth: 2, borderColor: '#fff', borderTopColor: 'transparent' }}></span> : 'Save'}
-                        </button>
-                        <button type="button" className={styles.unsaveBtn} onClick={() => setNaming(false)} disabled={isSavingSchedule}>
-                            Cancel
-                        </button>
-                    </form>
-                )}
+                        <form
+                            className={styles.saveDialog}
+                            onClick={(e) => e.stopPropagation()}
+                            onSubmit={async (e) => {
+                                e.preventDefault();
+                                await onSave(saveName);
+                                setNaming(false);
+                            }}
+                        >
+                            <h3 className={styles.saveDialogTitle}>Name this schedule</h3>
+                            <p className={styles.saveDialogHint}>
+                                It shows on the card, so you can tell your saved schedules apart.
+                            </p>
+                            <input
+                                className={styles.saveNameInput}
+                                value={saveName}
+                                onChange={(e) => setSaveName(e.target.value)}
+                                placeholder={`e.g. ${scheduleTitle}`}
+                                maxLength={60}
+                                autoFocus
+                                disabled={isSavingSchedule}
+                            />
+                            <div className={styles.saveDialogActions}>
+                                <button type="button" className={styles.unsaveBtn} onClick={() => setNaming(false)} disabled={isSavingSchedule}>
+                                    Cancel
+                                </button>
+                                <button type="submit" className={styles.saveBtn} disabled={isSavingSchedule || !saveName.trim()}>
+                                    {isSavingSchedule ? <span className={styles.spinner} style={{ width: 14, height: 14, borderWidth: 2, borderColor: '#fff', borderTopColor: 'transparent' }}></span> : 'Save'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                ), document.body)}
 
                 {isSaved && onUnsave && (
                     <div className={styles.saveFooter}>
