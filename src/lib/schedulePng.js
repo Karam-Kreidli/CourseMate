@@ -26,7 +26,8 @@ const SANS = 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const MONO = '"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace';
 
 const SCALE = 2;
-const PAD = 36;
+// The grid runs to the edges of the image; only the note under it is inset.
+const NOTE_PAD = 16;
 const AXIS = 56;
 const DAY_HEADER = 40;
 // Space above the first hour line and below the last, so their labels are not
@@ -143,8 +144,8 @@ function drawSchedule({ blocks, unscheduled }) {
     const endHour = Math.min(24, Math.ceil(Math.max(...blocks.map(b => b.end)) / 60) + 1);
     const gridHeight = (endHour - startHour) * 60 * PX_PER_MIN + BODY_PAD * 2;
     const gridWidth = AXIS + days.length * COL_W;
-    const width = gridWidth + PAD * 2;
-    const inner = width - PAD * 2;
+    const width = gridWidth;
+    const inner = width - NOTE_PAD * 2;
 
     // Work out every height first; a canvas cannot grow once drawn on.
     const measure = document.createElement('canvas').getContext('2d');
@@ -153,12 +154,12 @@ function drawSchedule({ blocks, unscheduled }) {
     measure.font = FOOTER_FONT;
     const footerLines = wrap(measure, FOOTER, inner);
 
-    const gridTop = PAD;
-    let y = gridTop + DAY_HEADER + gridHeight + 22;
+    const gridTop = 0;
+    let y = gridTop + DAY_HEADER + gridHeight + 14;
     const extraTop = y;
     if (extraLines.length) y += 22 + extraLines.length * 19 + 12;
     const footerY = y;
-    const height = footerY + footerLines.length * 16 + PAD;
+    const height = footerY + footerLines.length * 16 + 12;
 
     const canvas = document.createElement('canvas');
     canvas.width = width * SCALE;
@@ -170,10 +171,11 @@ function drawSchedule({ blocks, unscheduled }) {
     ctx.fillStyle = PAGE;
     ctx.fillRect(0, 0, width, height);
 
-    const gx = PAD;
+    const gx = 0;
     const bodyTop = gridTop + DAY_HEADER + BODY_PAD;
     ctx.save();
-    roundedRect(ctx, gx, gridTop, gridWidth, DAY_HEADER + gridHeight, 14);
+    ctx.beginPath();
+    ctx.rect(gx, gridTop, gridWidth, DAY_HEADER + gridHeight);
     ctx.fillStyle = PANEL;
     ctx.fill();
     ctx.clip();
@@ -244,23 +246,18 @@ function drawSchedule({ blocks, unscheduled }) {
     });
     ctx.restore();
 
-    ctx.strokeStyle = LINE;
-    ctx.lineWidth = 1;
-    roundedRect(ctx, gx + 0.5, gridTop + 0.5, gridWidth - 1, DAY_HEADER + gridHeight - 1, 14);
-    ctx.stroke();
-
     if (extraLines.length) {
         ctx.fillStyle = INK_MUTED;
         ctx.font = `700 12px ${SANS}`;
-        ctx.fillText('NO SET TIME', PAD, extraTop);
+        ctx.fillText('NO SET TIME', NOTE_PAD, extraTop);
         ctx.fillStyle = INK_SECONDARY;
         ctx.font = `500 13px ${SANS}`;
-        extraLines.forEach((line, i) => ctx.fillText(line, PAD, extraTop + 22 + i * 19));
+        extraLines.forEach((line, i) => ctx.fillText(line, NOTE_PAD, extraTop + 22 + i * 19));
     }
 
     ctx.fillStyle = INK_MUTED;
     ctx.font = FOOTER_FONT;
-    footerLines.forEach((line, i) => ctx.fillText(line, PAD, footerY + i * 16));
+    footerLines.forEach((line, i) => ctx.fillText(line, NOTE_PAD, footerY + i * 16));
 
     return canvas;
 }
