@@ -2435,9 +2435,6 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                             }}
                         >
                             <h3 className={styles.saveDialogTitle}>Name this schedule</h3>
-                            <p className={styles.saveDialogHint}>
-                                It shows on the card, so you can tell your saved schedules apart.
-                            </p>
                             <input
                                 className={styles.saveNameInput}
                                 value={saveName}
