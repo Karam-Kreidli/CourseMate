@@ -11,6 +11,7 @@ import PageHeader from '@/components/PageHeader';
 import InstructorFinder from '@/components/InstructorFinder';
 import { ScheduleIcon, UserCheckIcon } from '@/components/Icons';
 import { decodeHtmlEntities } from '@/lib/text';
+import { OFFICE_HOUR_DAYS, formatClock, describeOfficeHours, fetchOfficeHours, layoutOfficeHours } from '@/lib/officeHours';
 import styles from './schedule.module.css';
 
 // ===== TIME PARSING UTILITIES =====
@@ -484,35 +485,6 @@ function formatTimeShort(minutes) {
     return `${displayH} ${period}`;
 }
 
-// ===== OFFICE HOURS (Find My Prof) =====
-
-// Find My Prof numbers days 1 = Monday ... 7 = Sunday. Days the timetable has
-// no column for (Fri, Sat) are dropped.
-const OFFICE_HOUR_DAYS = { 0: 'Sun', 7: 'Sun', 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu' };
-
-// "09:30:00" (a Postgres time) to minutes after midnight.
-function timeToMinutes(t) {
-    const [h, m] = String(t).split(':').map(Number);
-    return h * 60 + (m || 0);
-}
-
-// 24-hour, to match class_time strings like "Tue/Thu 12:30-13:45".
-function formatClock(minutes) {
-    return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
-}
-
-// "Mon/Wed 11:00-12:40 (A9-219); Tue 09:30-11:00 (A9-219)"
-function describeOfficeHours(entry) {
-    return entry.hours
-        .map(h => {
-            const days = h.days.map(d => OFFICE_HOUR_DAYS[d]).filter(Boolean).join('/');
-            if (!days) return null;
-            return `${days} ${formatClock(h.start)}-${formatClock(h.end)}${h.location ? ` (${h.location})` : ''}`;
-        })
-        .filter(Boolean)
-        .join('; ');
-}
-
 // ===== MAIN COMPONENT =====
 
 export default function SchedulePage() {
@@ -629,31 +601,7 @@ export default function SchedulePage() {
         const emails = instructorEmailKey ? instructorEmailKey.split(',') : [];
         if (emails.length === 0) { setOfficeHours({}); return; }
         let cancelled = false;
-        (async () => {
-            const [{ data: people }, { data: hours }] = await Promise.all([
-                supabase.from('faculty').select('email, name, office').eq('listed', true).in('email', emails),
-                supabase.from('faculty_office_hours').select('email, days, start_time, end_time, location, end_date').in('email', emails),
-            ]);
-            if (cancelled || !people || !hours) return;
-            const today = new Date().toISOString().slice(0, 10);
-            const map = {};
-            for (const p of people) map[p.email] = { name: p.name, office: p.office, hours: [] };
-            for (const h of hours) {
-                // Entries past their end date are last semester's.
-                if (!map[h.email] || (h.end_date && h.end_date < today)) continue;
-                map[h.email].hours.push({
-                    days: h.days,
-                    start: timeToMinutes(h.start_time),
-                    end: timeToMinutes(h.end_time),
-                    location: h.location,
-                });
-            }
-            for (const email of Object.keys(map)) {
-                if (map[email].hours.length === 0) delete map[email];
-                else map[email].hours.sort((a, b) => (a.days[0] - b.days[0]) || (a.start - b.start));
-            }
-            setOfficeHours(map);
-        })();
+        fetchOfficeHours(supabase, emails).then(map => { if (!cancelled) setOfficeHours(map); });
         return () => { cancelled = true; };
     }, [instructorEmailKey]);
 
@@ -2164,50 +2112,9 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
             }));
         });
     });
-    // Office hours only fill time the schedule leaves free. The part of a slot
-    // that clashes with a class is cut away (a student in class cannot go), and
-    // slots that overlap each other share the column side by side instead of
-    // printing on top of one another.
-    const officeSegments = [];
-    if (showOfficeHours) {
-        const byDay = {};
-        officeBlocks.forEach(b => { (byDay[b.day] = byDay[b.day] || []).push(b); });
-        Object.entries(byDay).forEach(([day, list]) => {
-            const classes = blocks.filter(b => b.day === day).sort((a, b) => a.start - b.start);
-            const pieces = [];
-            list.forEach(b => {
-                let cursor = b.start;
-                for (const c of classes) {
-                    if (c.end <= cursor || c.start >= b.end) continue;
-                    // Gaps under 20 minutes would only draw an empty sliver.
-                    if (c.start - cursor >= 20) pieces.push({ ...b, start: cursor, end: c.start });
-                    cursor = Math.max(cursor, c.end);
-                }
-                if (b.end - cursor >= 20) pieces.push({ ...b, start: cursor, end: b.end });
-            });
-
-            pieces.sort((a, b) => (a.start - b.start) || (a.end - b.end));
-            let cluster = [];
-            let clusterEnd = -1;
-            const flush = () => {
-                const laneEnds = [];
-                cluster.forEach(p => {
-                    let lane = laneEnds.findIndex(end => end <= p.start);
-                    if (lane === -1) { lane = laneEnds.length; laneEnds.push(p.end); } else laneEnds[lane] = p.end;
-                    p.lane = lane;
-                });
-                cluster.forEach(p => { p.lanes = laneEnds.length; officeSegments.push(p); });
-                cluster = [];
-                clusterEnd = -1;
-            };
-            pieces.forEach(p => {
-                if (cluster.length && p.start >= clusterEnd) flush();
-                cluster.push(p);
-                clusterEnd = Math.max(clusterEnd, p.end);
-            });
-            if (cluster.length) flush();
-        });
-    }
+    // Office hours only fill the time the schedule leaves free; see
+    // layoutOfficeHours for how clashes and overlaps are handled.
+    const officeSegments = showOfficeHours ? layoutOfficeHours(blocks, officeBlocks) : [];
     const gridBlocks = [...blocks, ...officeSegments];
 
     // Find which days are used

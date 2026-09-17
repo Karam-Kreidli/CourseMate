@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useSemester } from '@/lib/SemesterContext';
 import { decodeHtmlEntities } from '@/lib/text';
+import { OFFICE_HOUR_DAYS, formatClock, describeOfficeHours, fetchOfficeHours, layoutOfficeHours } from '@/lib/officeHours';
 import styles from './InstructorFinder.module.css';
 
 // ===== TIME PARSING UTILITIES (reused from schedule) =====
@@ -83,6 +84,9 @@ export default function InstructorFinder() {
     const [instructorSections, setInstructorSections] = useState([]);
     const [courseData, setCourseData] = useState({});
     const [loading, setLoading] = useState(false);
+    // The selected instructor's Find My Prof entry ({ name, office, hours }),
+    // or null when they have no weekly hours posted.
+    const [officeHours, setOfficeHours] = useState(null);
 
     const router = useRouter();
     const supabase = createClient();
@@ -108,6 +112,7 @@ export default function InstructorFinder() {
         setSuggestions([]);
         setSelectedInstructor(null);
         setInstructorSections([]);
+        setOfficeHours(null);
     }, [selectedTerm]);
 
     // Handle search input changes
@@ -147,6 +152,7 @@ export default function InstructorFinder() {
         setSearchQuery(decodeHtmlEntities(name));
         setShowDropdown(false);
         setSelectedInstructor(name);
+        setOfficeHours(null);
         setLoading(true);
 
         // Fetch sections
@@ -163,12 +169,18 @@ export default function InstructorFinder() {
             return;
         }
 
-        // Fetch course details
+        // Fetch course details, and the instructor's office hours when Find My
+        // Prof has them (joined by the email Banner lists for their sections).
         const courseIds = [...new Set(sections.map(s => s.course_id))];
-        const { data: courses } = await supabase
-            .from('courses')
-            .select('course_id, course_name')
-            .in('course_id', courseIds);
+        const email = sections.find(s => s.instructor_email)?.instructor_email || null;
+        const [{ data: courses }, hoursByEmail] = await Promise.all([
+            supabase
+                .from('courses')
+                .select('course_id, course_name')
+                .in('course_id', courseIds),
+            fetchOfficeHours(supabase, email ? [email] : []),
+        ]);
+        setOfficeHours((email && hoursByEmail[email]) || null);
 
         const courseMap = {};
         if (courses) {
@@ -215,8 +227,24 @@ export default function InstructorFinder() {
             return <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>No scheduled times found for these sections on Mon-Thu.</div>;
         }
 
-        const minTime = blocks.length > 0 ? Math.min(...blocks.map(b => b.start)) : 8 * 60;
-        const maxTime = blocks.length > 0 ? Math.max(...blocks.map(b => b.end)) : 17 * 60;
+        // Office hours, in the time the instructor is not teaching.
+        const officeBlocks = [];
+        (officeHours?.hours || []).forEach(h => h.days.forEach(d => {
+            const day = OFFICE_HOUR_DAYS[d];
+            if (!days.includes(day)) return;
+            officeBlocks.push({
+                day,
+                start: h.start,
+                end: h.end,
+                location: h.location,
+                title: `Office hours ${formatClock(h.start)}-${formatClock(h.end)}${h.location ? `, ${h.location}` : ''}`,
+            });
+        }));
+        const officeSegments = layoutOfficeHours(blocks, officeBlocks);
+        const timed = [...blocks, ...officeSegments];
+
+        const minTime = timed.length > 0 ? Math.min(...timed.map(b => b.start)) : 8 * 60;
+        const maxTime = timed.length > 0 ? Math.max(...timed.map(b => b.end)) : 17 * 60;
         const startHour = Math.min(8, Math.floor(minTime / 60));
         const endHour = Math.max(17, Math.ceil(maxTime / 60));
         const totalMinutes = (endHour - startHour) * 60;
@@ -256,6 +284,27 @@ export default function InstructorFinder() {
                             const dayBlocks = blocks.filter(b => b.day === day);
                             return (
                                 <div key={day} style={{ position: 'relative', flex: 1, borderLeft: dIdx > 0 ? '1px solid var(--border-color)' : 'none' }}>
+                                    {officeSegments.filter(b => b.day === day).map((block, i) => {
+                                        const top = (block.start - startHour * 60) * PX_PER_MIN + Y_OFFSET;
+                                        const height = (block.end - block.start) * PX_PER_MIN;
+                                        const width = 100 / block.lanes;
+                                        return (
+                                            <div
+                                                key={`oh-${i}`}
+                                                className={styles.officeBlock}
+                                                title={block.title}
+                                                style={{
+                                                    top: `${top}px`,
+                                                    height: `${height}px`,
+                                                    left: `calc(${block.lane * width}% + 2px)`,
+                                                    width: `calc(${width}% - 4px)`,
+                                                }}
+                                            >
+                                                {height >= 16 && <div>Office hours</div>}
+                                                {height >= 30 && block.location && <div className={styles.officeBlockRoom}>{block.location}</div>}
+                                            </div>
+                                        );
+                                    })}
                                     {dayBlocks.map((block, i) => {
                                         const top = (block.start - startHour * 60) * PX_PER_MIN + Y_OFFSET;
                                         const height = (block.end - block.start) * PX_PER_MIN;
@@ -267,10 +316,16 @@ export default function InstructorFinder() {
                                         const b = parseInt(hex.substring(4, 6), 16);
                                         const bgRgba = `rgba(${r},${g},${b},0.15)`;
 
+                                        // Course id and section take about 38px with padding;
+                                        // the name gets only the whole lines left, so no line
+                                        // is sliced through at the bottom.
+                                        const nameLines = Math.floor((height - 38) / 11.5);
+
                                         return (
                                             <div
                                                 key={i}
                                                 className={styles.classBlock}
+                                                title={`${block.courseId}${block.courseName ? ` ${block.courseName}` : ''}, section ${block.sectionNum}`}
                                                 style={{
                                                     top: `${top}px`,
                                                     height: `${height}px`,
@@ -280,8 +335,10 @@ export default function InstructorFinder() {
                                                 }}
                                             >
                                                 <div className={styles.blockCourseId}>{block.courseId}</div>
-                                                {block.courseName && <div className={styles.blockCourseName}>{block.courseName}</div>}
-                                                <div className={styles.blockSection}>Sec {block.sectionNum}</div>
+                                                {block.courseName && nameLines > 0 && (
+                                                    <div className={styles.blockCourseName} style={{ WebkitLineClamp: nameLines }}>{block.courseName}</div>
+                                                )}
+                                                {height >= 30 && <div className={styles.blockSection}>Sec {block.sectionNum}</div>}
                                             </div>
                                         );
                                     })}
@@ -332,8 +389,17 @@ export default function InstructorFinder() {
                                     <div className={styles.instructorName}>{decodeHtmlEntities(selectedInstructor)}</div>
                                 </div>
 
+                                {officeHours && (
+                                    <div className={styles.officeHoursLine}>
+                                        <span className={styles.officeSwatch} aria-hidden="true" />
+                                        <span>Office hours: {describeOfficeHours(officeHours)}</span>
+                                    </div>
+                                )}
+
                                 <p className={styles.disclaimer}>
-                                    Note: this schedule reflects only the instructor&rsquo;s class times. Office hours, meetings, and any other external activities aren&rsquo;t shown.
+                                    {officeHours
+                                        ? <>Class times come from the university. Office hours come from Find My Prof and can change, so confirm with the instructor. Meetings and other activities aren&rsquo;t shown.</>
+                                        : <>Note: this schedule reflects only the instructor&rsquo;s class times. They have no office hours posted on Find My Prof, and meetings and other activities aren&rsquo;t shown.</>}
                                 </p>
 
                                 {renderTimetable()}
