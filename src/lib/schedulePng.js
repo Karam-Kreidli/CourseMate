@@ -1,13 +1,13 @@
 /**
- * A schedule as a PNG, laid out as a printable A4 sheet: a header with the
- * semester and a summary, the week's timetable, a card per section (the
- * "course registry"), and a footer.
+ * A schedule as a PNG, laid out as a printable A4 sheet: the week's timetable
+ * filling the page, with a one-line footer.
  *
  * Drawn straight onto a canvas from the schedule's data rather than
  * screenshotting the card, so the image comes out the same on every device and
- * theme. The layout follows the design Karam supplied (course-schedule/), in
+ * theme. The blocks follow the design Karam supplied (course-schedule/), in
  * the app's own colors and fonts, without its lecture/lab tags, and with the
- * section number moved off the course-number line.
+ * section number moved off the course-number line. That design's header and
+ * course registry were dropped at his request.
  */
 import { decodeHtmlEntities } from '@/lib/text';
 
@@ -18,16 +18,12 @@ const TEXT_COLORS = ['#1D4ED8', '#047857', '#B45309', '#B91C1C', '#6D28D9', '#BE
 
 // Light theme values from globals.css. An image gets shared and printed, so it
 // does not follow the viewer's dark mode.
-const INK = '#0F1729';
 const INK_SECONDARY = '#475569';
 const INK_MUTED = '#94A3B8';
 const INK_FAINT = '#CBD5E1';
-const ACCENT_TEXT = '#047857';
-const ACCENT_TINT = 'rgba(0, 195, 137, 0.12)';
 const LINE = '#E2E8F0';
 const LINE_SOFT = '#F1F5F9';
 const PAGE = '#FFFFFF';
-const CHIP_BG = '#F5F7FA';
 
 const SANS = 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const MONO = '"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace';
@@ -52,7 +48,6 @@ const DAY_START_HOUR = 8;
 // other day appears only when a class meets on it.
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu'];
 const ALL_DAYS = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-const DAY_NAMES = { Sat: 'Saturday', Sun: 'Sunday', Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday' };
 
 const SEASONS = { 10: 'Fall', 20: 'Spring', 30: 'Summer' };
 
@@ -75,14 +70,6 @@ function clock12(minutes) {
 function hourLabel(h) {
     const period = h >= 12 && h < 24 ? 'PM' : 'AM';
     return `${h % 12 === 0 ? 12 : h % 12} ${period}`;
-}
-
-// "Mon/Wed 11:00-12:15" to "Mon, Wed · 11:00 AM – 12:15 PM".
-function readableClassTime(classTime) {
-    const m = /^(.+?)\s+(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$/.exec(String(classTime || '').trim());
-    if (!m) return null;
-    const days = m[1].split(/[\s/]+/).filter(Boolean).join(', ');
-    return `${days} · ${clock12(+m[2] * 60 + +m[3])} – ${clock12(+m[4] * 60 + +m[5])}`;
 }
 
 // UOS term codes start with the academic year: 202610 is Fall of 2026/2027.
@@ -191,12 +178,6 @@ function drawBadge(ctx, x, y, text, color, height) {
 }
 
 const F = {
-    badge: `700 9px ${SANS}`,
-    title: `800 36px ${SANS}`,
-    program: `500 12.5px ${SANS}`,
-    pillLabel: `700 10.5px ${SANS}`,
-    pillSub: `500 8px ${SANS}`,
-    deco: `600 8px ${SANS}`,
     dayHeader: `700 9.5px ${SANS}`,
     freeTag: `700 7px ${SANS}`,
     hour: `500 9px ${SANS}`,
@@ -204,11 +185,7 @@ const F = {
     name: `800 11px ${SANS}`,
     detail: `600 9.5px ${SANS}`,
     blockBadge: `700 8.5px ${SANS}`,
-    legendTitle: `700 9.5px ${SANS}`,
-    legendCredits: `500 9.5px ${SANS}`,
-    cardName: `700 10.5px ${SANS}`,
-    chip: `600 8.5px ${SANS}`,
-    cardInstructor: `500 9px ${SANS}`,
+    note: `500 9.5px ${SANS}`,
     footer: `500 8.5px ${SANS}`,
 };
 
@@ -324,86 +301,6 @@ function drawBlock(ctx, block, x, y, w, h) {
     ctx.restore();
 }
 
-/**
- * Lays out one registry card: the course name, a row of chips and the
- * instructor. Returns the height it needs; `draw` is false when measuring.
- */
-function registryCard(ctx, entry, x, y, w, draw) {
-    const idx = paletteIndex(entry.colorIdx);
-    const inner = w - 4 - 12;
-    const cx = x + 4 + 6;
-    let cy = y + 6;
-
-    ctx.font = F.cardName;
-    const nameLines = wrap(ctx, entry.courseName || entry.courseId, inner, 2);
-
-    ctx.font = F.chip;
-    const chips = [
-        entry.courseId,
-        entry.crn && `CRN ${entry.crn}`,
-        entry.sectionNum && `Sec ${entry.sectionNum}`,
-        entry.location,
-        entry.credits ? `${entry.credits} cr` : null,
-        readableClassTime(entry.classTime) || 'No set time',
-    ].filter(Boolean);
-    const chipH = 14;
-    const rows = [[]];
-    let rowW = 0;
-    for (const chip of chips) {
-        const label = fit(ctx, chip, inner - 8);
-        const cw = ctx.measureText(label).width + 8;
-        if (rowW && rowW + cw > inner) { rows.push([]); rowW = 0; }
-        rows[rows.length - 1].push({ label, cw });
-        rowW += cw + 3;
-    }
-
-    const height = 6 + nameLines.length * 13 + 3 + rows.length * (chipH + 3) + (entry.instructor ? 13 : 0) + 5;
-    if (!draw) return height;
-
-    roundedRect(ctx, x, y, w, height, 4);
-    ctx.fillStyle = PAGE;
-    ctx.fill();
-    ctx.strokeStyle = withAlpha(COLORS[idx], 0.45);
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    ctx.save();
-    roundedRect(ctx, x, y, w, height, 4);
-    ctx.clip();
-    ctx.fillStyle = COLORS[idx];
-    ctx.fillRect(x, y, 4, height);
-    ctx.restore();
-
-    ctx.fillStyle = INK;
-    ctx.font = F.cardName;
-    nameLines.forEach(line => { ctx.fillText(line, cx, cy); cy += 13; });
-    cy += 3;
-
-    ctx.font = F.chip;
-    for (const row of rows) {
-        let chipX = cx;
-        for (const { label, cw } of row) {
-            roundedRect(ctx, chipX, cy, cw, chipH, 3);
-            ctx.fillStyle = CHIP_BG;
-            ctx.fill();
-            ctx.strokeStyle = LINE;
-            ctx.stroke();
-            ctx.fillStyle = INK_SECONDARY;
-            ctx.textBaseline = 'middle';
-            ctx.fillText(label, chipX + 4, cy + chipH / 2 + 0.5);
-            ctx.textBaseline = 'top';
-            chipX += cw + 3;
-        }
-        cy += chipH + 3;
-    }
-
-    if (entry.instructor) {
-        ctx.fillStyle = INK_SECONDARY;
-        ctx.font = F.cardInstructor;
-        ctx.fillText(fit(ctx, decodeHtmlEntities(entry.instructor), inner), cx, cy + 1);
-    }
-    return height;
-}
-
 function drawSheet(sheet) {
     const { blocks, entries } = sheet;
     const measure = document.createElement('canvas').getContext('2d');
@@ -412,29 +309,24 @@ function drawSheet(sheet) {
     // ── Days and hours ──
     const used = new Set(blocks.map(b => b.day));
     const days = ALL_DAYS.filter(d => WEEKDAYS.includes(d) || used.has(d));
-    const freeDays = days.filter(d => !used.has(d));
     // An hour of margin either side, but never before 8 AM unless a class is.
     const firstHour = Math.floor(Math.min(...blocks.map(b => b.start)) / 60);
     const startHour = Math.min(firstHour, Math.max(DAY_START_HOUR, firstHour - 1));
     const endHour = Math.min(24, Math.ceil(Math.max(...blocks.map(b => b.end)) / 60) + 1);
     const hours = endHour - startHour;
 
-    // ── Registry cards, three to a row ──
-    const cols = 3;
-    const cardGap = 5;
-    const cardW = (contentW - cardGap * (cols - 1)) / cols;
-    const cardRows = [];
-    entries.forEach((entry, i) => {
-        if (i % cols === 0) cardRows.push([]);
-        cardRows[cardRows.length - 1].push({ entry, h: registryCard(measure, entry, 0, 0, cardW, false) });
-    });
-    const rowHeights = cardRows.map(row => Math.max(...row.map(c => c.h)));
-    const legendH = 12 + 18 + rowHeights.reduce((a, b) => a + b + cardGap, 0);
+    // A section with no set time has no block, so it gets a line under the
+    // grid rather than vanishing from the sheet.
+    measure.font = F.note;
+    const unscheduled = entries.filter(e => !/\d{1,2}:\d{2}/.test(e.classTime || ''));
+    const noteLines = unscheduled.length
+        ? wrap(measure, `No set time: ${unscheduled.map(e => [e.courseId, e.courseName, e.sectionNum && `Sec ${e.sectionNum}`].filter(Boolean).join(' ')).join(' · ')}`, contentW)
+        : [];
 
-    // ── Vertical budget ──
-    const headerH = 92;
+    // ── Vertical budget: the timetable takes whatever A4 leaves ──
     const footerH = 24;
-    const fixed = PAD_TOP + headerH + 12 + DAY_HEADER + BODY_PAD * 2 + legendH + footerH + PAD_BOTTOM;
+    const noteH = noteLines.length ? 10 + noteLines.length * 14 : 0;
+    const fixed = PAD_TOP + DAY_HEADER + BODY_PAD * 2 + noteH + footerH + PAD_BOTTOM;
     const pxPerHour = Math.max(MIN_PX_PER_HOUR, (PAGE_H - fixed) / hours);
     const gridBodyH = hours * pxPerHour + BODY_PAD * 2;
     const pageH = Math.ceil(fixed - BODY_PAD * 2 + gridBodyH);
@@ -448,102 +340,11 @@ function drawSheet(sheet) {
     ctx.fillStyle = PAGE;
     ctx.fillRect(0, 0, PAGE_W, pageH);
 
-    // ── Header ──
-    let y = PAD_TOP;
-    const season = seasonOf(sheet.termCode, sheet.termName);
-    const ay = academicYear(sheet.termCode);
-    const badgeText = `${season} Semester${ay ? ` ${ay}` : ''}`.toUpperCase();
-    ctx.font = F.badge;
-    spaced(ctx, 1);
-    const badgeW = ctx.measureText(badgeText).width + 14;
-    roundedRect(ctx, PAD_X, y, badgeW, 17, 3);
-    ctx.fillStyle = ACCENT_TINT;
-    ctx.fill();
-    ctx.fillStyle = ACCENT_TEXT;
-    ctx.textBaseline = 'middle';
-    ctx.fillText(badgeText, PAD_X + 7, y + 9);
-    ctx.textBaseline = 'top';
-    spaced(ctx, 0);
-
-    ctx.fillStyle = INK;
-    ctx.font = F.title;
-    spaced(ctx, -1);
-    ctx.fillText('Course Schedule', PAD_X, y + 24);
-    spaced(ctx, 0);
-    if (sheet.programName) {
-        ctx.fillStyle = INK_SECONDARY;
-        ctx.font = F.program;
-        ctx.fillText(fit(ctx, sheet.programName, contentW - 260), PAD_X, y + 66);
-    }
-
-    // Summary pills, two by two on the right.
-    const courseCount = new Set(entries.map(e => e.courseId)).size;
-    const credits = entries.reduce((sum, e) => sum + (e.credits || 0), 0);
-    const activeDays = days.filter(d => used.has(d));
-    const pills = [
-        { icon: '◼', label: `${courseCount} ${courseCount === 1 ? 'Course' : 'Courses'}`, sub: 'this schedule' },
-        { icon: '◈', label: credits ? `${credits} Credits` : 'Credits', sub: 'total load' },
-        {
-            icon: '◷',
-            label: activeDays.length >= 3 && activeDays.every((d, i) => i === 0 || ALL_DAYS.indexOf(d) === ALL_DAYS.indexOf(activeDays[i - 1]) + 1)
-                ? `${activeDays[0]} – ${activeDays[activeDays.length - 1]}`
-                : activeDays.join(', '),
-            sub: 'on campus',
-        },
-        {
-            icon: '✦',
-            label: freeDays.length === 0 ? 'No free day' : freeDays.length === 1 ? `${DAY_NAMES[freeDays[0]]} free` : `${freeDays.join(', ')} free`,
-            sub: freeDays.length ? 'no classes' : 'every weekday',
-        },
-    ];
-    const pillW = 118;
-    const pillH = 30;
-    const pillsX = PAGE_W - PAD_X - pillW * 2 - 5;
-    pills.forEach((pill, i) => {
-        const px = pillsX + (i % 2) * (pillW + 5);
-        const py = y + Math.floor(i / 2) * (pillH + 5);
-        roundedRect(ctx, px, py, pillW, pillH, 6);
-        ctx.fillStyle = PAGE;
-        ctx.fill();
-        ctx.strokeStyle = LINE;
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        ctx.fillStyle = ACCENT_TEXT;
-        ctx.font = `700 12px ${SANS}`;
-        ctx.fillText(pill.icon, px + 8, py + 8);
-        ctx.fillStyle = INK;
-        ctx.font = F.pillLabel;
-        ctx.fillText(fit(ctx, pill.label, pillW - 32), px + 26, py + 5);
-        ctx.fillStyle = INK_MUTED;
-        ctx.font = F.pillSub;
-        ctx.fillText(pill.sub, px + 26, py + 18);
-    });
-    if (ay) {
-        const decoY = y + pillH * 2 + 5 + 10;
-        ctx.font = F.deco;
-        spaced(ctx, 1.2);
-        const label = `AY ${ay.replace('/', '-')}`;
-        const lw = ctx.measureText(label).width;
-        const right = PAGE_W - PAD_X;
-        ctx.fillStyle = INK_MUTED;
-        ctx.globalAlpha = 0.6;
-        ctx.fillRect(right - 18, decoY + 4, 18, 1);
-        ctx.fillText(label, right - 18 - 6 - lw, decoY);
-        ctx.fillRect(right - 18 - 6 - lw - 6 - 18, decoY + 4, 18, 1);
-        ctx.globalAlpha = 1;
-        spaced(ctx, 0);
-    }
-
-    y += headerH;
-    ctx.fillStyle = INK;
-    ctx.fillRect(PAD_X, y, contentW, 1.5);
-    y += 12;
-
     // ── Timetable ──
     const gridX = PAD_X + GUTTER;
     const gridW = contentW - GUTTER;
     const colW = gridW / days.length;
-    const gridTop = y;
+    const gridTop = PAD_TOP;
     const bodyTop = gridTop + DAY_HEADER;
     const hourY = (h) => bodyTop + BODY_PAD + (h - startHour) * pxPerHour;
 
@@ -622,30 +423,16 @@ function drawSheet(sheet) {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
 
-    y = bodyTop + gridBodyH + 12;
-
-    // ── Course registry ──
-    ctx.fillStyle = LINE;
-    ctx.fillRect(PAD_X, y, contentW, 1);
-    y += 12;
-    ctx.fillStyle = INK_SECONDARY;
-    ctx.font = F.legendTitle;
-    spaced(ctx, 1.2);
-    ctx.fillText('COURSE REGISTRY', PAD_X, y);
-    spaced(ctx, 0);
-    ctx.fillStyle = INK_MUTED;
-    ctx.font = F.legendCredits;
-    ctx.textAlign = 'right';
-    ctx.fillText(`Total: ${credits} credit hours · ${courseCount} ${courseCount === 1 ? 'course' : 'courses'}`, PAGE_W - PAD_X, y);
-    ctx.textAlign = 'left';
-    y += 18;
-
-    cardRows.forEach((row, r) => {
-        row.forEach(({ entry }, c) => registryCard(ctx, entry, PAD_X + c * (cardW + cardGap), y, cardW, true));
-        y += rowHeights[r] + cardGap;
-    });
+    let y = bodyTop + gridBodyH + 10;
+    if (noteLines.length) {
+        ctx.font = F.note;
+        ctx.fillStyle = INK_SECONDARY;
+        noteLines.forEach(line => { ctx.fillText(line, PAD_X, y); y += 14; });
+    }
 
     // ── Footer ──
+    const season = seasonOf(sheet.termCode, sheet.termName);
+    const ay = academicYear(sheet.termCode);
     y = pageH - PAD_BOTTOM - footerH + 6;
     ctx.fillStyle = LINE;
     ctx.fillRect(PAD_X, y, contentW, 1);
@@ -703,11 +490,11 @@ async function renderBlob(sheet) {
  * Draws the schedule sheet and saves it as a PNG.
  *
  * sheet: {
- *   termCode, termName, programName,
+ *   termCode, termName (for the footer),
  *   blocks:  [{ day, start, end, courseId, courseName, sectionNum, instructor, location, colorIdx }]
  *            one per meeting, with start and end in minutes after midnight,
- *   entries: [{ courseId, courseName, sectionNum, crn, classTime, instructor, location, credits, colorIdx }]
- *            one per section, for the registry; credits only on a course's first section,
+ *   entries: [{ courseId, courseName, sectionNum, classTime }]
+ *            one per section; those with no set time are listed under the grid,
  * }
  * title names the image in the share sheet.
  */
