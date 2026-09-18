@@ -42,10 +42,9 @@ const BODY_PAD = 8;
 // A 75-minute class with a two-line name needs about 100px to show everything,
 // so it keeps its instructor like the one-line names do.
 const MIN_PX_PER_HOUR = 82;
-const DAY_START_HOUR = 8;
 
-// Monday to Thursday are always drawn, so a free weekday shows as free; any
-// other day appears only when a class meets on it.
+// Monday to Thursday are always drawn, even with no classes; any other day
+// appears only when a class meets on it.
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu'];
 const ALL_DAYS = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
@@ -179,7 +178,6 @@ function drawBadge(ctx, x, y, text, color, height) {
 
 const F = {
     dayHeader: `700 9.5px ${SANS}`,
-    freeTag: `700 7px ${SANS}`,
     hour: `500 9px ${SANS}`,
     code: `700 9.5px ${MONO}`,
     name: `800 11px ${SANS}`,
@@ -309,10 +307,10 @@ function drawSheet(sheet) {
     // ── Days and hours ──
     const used = new Set(blocks.map(b => b.day));
     const days = ALL_DAYS.filter(d => WEEKDAYS.includes(d) || used.has(d));
-    // An hour of margin either side, but never before 8 AM unless a class is.
-    const firstHour = Math.floor(Math.min(...blocks.map(b => b.start)) / 60);
-    const startHour = Math.min(firstHour, Math.max(DAY_START_HOUR, firstHour - 1));
-    const endHour = Math.min(24, Math.ceil(Math.max(...blocks.map(b => b.end)) / 60) + 1);
+    // From the hour the first class starts in to the hour after the last one
+    // ends (9:30 to 3:15 draws 9 AM to 4 PM), as the schedule cards do.
+    const startHour = Math.floor(Math.min(...blocks.map(b => b.start)) / 60);
+    const endHour = Math.ceil(Math.max(...blocks.map(b => b.end)) / 60);
     const hours = endHour - startHour;
 
     // A section with no set time has no block, so it gets a line under the
@@ -373,29 +371,13 @@ function drawSheet(sheet) {
             ctx.fillStyle = LINE;
             ctx.fillRect(colX, gridTop, 1, DAY_HEADER + gridBodyH);
         }
-        const free = !used.has(day);
+        // An empty day is labelled like any other; its empty column says enough.
         ctx.font = F.dayHeader;
         spaced(ctx, 1);
-        const label = day.toUpperCase();
-        const lw = ctx.measureText(label).width;
-        let tagW = 0;
-        if (free) {
-            ctx.font = F.freeTag;
-            tagW = ctx.measureText('FREE').width + 8 + 5;
-        }
-        const startX = colX + (colW - lw - tagW) / 2;
-        ctx.font = F.dayHeader;
-        ctx.fillStyle = free ? INK_FAINT : INK_SECONDARY;
-        ctx.fillText(label, startX, gridTop + 10);
-        if (free) {
-            ctx.font = F.freeTag;
-            const tx = startX + lw + 5;
-            roundedRect(ctx, tx, gridTop + 8, tagW - 5, 12, 2);
-            ctx.strokeStyle = LINE;
-            ctx.stroke();
-            ctx.fillStyle = INK_MUTED;
-            ctx.fillText('FREE', tx + 4, gridTop + 11);
-        }
+        ctx.fillStyle = INK_SECONDARY;
+        ctx.textAlign = 'center';
+        ctx.fillText(day.toUpperCase(), colX + colW / 2, gridTop + 10);
+        ctx.textAlign = 'left';
         spaced(ctx, 0);
     });
 
