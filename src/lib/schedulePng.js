@@ -1,6 +1,6 @@
 /**
- * A schedule as a PNG, laid out as a printable A4 sheet: the week's timetable
- * filling the page, with a one-line footer.
+ * A schedule as a PNG: the week's timetable on an A4-wide sheet, as tall as
+ * the day's hours need, with a one-line footer.
  *
  * Drawn straight onto a canvas from the schedule's data rather than
  * screenshotting the card, so the image comes out the same on every device and
@@ -28,10 +28,9 @@ const PAGE = '#FFFFFF';
 const SANS = 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const MONO = '"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace';
 
-// A4 at 96 dpi. The sheet only grows taller than this when the timetable
-// would otherwise squeeze a class block below what its text needs.
+// A4's width at 96 dpi. The height follows the day's hours instead of being
+// fixed, so a class block is the same size on every sheet.
 const PAGE_W = 794;
-const PAGE_H = 1123;
 const SCALE = 2.5;
 const PAD_X = 38;
 const PAD_TOP = 30;
@@ -39,9 +38,9 @@ const PAD_BOTTOM = 26;
 const GUTTER = 52;
 const DAY_HEADER = 28;
 const BODY_PAD = 8;
-// A 75-minute class with a two-line name needs about 100px to show everything,
-// so it keeps its instructor like the one-line names do.
-const MIN_PX_PER_HOUR = 82;
+// Every hour is the same height, whatever the day's span. At 90px a 75-minute
+// class with a two-line name still has room for all of its lines.
+const PX_PER_HOUR = 90;
 
 // Monday to Thursday are always drawn, even with no classes; any other day
 // appears only when a class meets on it.
@@ -321,13 +320,12 @@ function drawSheet(sheet) {
         ? wrap(measure, `No set time: ${unscheduled.map(e => [e.courseId, e.courseName, e.sectionNum && `Sec ${e.sectionNum}`].filter(Boolean).join(' ')).join(' · ')}`, contentW)
         : [];
 
-    // ── Vertical budget: the timetable takes whatever A4 leaves ──
+    // ── Vertical budget: a fixed height per hour, the page as tall as that makes it ──
     const footerH = 24;
     const noteH = noteLines.length ? 10 + noteLines.length * 14 : 0;
-    const fixed = PAD_TOP + DAY_HEADER + BODY_PAD * 2 + noteH + footerH + PAD_BOTTOM;
-    const pxPerHour = Math.max(MIN_PX_PER_HOUR, (PAGE_H - fixed) / hours);
+    const pxPerHour = PX_PER_HOUR;
     const gridBodyH = hours * pxPerHour + BODY_PAD * 2;
-    const pageH = Math.ceil(fixed - BODY_PAD * 2 + gridBodyH);
+    const pageH = Math.ceil(PAD_TOP + DAY_HEADER + gridBodyH + noteH + footerH + PAD_BOTTOM);
 
     const canvas = document.createElement('canvas');
     canvas.width = Math.round(PAGE_W * SCALE);
