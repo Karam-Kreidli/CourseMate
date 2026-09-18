@@ -635,11 +635,11 @@ export default function SchedulePage() {
         let majorData;
         {
             const { data, error } = await supabase
-                .from('majors').select('dept_electives_count, support_electives_count').eq('code', profileData.major).single();
+                .from('majors').select('name, dept_electives_count, support_electives_count').eq('code', profileData.major).single();
             if (error) {
                 // Fallback: support_electives_count column might not exist yet
                 const { data: fallback } = await supabase
-                    .from('majors').select('dept_electives_count').eq('code', profileData.major).single();
+                    .from('majors').select('name, dept_electives_count').eq('code', profileData.major).single();
                 majorData = fallback ? { ...fallback, support_electives_count: 0 } : null;
             } else {
                 majorData = data;
@@ -1651,6 +1651,7 @@ export default function SchedulePage() {
                                     isSaved={true}
                                     initiallyCollapsed={true}
                                     isSavingSchedule={isSavingSchedule}
+                                    programName={majorInfo?.name || null}
                                 />
                             ))}
                         </div>
@@ -2011,6 +2012,7 @@ export default function SchedulePage() {
                                             isSaved={isSaved}
                                             initiallyCollapsed={false}
                                             isSavingSchedule={isSavingSchedule}
+                                            programName={majorInfo?.name || null}
                                         />
                                     );
                                 })}
@@ -2054,7 +2056,7 @@ export default function SchedulePage() {
 
 // ===== SCHEDULE CARD COMPONENT =====
 
-function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedCourses, onSave, onUnsave, isSaved, initiallyCollapsed = false, isSavingSchedule = false }) {
+function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedCourses, onSave, onUnsave, isSaved, initiallyCollapsed = false, isSavingSchedule = false, programName = null }) {
     const { schedule, score, warnings } = result;
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [cardOpen, setCardOpen] = useState(!initiallyCollapsed);
@@ -2138,16 +2140,34 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
         });
 
     const scheduleTitle = Number.isInteger(rank) ? `Schedule #${rank}` : String(rank);
+    // Everything the downloadable sheet shows. Every section gets a registry
+    // card, including one with no set time, which has no block on the grid.
+    // Credits go on a course's first section only, so a lecture and its lab
+    // do not count the course twice.
+    const creditedCourses = new Set();
     const exportData = {
+        termCode: selectedTerm,
+        termName: termInfo?.name,
+        programName,
         blocks,
-        // Sections with no set meeting time have no block to carry their
-        // details, so the image lists them under the grid.
-        unscheduled: schedule.flatMap(group => group.sections
-            .filter(sec => parseClassTime(sec.class_time).length === 0)
-            .map(sec => ({
-                courseId: sec.course_id,
-                courseName: courseNameMap[sec.course_id] || null,
-            }))),
+        entries: schedule.flatMap(group => {
+            const courseIdx = selectedCourses.findIndex(c => c.course_id === (group.originalCourseId || group.courseId));
+            return group.sections.filter(sec => !sec.isMissing).map(sec => {
+                const firstOfCourse = !creditedCourses.has(group.courseId);
+                creditedCourses.add(group.courseId);
+                return {
+                    courseId: sec.course_id,
+                    courseName: courseNameMap[sec.course_id] || courseNameMap[group.courseId] || null,
+                    sectionNum: sec.section_num,
+                    crn: sec.crn,
+                    classTime: sec.class_time,
+                    instructor: sec.instructor,
+                    location: sec.location,
+                    credits: firstOfCourse ? (courseCreditsMap[group.courseId] || null) : null,
+                    colorIdx: courseIdx % 8,
+                };
+            });
+        }),
     };
     const pngFileName = `coursemate-${scheduleTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'schedule'}.png`;
 
