@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { campusFilter } from '@/lib/campus';
@@ -9,9 +10,10 @@ import { useSemester } from '@/lib/SemesterContext';
 import PageShell from '@/components/PageShell';
 import PageHeader from '@/components/PageHeader';
 import InstructorFinder from '@/components/InstructorFinder';
-import { ScheduleIcon, UserCheckIcon, DownloadIcon } from '@/components/Icons';
+import { ScheduleIcon, UserCheckIcon, DownloadIcon, CopyIcon, CheckIcon, CalendarPlusIcon } from '@/components/Icons';
 import { decodeHtmlEntities } from '@/lib/text';
-import { downloadSchedulePng } from '@/lib/schedulePng';
+import { downloadSchedulePng, copySchedulePng } from '@/lib/schedulePng';
+import { downloadScheduleIcs } from '@/lib/scheduleIcs';
 import styles from './schedule.module.css';
 
 // ===== TIME PARSING UTILITIES =====
@@ -752,6 +754,7 @@ export default function SchedulePage() {
 
             computedSchedules.push({
                 dbId: dbObj.id,
+                name: dbObj.name || null,
                 schedule: reconstructedGroups,
                 score,
                 warnings: updatedWarnings,
@@ -777,7 +780,7 @@ export default function SchedulePage() {
         return map;
     }, [dbSavedSchedules]);
 
-    const handleSaveSchedule = async (resultToSave) => {
+    const handleSaveSchedule = async (resultToSave, name) => {
         if (isSavingSchedule) return;
 
         const newSig = getScheduleSignature(resultToSave.schedule);
@@ -807,7 +810,7 @@ export default function SchedulePage() {
 
             const { error: saveError } = await supabase
                 .from('saved_schedules')
-                .insert([{ user_id: profile.id, schedule_data: scheduleData, term_code: selectedTerm }]);
+                .insert([{ user_id: profile.id, schedule_data: scheduleData, term_code: selectedTerm, name: name?.trim().slice(0, 60) || null }]);
 
             if (saveError) {
                 setError('Database Error: ' + saveError.message);
@@ -1639,7 +1642,7 @@ export default function SchedulePage() {
                                 <ScheduleCard
                                     key={savedObj.dbId}
                                     result={savedObj}
-                                    rank={i + 1}
+                                    rank={savedObj.name || `Saved schedule ${i + 1}`}
                                     courseNameMap={courseNameMap}
                                     courseCreditsMap={courseCreditsMap}
                                     selectedCourses={savedObj.storedSelectedCourses}
@@ -2003,7 +2006,7 @@ export default function SchedulePage() {
                                             courseNameMap={courseNameMap}
                                             courseCreditsMap={courseCreditsMap}
                                             selectedCourses={selectedCourses}
-                                            onSave={isSaved ? null : () => handleSaveSchedule(result)}
+                                            onSave={isSaved ? null : (name) => handleSaveSchedule(result, name)}
                                             onUnsave={isSaved ? () => handleDeleteSavedSchedule(dbId) : null}
                                             isSaved={isSaved}
                                             initiallyCollapsed={false}
@@ -2056,6 +2059,20 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [cardOpen, setCardOpen] = useState(!initiallyCollapsed);
     const [exporting, setExporting] = useState(false);
+    const [copied, setCopied] = useState(false);
+    const [naming, setNaming] = useState(false);
+    const [saveName, setSaveName] = useState('');
+    const { selectedTerm, semesters } = useSemester();
+    // Carries the term's dates from Banner, which the calendar export needs.
+    const termInfo = semesters?.find(s => s.term_code === selectedTerm);
+
+    // Escape closes the naming dialog, as it does for any other dialog.
+    useEffect(() => {
+        if (!naming) return undefined;
+        const onKey = (e) => { if (e.key === 'Escape' && !isSavingSchedule) setNaming(false); };
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+    }, [naming, isSavingSchedule]);
 
     // Compute total credit hours for this schedule
     const totalCredits = schedule.reduce((sum, group) => {
@@ -2075,6 +2092,7 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                     courseId: group.courseId,
                     courseName: courseNameMap[group.courseId] || courseNameMap[group.originalCourseId] || null,
                     sectionNum: sec.section_num,
+                    crn: sec.crn || null,
                     instructor: sec.instructor || null,
                     location: sec.location || null,
                     colorIdx: courseIdx % 8,
@@ -2119,25 +2137,61 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
             return seats && seats.tone === 'full';
         });
 
+    const scheduleTitle = Number.isInteger(rank) ? `Schedule #${rank}` : String(rank);
+    const exportData = {
+        blocks,
+        // Sections with no set meeting time have no block to carry their
+        // details, so the image lists them under the grid.
+        unscheduled: schedule.flatMap(group => group.sections
+            .filter(sec => parseClassTime(sec.class_time).length === 0)
+            .map(sec => ({
+                courseId: sec.course_id,
+                courseName: courseNameMap[sec.course_id] || null,
+            }))),
+    };
+    const pngFileName = `coursemate-${scheduleTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'schedule'}.png`;
+
     const handleExportPng = async () => {
         setExporting(true);
         try {
-            await downloadSchedulePng({
-                title: Number.isInteger(rank) ? `Schedule #${rank}` : String(rank),
-                blocks,
-                // Sections with no set meeting time have no block to carry
-                // their details, so the image lists them under the grid.
-                unscheduled: schedule.flatMap(group => group.sections
-                    .filter(sec => parseClassTime(sec.class_time).length === 0)
-                    .map(sec => ({
-                        courseId: sec.course_id,
-                        courseName: courseNameMap[sec.course_id] || null,
-                    }))),
-                fileName: `coursemate-schedule-${Number.isInteger(rank) ? rank : 'export'}.png`,
-            });
+            await downloadSchedulePng({ ...exportData, title: scheduleTitle, fileName: pngFileName });
         } catch (err) {
             console.error('PNG export failed:', err);
             window.alert('Could not create the image. Please try again.');
+        } finally {
+            setExporting(false);
+        }
+    };
+
+    const handleExportIcs = () => {
+        const ok = downloadScheduleIcs({
+            blocks,
+            term: {
+                name: termInfo?.name,
+                classesStart: termInfo?.classes_start,
+                classesEnd: termInfo?.classes_end,
+                noClassDates: termInfo?.no_class_dates,
+            },
+            fileName: pngFileName.replace(/\.png$/, '.ics'),
+        });
+        if (!ok) window.alert('This semester has no class dates yet, so a calendar file cannot be made.');
+    };
+
+    const handleCopyPng = async () => {
+        setExporting(true);
+        try {
+            const result = await copySchedulePng(exportData);
+            // Firefox and plain HTTP have no image clipboard; the image is
+            // still worth having, so it downloads instead.
+            if (result === 'copied') {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+            } else {
+                await downloadSchedulePng({ ...exportData, title: scheduleTitle, fileName: pngFileName });
+            }
+        } catch (err) {
+            console.error('PNG copy failed:', err);
+            window.alert('Could not copy the image. Please try again.');
         } finally {
             setExporting(false);
         }
@@ -2153,6 +2207,27 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                 <div className={styles.scheduleCardMeta}>
                     {totalCredits > 0 && <span className={styles.scheduleCredits}>{totalCredits} cr</span>}
                     <span className={styles.scheduleScore}>Score: {Math.round(score)}</span>
+                    {termInfo?.classes_start && termInfo?.classes_end && (
+                        <button
+                            type="button"
+                            className={styles.exportBtn}
+                            onClick={(e) => { e.stopPropagation(); handleExportIcs(); }}
+                            title="Add to a calendar"
+                            aria-label="Download this schedule as a calendar file"
+                        >
+                            <CalendarPlusIcon width={15} height={15} />
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        className={`${styles.exportBtn} ${copied ? styles.exportBtnDone : ''}`}
+                        onClick={(e) => { e.stopPropagation(); handleCopyPng(); }}
+                        disabled={exporting}
+                        title={copied ? 'Copied' : 'Copy as an image'}
+                        aria-label="Copy this schedule as an image"
+                    >
+                        {copied ? <CheckIcon width={15} height={15} /> : <CopyIcon width={15} height={15} />}
+                    </button>
                     <button
                         type="button"
                         className={styles.exportBtn}
@@ -2331,11 +2406,55 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
 
                 {onSave && !isSaved && (
                     <div className={styles.saveFooter}>
-                        <button className={styles.saveBtn} onClick={onSave} disabled={isSavingSchedule}>
-                            {isSavingSchedule ? <span className={styles.spinner} style={{ width: 14, height: 14, borderWidth: 2, borderColor: '#fff', borderTopColor: 'transparent' }}></span> : 'Save Schedule'}
+                        <button className={styles.saveBtn} onClick={() => setNaming(true)} disabled={isSavingSchedule}>
+                            Save Schedule
                         </button>
                     </div>
                 )}
+
+                {/* Three saved schedules all called "Saved schedule 2" help nobody,
+                    so saving asks what to call this one. A dialog, because the
+                    same question sat in the footer unnoticed. */}
+                {/* Through a portal: the card's own blur would otherwise pin the
+                    dialog inside the card instead of over the page. */}
+                {naming && createPortal((
+                    <div
+                        className={styles.saveDialogBackdrop}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Name this schedule"
+                        onClick={() => !isSavingSchedule && setNaming(false)}
+                    >
+                        <form
+                            className={styles.saveDialog}
+                            onClick={(e) => e.stopPropagation()}
+                            onSubmit={async (e) => {
+                                e.preventDefault();
+                                await onSave(saveName);
+                                setNaming(false);
+                            }}
+                        >
+                            <h3 className={styles.saveDialogTitle}>Name this schedule</h3>
+                            <input
+                                className={styles.saveNameInput}
+                                value={saveName}
+                                onChange={(e) => setSaveName(e.target.value)}
+                                placeholder={`e.g. ${scheduleTitle}`}
+                                maxLength={60}
+                                autoFocus
+                                disabled={isSavingSchedule}
+                            />
+                            <div className={styles.saveDialogActions}>
+                                <button type="button" className={styles.unsaveBtn} onClick={() => setNaming(false)} disabled={isSavingSchedule}>
+                                    Cancel
+                                </button>
+                                <button type="submit" className={styles.saveBtn} disabled={isSavingSchedule || !saveName.trim()}>
+                                    {isSavingSchedule ? <span className={styles.spinner} style={{ width: 14, height: 14, borderWidth: 2, borderColor: '#fff', borderTopColor: 'transparent' }}></span> : 'Save'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                ), document.body)}
 
                 {isSaved && onUnsave && (
                     <div className={styles.saveFooter}>

@@ -745,6 +745,12 @@
     font-size: 0.8125rem;
     font-weight: 800;
     color: var(--color-accent);
+    /* A schedule the student named can be long; it gives way to the credits
+       and score rather than wrapping the row onto two lines. */
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .scheduleScore {
@@ -757,6 +763,8 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    flex: none;
+    white-space: nowrap;
 }
 
 /* Export as PNG. Negative margins keep the header row the height it was
@@ -788,6 +796,13 @@
 .exportBtn:disabled {
     opacity: 0.5;
     cursor: wait;
+}
+
+/* Held for a moment after a copy, so the tick is not mistaken for disabled. */
+.exportBtnDone,
+.exportBtnDone:disabled {
+    color: var(--color-accent);
+    opacity: 1;
 }
 
 .scheduleCredits {
@@ -840,6 +855,7 @@
     border-top: 1px solid var(--border-color);
     display: flex;
     justify-content: center;
+    gap: 8px;
 }
 
 .saveFooter .saveBtn {
@@ -848,6 +864,81 @@
 
 .saveFooter .unsaveBtn {
     width: 100%;
+}
+
+/* Naming a schedule, in the same dialog style as the announcements modal. */
+.saveDialogBackdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: rgba(10, 12, 24, 0.55);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+    animation: saveDialogFadeIn 0.2s var(--ease-out-expo);
+}
+
+@keyframes saveDialogFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.saveDialog {
+    width: 100%;
+    max-width: 400px;
+    padding: 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-xl);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35), var(--shadow-accent);
+    animation: saveDialogIn 0.28s var(--ease-out-expo);
+}
+
+@keyframes saveDialogIn {
+    from { opacity: 0; transform: translateY(20px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.saveDialogTitle {
+    margin: 0 0 14px;
+    font-size: 1.0625rem;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
+.saveDialogActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.saveNameInput {
+    width: 100%;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+.saveNameInput:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px var(--color-accent-muted);
+}
+
+.saveDialogActions .saveBtn,
+.saveDialogActions .unsaveBtn {
+    width: auto;
+    padding: 8px 18px;
+    font-size: 0.8125rem;
 }
 
 .savedHeader {

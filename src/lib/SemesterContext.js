@@ -18,7 +18,8 @@ export function SemesterProvider({ children }) {
     const fetchSemesters = async () => {
         const { data, error } = await supabase
             .from('semesters')
-            .select('term_code, name')
+            // The term's dates ride along for the calendar (.ics) export.
+            .select('term_code, name, classes_start, classes_end, no_class_dates')
             .eq('is_active', true)
             .order('term_code');
 
