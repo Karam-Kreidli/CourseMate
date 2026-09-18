@@ -2138,16 +2138,18 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
         });
 
     const scheduleTitle = Number.isInteger(rank) ? `Schedule #${rank}` : String(rank);
+    // Everything the downloadable sheet shows. Sections come along too, so one
+    // with no set time, which has no block on the grid, still gets a mention.
     const exportData = {
+        termCode: selectedTerm,
+        termName: termInfo?.name,
         blocks,
-        // Sections with no set meeting time have no block to carry their
-        // details, so the image lists them under the grid.
-        unscheduled: schedule.flatMap(group => group.sections
-            .filter(sec => parseClassTime(sec.class_time).length === 0)
-            .map(sec => ({
-                courseId: sec.course_id,
-                courseName: courseNameMap[sec.course_id] || null,
-            }))),
+        entries: schedule.flatMap(group => group.sections.filter(sec => !sec.isMissing).map(sec => ({
+            courseId: sec.course_id,
+            courseName: courseNameMap[sec.course_id] || courseNameMap[group.courseId] || null,
+            sectionNum: sec.section_num,
+            classTime: sec.class_time,
+        }))),
     };
     const pngFileName = `coursemate-${scheduleTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'schedule'}.png`;
 
