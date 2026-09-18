@@ -1,6 +1,6 @@
 /**
- * A schedule as a PNG: the week's timetable on an A4-wide sheet, as tall as
- * the day's hours need, with a one-line footer.
+ * A schedule as a PNG: the week's timetable on a sheet as tall as the day's
+ * hours need, with a one-line footer.
  *
  * Drawn straight onto a canvas from the schedule's data rather than
  * screenshotting the card, so the image comes out the same on every device and
@@ -28,9 +28,10 @@ const PAGE = '#FFFFFF';
 const SANS = 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const MONO = '"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace';
 
-// A4's width at 96 dpi. The height follows the day's hours instead of being
-// fixed, so a class block is the same size on every sheet.
-const PAGE_W = 794;
+// A little narrower than A4 (794 at 96 dpi), which Karam found too wide. The
+// height follows the day's hours, so a class block is the same size on every
+// sheet.
+const PAGE_W = 720;
 const SCALE = 2.5;
 const PAD_X = 38;
 const PAD_TOP = 30;
