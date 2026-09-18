@@ -2,10 +2,12 @@
  * A schedule as a calendar file (.ics) the student can import into Outlook,
  * Google Calendar or Apple Calendar.
  *
- * One event per section, repeating weekly from the first day of classes to the
- * last, with the term's holidays excluded. Those dates come from the semesters
- * table (classes_start, classes_end, no_class_dates), typed in from the UOS
- * academic calendar, since Banner does not carry them.
+ * One event per section, repeating weekly across the term, with any holidays
+ * excluded. The dates come from the semesters table: classes_start and
+ * classes_end are Banner's meeting dates, written by extract-sections.js when a
+ * term is loaded (the end date is the end of finals, so events run about two
+ * weeks past the last class); no_class_dates is an optional list of holidays
+ * typed in from the UOS academic calendar.
  */
 import { decodeHtmlEntities } from '@/lib/text';
 

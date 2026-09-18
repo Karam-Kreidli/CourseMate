@@ -2063,7 +2063,7 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
     const [naming, setNaming] = useState(false);
     const [saveName, setSaveName] = useState('');
     const { selectedTerm, semesters } = useSemester();
-    // Carries the term's teaching dates, which the calendar export needs.
+    // Carries the term's dates from Banner, which the calendar export needs.
     const termInfo = semesters?.find(s => s.term_code === selectedTerm);
 
     // Escape closes the naming dialog, as it does for any other dialog.
