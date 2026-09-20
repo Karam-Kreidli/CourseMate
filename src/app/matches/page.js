@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { fetchAllRows } from '@/lib/supabase/fetchAll';
 import { useSemester } from '@/lib/SemesterContext';
 import { ACTIVITY_TYPES } from '@/lib/useUnreadCount';
 import PageShell from '@/components/PageShell';
@@ -103,14 +104,16 @@ export default function MatchesPage() {
         return channel;
     };
 
+    // The column is course_name; asking for `name` failed the whole read, so
+    // this map was always empty and the cards fell back to the post's own copy.
     const fetchCourses = async () => {
-        const { data } = await supabase
+        const { data } = await fetchAllRows(() => supabase
             .from('courses')
-            .select('course_id, name');
+            .select('course_id, course_name'));
 
         if (data) {
             const courseMap = {};
-            data.forEach(c => courseMap[c.course_id] = c.name);
+            data.forEach(c => courseMap[c.course_id] = c.course_name);
             setCourses(courseMap);
         }
     };
