@@ -10,7 +10,9 @@ import { useSemester } from '@/lib/SemesterContext';
 import PageShell from '@/components/PageShell';
 import PageHeader from '@/components/PageHeader';
 import InstructorFinder from '@/components/InstructorFinder';
-import { ScheduleIcon, UserCheckIcon, DownloadIcon, CopyIcon, CheckIcon, CalendarPlusIcon } from '@/components/Icons';
+import CourseHistory, { HistorySheet } from '@/components/CourseHistory';
+import { ScheduleIcon, UserCheckIcon, DownloadIcon, CopyIcon, CheckIcon, CalendarPlusIcon, HistoryIcon } from '@/components/Icons';
+import { historyTerms, termLabel, fetchHistoryCounts } from '@/lib/courseHistory';
 import { decodeHtmlEntities } from '@/lib/text';
 import { downloadSchedulePng, copySchedulePng } from '@/lib/schedulePng';
 import { downloadScheduleIcs } from '@/lib/scheduleIcs';
@@ -491,8 +493,19 @@ function formatTimeShort(minutes) {
 
 export default function SchedulePage() {
     const [profile, setProfile] = useState(null);
-    // 'build' | 'instructor' — peer modes of this page.
+    // 'build' | 'instructor' | 'history': peer modes of this page.
     const [mode, setMode] = useState('build');
+    // What the History tab should open: { courseId, courseName, term }. A new
+    // object each time, so asking for the same course twice still reopens it.
+    const [historyRequest, setHistoryRequest] = useState(null);
+    // Whether History was reached from a build-tab shortcut, to offer the way back.
+    const [historyFromBuild, setHistoryFromBuild] = useState(false);
+    // The course whose quick look sheet is open, or null.
+    const [sheetCourse, setSheetCourse] = useState(null);
+    // course_id -> [{ term, sections }] for the term being planned and the past
+    // terms History covers; null until loaded. Drives the picker's
+    // "Not open this term, last ran ..." hint.
+    const [termCounts, setTermCounts] = useState(null);
     const [majorInfo, setMajorInfo] = useState(null);
     const [courses, setCourses] = useState([]);
     const [selectedCourses, setSelectedCourses] = useState([]);
@@ -541,19 +554,53 @@ export default function SchedulePage() {
 
     // /schedule?mode=instructor opens the finder directly. Home's quick action
     // links here, and the old /instructors route redirects here.
+    // /schedule?mode=history&course=0401211 opens History on that course.
     useEffect(() => {
-        if (new URLSearchParams(window.location.search).get('mode') === 'instructor') setMode('instructor');
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get('mode');
+        if (requested === 'instructor') setMode('instructor');
+        if (requested === 'history') {
+            setMode('history');
+            if (params.get('course')) setHistoryRequest({ courseId: params.get('course') });
+        }
     }, []);
 
     // Keep the URL in step with the mode, so a refresh or a shared link lands
     // on the same one.
-    const switchMode = (next) => {
+    const switchMode = (next, courseId = null) => {
         setMode(next);
+        if (next !== 'history') setHistoryFromBuild(false);
         const url = new URL(window.location.href);
-        if (next === 'instructor') url.searchParams.set('mode', 'instructor');
-        else url.searchParams.delete('mode');
+        if (next === 'build') url.searchParams.delete('mode');
+        else url.searchParams.set('mode', next);
+        if (next === 'history' && courseId) url.searchParams.set('course', courseId);
+        else url.searchParams.delete('course');
         window.history.replaceState(null, '', url);
     };
+
+    // A build-tab shortcut into History: the cart's quick look sheet, or the
+    // picker's hint on a course that isn't open this term.
+    const openHistory = (course, term = null) => {
+        setSheetCourse(null);
+        setShowDropdown(false);
+        setHistoryRequest({ courseId: course.course_id, courseName: course.name, term });
+        setHistoryFromBuild(true);
+        switchMode('history', course.course_id);
+        window.scrollTo({ top: 0 });
+    };
+
+    // Sections per course this term and in History's past terms, for the
+    // picker. One grouped query covers the whole major.
+    useEffect(() => {
+        setTermCounts(null);
+        if (!selectedTerm || courses.length === 0) return;
+        let cancelled = false;
+        fetchHistoryCounts(supabase, courses.map(c => c.course_id), [selectedTerm, ...historyTerms(selectedTerm)])
+            .then(counts => { if (!cancelled) setTermCounts(counts); })
+            .catch(() => {});
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [courses, selectedTerm]);
 
     // Reset state when semester changes
     // Load Banner's section pairings for the term.
@@ -1308,6 +1355,23 @@ export default function SchedulePage() {
         ).slice(0, 8)
         : [];
 
+    // For a picker course with no sections in the term being planned, what to
+    // say about it instead: when it last ran, if in History's terms. Null when
+    // it is open, or while the term's own sections aren't known (a term not
+    // loaded yet would otherwise mark every course closed).
+    const notOpenNote = (courseId) => {
+        if (!termCounts) return null;
+        const termLoaded = Object.values(termCounts).some(list => list.some(e => e.term === selectedTerm));
+        if (!termLoaded) return null;
+        const list = termCounts[courseId] || [];
+        if (list.some(e => e.term === selectedTerm)) return null;
+        const last = list.find(e => e.term !== selectedTerm);
+        const closed = `Not open in ${termLabel(selectedTerm)}.`;
+        return last
+            ? `${closed} Last ran ${termLabel(last.term)}, ${last.sections} ${last.sections === 1 ? 'section' : 'sections'}.`
+            : `${closed} Not offered in the last ${historyTerms(selectedTerm).length} terms either.`;
+    };
+
     // Get unique instructors for a course
     const getInstructors = (courseId) => {
         const secs = allSections[courseId] || [];
@@ -1613,7 +1677,8 @@ export default function SchedulePage() {
                         onClick={() => switchMode('build')}
                     >
                         <ScheduleIcon width={16} height={16} />
-                        Build schedule
+                        <span className={styles.modeLabelLong}>Build schedule</span>
+                        <span className={styles.modeLabelShort}>Build</span>
                     </button>
                     <button
                         type="button"
@@ -1623,11 +1688,38 @@ export default function SchedulePage() {
                         onClick={() => switchMode('instructor')}
                     >
                         <UserCheckIcon width={16} height={16} />
-                        Find instructor
+                        <span className={styles.modeLabelLong}>Find instructor</span>
+                        <span className={styles.modeLabelShort}>Instructor</span>
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={mode === 'history'}
+                        className={`${styles.modeBtn} ${mode === 'history' ? styles.modeBtnActive : ''}`}
+                        onClick={() => switchMode('history')}
+                    >
+                        <HistoryIcon width={16} height={16} />
+                        <span className={styles.modeLabelLong}>Course history</span>
+                        <span className={styles.modeLabelShort}>History</span>
                     </button>
                 </div>
 
                 {mode === 'instructor' && <InstructorFinder />}
+
+                {mode === 'history' && (
+                    <CourseHistory
+                        request={historyRequest}
+                        onBackToBuild={historyFromBuild ? () => switchMode('build') : null}
+                    />
+                )}
+
+                {sheetCourse && (
+                    <HistorySheet
+                        course={sheetCourse}
+                        onClose={() => setSheetCourse(null)}
+                        onSeeAll={(term) => openHistory(sheetCourse, term)}
+                    />
+                )}
 
                 <main className={styles.main} hidden={mode !== 'build'}>
                     {error && <div className={styles.error}>{error}</div>}
@@ -1677,12 +1769,31 @@ export default function SchedulePage() {
                                 <input type="text" value={courseSearch} onChange={(e) => { setCourseSearch(e.target.value); setShowDropdown(true); }} onFocus={() => setShowDropdown(true)} className={styles.input} placeholder="Search by course name or ID..." autoComplete="off" />
                                 {showDropdown && filteredCourses.length > 0 && (
                                     <div className={styles.dropdown}>
-                                        {filteredCourses.map(course => (
-                                            <button key={course.course_id} type="button" className={styles.dropdownItem} onClick={() => addCourse(course)}>
-                                                <span className={styles.dropdownId}>{course.course_id}</span>
-                                                <span className={styles.dropdownName}>{course.name}</span>
-                                            </button>
-                                        ))}
+                                        {filteredCourses.map(course => {
+                                            const closedNote = notOpenNote(course.course_id);
+                                            if (!closedNote) {
+                                                return (
+                                                    <button key={course.course_id} type="button" className={styles.dropdownItem} onClick={() => addCourse(course)}>
+                                                        <span className={styles.dropdownId}>{course.course_id}</span>
+                                                        <span className={styles.dropdownName}>{course.name}</span>
+                                                    </button>
+                                                );
+                                            }
+                                            return (
+                                                <div key={course.course_id} className={styles.dropdownClosed}>
+                                                    <div className={styles.dropdownClosedHead}>
+                                                        <span className={styles.dropdownId}>{course.course_id}</span>
+                                                        <span className={styles.dropdownName}>{course.name}</span>
+                                                    </div>
+                                                    <div className={styles.dropdownClosedFoot}>
+                                                        <span>{closedNote}</span>
+                                                        <button type="button" className={styles.dropdownHistoryBtn} onClick={() => openHistory(course)}>
+                                                            History
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>
@@ -1709,6 +1820,17 @@ export default function SchedulePage() {
                                                 )}
                                             </div>
                                             <div className={styles.courseChipActions}>
+                                                {/^\d+$/.test(c.course_id) && (
+                                                    <button
+                                                        type="button"
+                                                        className={styles.historyBtn}
+                                                        onClick={() => setSheetCourse(c)}
+                                                        aria-label={`Past terms for ${c.name}`}
+                                                        title="How this course ran in past terms"
+                                                    >
+                                                        <HistoryIcon width={16} height={16} />
+                                                    </button>
+                                                )}
                                                 <button className={`${styles.xorToggle} ${xorCourseIds.has(c.course_id) ? styles.xorToggleActive : ''}`} onClick={() => toggleXor(c.course_id)} title="Exclusive Or: only one XOR course will appear per schedule">XOR</button>
                                                 <button className={styles.removeBtn} onClick={() => removeCourse(c.course_id)}>×</button>
                                             </div>

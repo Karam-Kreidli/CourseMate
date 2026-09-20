@@ -27,6 +27,9 @@ sync-semester.js
 fetch-campus-restrictions.js
 fetch-prerequisites.js
 fetch-office-hours.js
+load-section-history.js
+load-banner-courses.js
+load-term-sections.js
 refresh-seats.js
 campus-restrictions.json
 prerequisites.json

@@ -163,6 +163,56 @@
     color: var(--text-secondary);
 }
 
+/* A picker course with no sections this term: not addable, but its History is
+   one tap away. */
+.dropdownClosed {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px 16px;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-color-subtle);
+}
+
+.dropdownClosed:last-child { border-bottom: none; }
+
+.dropdownClosedHead {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.dropdownClosedHead .dropdownId,
+.dropdownClosedHead .dropdownName { color: var(--text-muted); }
+
+.dropdownClosedFoot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: var(--text-secondary);
+}
+
+.dropdownHistoryBtn {
+    flex-shrink: 0;
+    min-height: 32px;
+    padding: 0 12px;
+    border: 1px solid var(--color-accent);
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--color-accent-dark);
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.dropdownHistoryBtn:hover {
+    background: var(--color-accent);
+    color: var(--text-inverse);
+}
+
 /* ===== Selected courses list ===== */
 .selectedCourses {
     display: flex;
@@ -222,6 +272,28 @@
 .removeBtn:hover {
     background: rgba(239, 68, 68, 0.1);
     color: var(--status-expired);
+    transform: scale(1.1);
+}
+
+/* Opens the course's quick look at past terms. */
+.historyBtn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: none;
+    background: var(--color-accent-muted);
+    color: var(--color-accent-dark);
+    --icon-color: currentColor;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.historyBtn:hover {
+    background: var(--color-accent);
+    color: var(--text-inverse);
     transform: scale(1.1);
 }
 
@@ -1482,10 +1554,10 @@
 }
 
 
-/* ===== Mode switch (Build schedule / Find instructor) ===== */
+/* ===== Mode switch (Build schedule / Find instructor / Course history) ===== */
 .modeCard {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 6px;
     padding: 6px;
     background: var(--glass-bg-dense);
@@ -1523,6 +1595,15 @@
     background: var(--gradient-accent-vivid);
     color: var(--text-inverse);
     box-shadow: var(--shadow-accent);
+}
+
+/* Three tabs share a phone's width, so each drops to one word there. */
+.modeLabelShort { display: none; }
+
+@media (max-width: 560px) {
+    .modeLabelLong { display: none; }
+    .modeLabelShort { display: inline; }
+    .modeBtn { gap: 6px; }
 }
 
 @media (max-width: 400px) {
