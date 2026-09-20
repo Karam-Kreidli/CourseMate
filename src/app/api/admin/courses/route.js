@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAdminUser, createAdminClient } from '@/lib/admin';
 import { decodeSectionInstructors } from '@/lib/text';
+import { fetchAllRows } from '@/lib/supabase/fetchAll';
 
 // Categories an admin sets by hand, per major.
 const ALLOWED_CATEGORIES = ['Core', 'Major Elective', 'Support Elective'];
@@ -52,19 +53,20 @@ export async function GET(request) {
         if (restrictIds.length === 0) return NextResponse.json({ courses: [] });
     }
 
-    let query = supabase
-        .from('courses')
-        .select('course_id, course_name, college_name, course_number, credit_hours, university_elective_basket, restricted_majors')
-        .order('course_id')
-        .limit(2000);
+    // Every course Banner lists is stored, which is more than one page.
+    const { data: courses, error } = await fetchAllRows(() => {
+        let query = supabase
+            .from('courses')
+            .select('course_id, course_name, college_name, course_number, credit_hours, university_elective_basket, restricted_majors')
+            .order('course_id');
 
-    if (q) {
-        const like = `%${q}%`;
-        query = query.or(`course_id.ilike.${like},course_name.ilike.${like}`);
-    }
-    if (restrictIds) query = query.in('course_id', restrictIds);
-
-    const { data: courses, error } = await query;
+        if (q) {
+            const like = `%${q}%`;
+            query = query.or(`course_id.ilike.${like},course_name.ilike.${like}`);
+        }
+        if (restrictIds) query = query.in('course_id', restrictIds);
+        return query;
+    });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     const ids = (courses || []).map(c => c.course_id);
@@ -97,12 +99,12 @@ export async function GET(request) {
     }
 
     // Sections for these courses.
-    const { data: rawSecRows } = await supabase
+    const { data: rawSecRows } = await fetchAllRows(() => supabase
         .from('sections')
         .select('course_id, section_num, crn, instructor, class_time, campus, term_code')
         .in('course_id', ids)
         .order('term_code', { ascending: false })
-        .order('section_num');
+        .order('section_num'));
 
     // Decoded here so both the per-section rows and the derived instructor list
     // below carry the readable name.

@@ -34,8 +34,10 @@ refresh-seats.js
 campus-restrictions.json
 prerequisites.json
 
-# Database scripts
-supabase/
+# Database scripts (the root folder of migrations, not src/lib/supabase)
+/supabase/
 
 scraper/
 graphify-out/
+# A stray nested copy: scraped Banner data and a schema dump, both private
+/course-mate/

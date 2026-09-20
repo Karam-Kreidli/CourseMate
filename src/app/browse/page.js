@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { fetchAllRows } from '@/lib/supabase/fetchAll';
 import { campusFilter } from '@/lib/campus';
 import { useSemester } from '@/lib/SemesterContext';
 import { SearchIcon } from '@/components/Icons';
@@ -90,6 +91,7 @@ export default function BrowsePage() {
             .eq('id', user.id)
             .single();
 
+        let courseIds = [];
         if (profile?.major) {
             setUserMajor(profile.major);
             setUserGender(profile.gender);
@@ -98,7 +100,7 @@ export default function BrowsePage() {
                 .select('course_id')
                 .eq('major_code', profile.major);
 
-            const courseIds = majorCoursesData?.map(mc => mc.course_id) || [];
+            courseIds = majorCoursesData?.map(mc => mc.course_id) || [];
             setMajorCourses(courseIds);
         } else {
             navigateWithTransition('/profile?selectMajor=true');
@@ -106,7 +108,8 @@ export default function BrowsePage() {
         }
 
         fetchCourses();
-        fetchSections(profile?.gender);
+        // The state set just above is not readable yet, so hand the ids over.
+        fetchSections(profile?.gender, courseIds);
         fetchPosts();
     };
 
@@ -118,10 +121,12 @@ export default function BrowsePage() {
         if (data) setInterestedPostIds(new Set(data.map(r => r.post_id)));
     };
 
+    // Only the name is used here, and the table carries every course Banner
+    // lists, so this reads two columns and pages through them.
     const fetchCourses = async () => {
-        const { data, error } = await supabase
+        const { data, error } = await fetchAllRows(() => supabase
             .from('courses')
-            .select('*');
+            .select('course_id, course_name'));
 
         if (error) return;
 
@@ -132,17 +137,22 @@ export default function BrowsePage() {
         }
     };
 
-    const fetchSections = async (gender) => {
+    // Scoped to the student's own courses: posts and section alerts are both
+    // limited to their major, and a term now holds every course's sections.
+    const fetchSections = async (gender, courseIds = majorCourses) => {
         const campusFilterFor = campusFilter(gender);
+        if (!courseIds?.length) return;
 
-        let query = supabase
-            .from('sections')
-            .select('*')
-            .or(campusFilterFor).eq('is_active', true);
+        const { data, error } = await fetchAllRows(() => {
+            let query = supabase
+                .from('sections')
+                .select('*')
+                .in('course_id', courseIds)
+                .or(campusFilterFor).eq('is_active', true);
 
-        if (selectedTerm) query = query.eq('term_code', selectedTerm);
-
-        const { data, error } = await query;
+            if (selectedTerm) query = query.eq('term_code', selectedTerm);
+            return query;
+        });
 
         if (!error && data) {
             // Decode here rather than in PostCard: every consumer of `sections`
