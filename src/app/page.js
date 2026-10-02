@@ -14,15 +14,15 @@ import AlertsBell from '@/components/AlertsBell';
 import SemesterPicker from '@/components/SemesterPicker';
 import DashboardCard, { StatBig } from '@/components/DashboardCard';
 import AnnouncementsModal from '@/components/AnnouncementsModal';
-import MinimapLink from '@/components/MinimapLink';
 import RoomLink from '@/components/RoomLink';
 import {
     PlusIcon,
     ScheduleIcon,
-    SearchIcon,
     ActivityIcon,
     BookIcon,
     UserCheckIcon,
+    SearchIcon,
+    MapIcon,
     ProfileIcon,
 } from '@/components/Icons';
 import { decodeHtmlEntities } from '@/lib/text';
@@ -302,8 +302,6 @@ export default function DashboardPage() {
                     <div className={styles.heroRight}>
                         <SemesterPicker />
                         <span className={styles.mobileChrome}><AlertsBell /></span>
-                        {/* Top right, like a game's minimap; on desktop it floats in the corner instead. */}
-                        <span className={styles.mobileChrome}><MinimapLink inline /></span>
                     </div>
                 </section>
 
@@ -346,6 +344,15 @@ export default function DashboardPage() {
                         <span className={styles.quickActionSub}>Compare schedules across faculty</span>
                     </Link>
                 </div>
+
+                {/* The way into the campus map: a strip of the 3D map itself. */}
+                <Link href="/map" className={styles.mapBanner} aria-label="Open the campus map">
+                    <span className={styles.mapBannerArt} aria-hidden="true" />
+                    <span className={styles.mapBannerOpen} aria-hidden="true">
+                        <MapIcon width={16} height={16} />
+                        Open map
+                    </span>
+                </Link>
 
                 {/* ===== Cards grid ===== */}
                 <div className={styles.grid}>
@@ -540,7 +547,6 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            <MinimapLink />
             <BottomNav />
         </div>
     );
