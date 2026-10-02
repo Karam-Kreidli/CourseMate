@@ -73,38 +73,51 @@
     gap: 16px;
 }
 
-/* ===== Top bar (section nav) ===== */
+/* ===== Top bar (section nav) =====
+   Brand on the left, the sections in the middle, and the way out on the
+   far right, like the site's own top bar. */
 .topbar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 16px;
+    gap: 20px;
+    height: 60px;
+    padding: 0 12px 0 14px;
     background: var(--glass-bg-dense);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-lg);
-    padding: 8px 14px;
     box-shadow: var(--shadow-sm);
     position: relative;
     flex-shrink: 0;
 }
 
-.topbar::before {
-    content: '';
-    position: absolute;
-    inset: -1px;
-    border-radius: var(--radius-lg);
-    background: var(--gradient-border);
-    z-index: -1;
-    opacity: 0.4;
-}
-
 .topbarBrand {
     display: flex;
-    flex-direction: column;
-    gap: 0;
-    min-width: 0;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.logoFrame {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    box-shadow: var(--shadow-sm), 0 0 20px rgba(0, 195, 137, 0.12);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logoImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scale(1.4);
 }
 
 .topbarTitle {
@@ -112,56 +125,102 @@
     font-weight: 800;
     letter-spacing: -0.03em;
     color: var(--text-primary);
-    line-height: 1.1;
-}
-
-.topbarSubtitle {
-    font-size: 0.625rem;
-    color: var(--text-muted);
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    white-space: nowrap;
 }
 
 .topTabs {
+    flex: 1;
+    min-width: 0;
     display: flex;
     gap: 2px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-color-subtle);
-    padding: 3px;
-    border-radius: var(--radius-full);
+    overflow-x: auto;
+    scrollbar-width: none;
+    /* A soft right edge, so tabs cut off on a narrow window read as "scroll". */
+    mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
+}
+
+.topTabs::-webkit-scrollbar {
+    display: none;
 }
 
 .topTab {
-    padding: 8px 18px;
+    flex-shrink: 0;
+    padding: 8px 14px;
     border-radius: var(--radius-full);
     background: transparent;
     border: none;
-    color: var(--text-muted);
-    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all var(--transition-fast) var(--ease-out-expo);
+    transition: background var(--transition-fast), color var(--transition-fast);
     font-family: inherit;
-    letter-spacing: -0.01em;
+    white-space: nowrap;
 }
 
 .topTab:hover {
-    color: var(--text-secondary);
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+}
+
+.topTab:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
 }
 
 .activeTopTab,
 .activeTopTab:hover {
-    background: var(--gradient-accent-vivid);
-    color: #fff;
-    box-shadow: var(--shadow-accent);
+    background: var(--color-accent-muted);
+    color: var(--color-accent-dark);
+}
+
+[data-theme="dark"] .activeTopTab,
+[data-theme="black"] .activeTopTab {
+    color: var(--color-accent);
 }
 
 .topbarRight {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     flex-shrink: 0;
+    margin-left: auto;
+}
+
+.topbarDivider {
+    width: 1px;
+    height: 24px;
+    background: var(--border-color);
+}
+
+.exitLink {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: var(--radius-full);
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.exitLink:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.exitLink svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 @keyframes pageEntrance {

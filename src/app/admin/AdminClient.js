@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import ThemeToggle from '@/components/ThemeToggle';
 import overviewTab from './tabs/OverviewTab';
 import usersTab from './tabs/UsersTab';
@@ -32,25 +33,40 @@ export default function AdminClient() {
             <div className={styles.pageInner}>
                 <header className={styles.topbar}>
                     <div className={styles.topbarBrand}>
+                        <span className={styles.logoFrame}>
+                            <Image src="/logo.png" alt="" width={64} height={64} className={styles.logoImage} />
+                        </span>
                         <span className={styles.topbarTitle}>Admin</span>
-                        <span className={styles.topbarSubtitle}>CourseMate Console</span>
                     </div>
-                    <nav className={styles.topTabs}>
+
+                    {/* Scrolls sideways on a narrow window rather than wrapping or
+                        running under the brand. */}
+                    <nav className={styles.topTabs} aria-label="Admin sections">
                         {TABS.map(t => (
                             <button
                                 key={t.id}
                                 className={`${styles.topTab} ${active === t.id ? styles.activeTopTab : ''}`}
+                                aria-current={active === t.id ? 'page' : undefined}
                                 onClick={() => setActive(t.id)}
                             >
                                 {t.label}
                             </button>
                         ))}
                     </nav>
+
                     <div className={styles.topbarRight}>
-                        <Link href="/" className={`${styles.btn} ${styles.btnGhost}`}>
-                            ← Exit admin
+                        {/* Swatches only: the names are on hover, and the labelled
+                            version crowded the tabs off the bar. */}
+                        <ThemeToggle compact />
+                        <span className={styles.topbarDivider} aria-hidden="true" />
+                        <Link href="/" className={styles.exitLink}>
+                            Exit admin
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                                <polyline points="16 17 21 12 16 7" />
+                                <line x1="21" y1="12" x2="9" y2="12" />
+                            </svg>
                         </Link>
-                        <ThemeToggle />
                     </div>
                 </header>
 
