@@ -31,6 +31,8 @@ function MapProvider({ children }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [selected, setSelected] = useState(ALL);
+    // The kind of place the list is narrowed to, or null for every kind.
+    const [kind, setKind] = useState(null);
     const [query, setQuery] = useState('');
     // The place in the editor: a row, a fresh draft ({}), or null when closed.
     const [editing, setEditing] = useState(null);
@@ -96,7 +98,7 @@ function MapProvider({ children }) {
     return (
         <Ctx.Provider value={{
             places, loading, error, counts,
-            selected, setSelected, query, setQuery,
+            selected, setSelected, kind, setKind, query, setQuery,
             editing, setEditing, save, toggleVisible, remove,
         }}>
             {children}
@@ -196,14 +198,37 @@ function PlaceRow({ place }) {
 function MapMain() {
     const ctx = useContext(Ctx);
     if (!ctx) return null;
-    const { places, loading, error, selected, editing, setEditing, save } = ctx;
+    const { places, loading, error, selected, kind, setKind, editing, setEditing, save } = ctx;
 
     const isBuilding = selected !== ALL && selected !== PINS_ONLY;
-    const shown = places.filter(p => (
+    // What the sidebar picked; the type chips narrow it further.
+    const inScope = places.filter(p => (
         selected === ALL ? true : selected === PINS_ONLY ? !p.building_id : p.building_id === selected
     ));
+    const shown = kind ? inScope.filter(p => p.kind === kind) : inScope;
+    // A chip for every kind in this scope, plus the picked one even when the
+    // scope has none of it, so it can still be turned off.
+    const kinds = Object.keys(PLACE_KINDS).filter(k => k === kind || inScope.some(p => p.kind === k));
     const info = isBuilding ? BUILDINGS.find(b => b.id === selected) : null;
     const title = selected === ALL ? 'All places' : selected === PINS_ONLY ? 'Pins outside buildings' : buildingLabel(selected);
+
+    const chip = (k, label, count) => {
+        const on = kind === k;
+        return (
+            <button
+                key={k || 'all'}
+                type="button"
+                className={`${own.kindChip} ${on ? own.kindChipOn : ''}`}
+                style={k ? { '--kind': PLACE_KINDS[k].color } : undefined}
+                aria-pressed={on}
+                onClick={() => setKind(k)}
+            >
+                {k && <PlaceIcon kind={k} size={20} solid />}
+                {label}
+                <span className={own.kindCount}>{count}</span>
+            </button>
+        );
+    };
 
     return (
         <div className={styles.feedCard}>
@@ -218,15 +243,27 @@ function MapMain() {
                 </div>
                 <button
                     className={`${styles.btn} ${styles.btnPrimary}`}
-                    onClick={() => setEditing({ building_id: isBuilding ? selected : null })}
+                    onClick={() => setEditing({ building_id: isBuilding ? selected : null, ...(kind && { kind }) })}
                 >
                     Add place
                 </button>
             </div>
 
+            {!loading && kinds.length > 0 && (
+                <div className={own.kindChips} role="group" aria-label="Filter by type">
+                    {chip(null, 'All types', inScope.length)}
+                    {kinds.map(k => chip(k, PLACE_KINDS[k].plural, inScope.filter(p => p.kind === k).length))}
+                </div>
+            )}
+
             {error && <div className={styles.error}>{error}</div>}
             {loading ? (
                 <div className={styles.loading}><div className={styles.spinner} />Loading places...</div>
+            ) : shown.length === 0 && kind && inScope.length > 0 ? (
+                <div className={styles.empty}>
+                    <div className={styles.emptyTitle}>No {PLACE_KINDS[kind].plural.toLowerCase()} here</div>
+                    <button type="button" className={own.linkBtn} onClick={() => setKind(null)}>Show all types</button>
+                </div>
             ) : shown.length === 0 ? (
                 <div className={styles.empty}>
                     <div className={styles.emptyTitle}>Nothing here yet</div>
