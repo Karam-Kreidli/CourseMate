@@ -1,0 +1,198 @@
+/* ===== Minimap link =====
+   A round window onto the campus, like a game's minimap: the map in a ring,
+   north marked on the rim, a dot in the middle. Floats in the bottom right
+   corner on desktop; below 1024px a small one sits in the home header. */
+
+.minimap {
+    position: relative;
+    display: block;
+    flex: none;
+    border-radius: 50%;
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.corner {
+    position: fixed;
+    right: 28px;
+    bottom: 28px;
+    z-index: 900;
+    width: 96px;
+    height: 96px;
+}
+
+/* Below 1024px the bottom nav and the page's own buttons need that corner. */
+@media (max-width: 1023px) {
+    .corner {
+        display: none;
+    }
+}
+
+/* The header's version: the size of the bell beside it. */
+.inline {
+    width: 40px;
+    height: 40px;
+}
+
+.inline .disc {
+    border-width: 2px;
+}
+
+.inline .player {
+    width: 8px;
+    height: 8px;
+    margin: -4px 0 0 -4px;
+    border-width: 1.5px;
+}
+
+.inline .north {
+    top: -4px;
+    width: 13px;
+    height: 13px;
+    border-width: 1.5px;
+    font-size: 0.45rem;
+}
+
+.disc {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid var(--bg-card);
+    box-shadow:
+        0 0 0 1px var(--border-color),
+        var(--shadow-lg),
+        0 0 24px rgba(0, 195, 137, 0.18);
+    transition: box-shadow var(--transition-normal), transform var(--transition-normal) var(--ease-spring);
+}
+
+.ground {
+    position: absolute;
+    inset: -8%;
+    background: #f5f2eb url('/map/minimap.webp') center / cover no-repeat;
+    transition: transform 0.5s var(--ease-out-expo);
+}
+
+/* A lens: the edge darkens a little, the way a game's minimap fades out. */
+.disc::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle, transparent 58%, rgba(15, 23, 41, 0.28) 100%);
+    pointer-events: none;
+}
+
+.player {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 12px;
+    height: 12px;
+    margin: -6px 0 0 -6px;
+    border-radius: 50%;
+    background: var(--color-accent);
+    border: 2px solid #fff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+    z-index: 1;
+}
+
+.player::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    border: 2px solid var(--color-accent);
+    animation: ping 2.2s ease-out infinite;
+}
+
+@keyframes ping {
+    from { transform: scale(1); opacity: 0.9; }
+    to { transform: scale(3.2); opacity: 0; }
+}
+
+.north {
+    position: absolute;
+    top: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #e5484d;
+    border: 2px solid var(--bg-card);
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+/* Named on hover, to its left, on screens that hover. */
+.label {
+    position: absolute;
+    top: 50%;
+    right: calc(100% + 10px);
+    transform: translate(6px, -50%);
+    padding: 6px 12px;
+    border-radius: var(--radius-full);
+    background: var(--glass-bg-dense);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-md);
+    color: var(--text-primary);
+    font-size: 0.82rem;
+    font-weight: 600;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.minimap:hover .disc,
+.minimap:focus-visible .disc {
+    transform: scale(1.06);
+    box-shadow:
+        0 0 0 1px var(--color-accent),
+        var(--shadow-xl),
+        0 0 32px rgba(0, 195, 137, 0.35);
+}
+
+.minimap:hover .ground {
+    transform: scale(1.12);
+}
+
+.minimap:hover .label,
+.minimap:focus-visible .label {
+    opacity: 1;
+    transform: translate(0, -50%);
+}
+
+.minimap:focus-visible {
+    outline: none;
+}
+
+/* The map is a light drawing; on a dark page it is toned down to sit in. */
+[data-theme="dark"] .ground,
+[data-theme="black"] .ground {
+    filter: brightness(0.86) saturate(0.95);
+}
+
+@media (hover: none) {
+    .label {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .player::after {
+        animation: none;
+    }
+
+    .disc,
+    .ground {
+        transition: none;
+    }
+}

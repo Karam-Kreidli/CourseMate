@@ -11,6 +11,7 @@ import semestersTab from './tabs/SemestersTab';
 import majorsTab from './tabs/MajorsTab';
 import coursesTab from './tabs/CoursesTab';
 import announcementsTab from './tabs/AnnouncementsTab';
+import mapTab from './tabs/MapTab';
 import styles from './admin.module.css';
 
 const TABS = [
@@ -21,6 +22,7 @@ const TABS = [
     { id: 'majors', label: 'Majors', module: majorsTab },
     { id: 'courses', label: 'Courses', module: coursesTab },
     { id: 'announcements', label: 'Announcements', module: announcementsTab },
+    { id: 'map', label: 'Map', module: mapTab },
 ];
 
 export default function AdminClient() {

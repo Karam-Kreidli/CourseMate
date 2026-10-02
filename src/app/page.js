@@ -14,6 +14,8 @@ import AlertsBell from '@/components/AlertsBell';
 import SemesterPicker from '@/components/SemesterPicker';
 import DashboardCard, { StatBig } from '@/components/DashboardCard';
 import AnnouncementsModal from '@/components/AnnouncementsModal';
+import MinimapLink from '@/components/MinimapLink';
+import RoomLink from '@/components/RoomLink';
 import {
     PlusIcon,
     ScheduleIcon,
@@ -300,6 +302,8 @@ export default function DashboardPage() {
                     <div className={styles.heroRight}>
                         <SemesterPicker />
                         <span className={styles.mobileChrome}><AlertsBell /></span>
+                        {/* Top right, like a game's minimap; on desktop it floats in the corner instead. */}
+                        <span className={styles.mobileChrome}><MinimapLink inline /></span>
                     </div>
                 </section>
 
@@ -514,7 +518,7 @@ export default function DashboardPage() {
                                                                             {sec.location && (
                                                                                 <>
                                                                                     <span className={styles.sectionDot} aria-hidden="true">·</span>
-                                                                                    <span className={styles.sectionRoom}>{sec.location}</span>
+                                                                                    <RoomLink room={sec.location} className={styles.sectionRoom} />
                                                                                 </>
                                                                             )}
                                                                         </span>
@@ -536,6 +540,7 @@ export default function DashboardPage() {
                 </div>
             </div>
 
+            <MinimapLink />
             <BottomNav />
         </div>
     );
