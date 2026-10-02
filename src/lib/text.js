@@ -16,6 +16,10 @@ const NAMED_ENTITIES = {
     quot: '"',
     apos: "'",
     nbsp: ' ',
+    // Course titles carry these too ("Hadith and It&rsquo;s Sciences").
+    rsquo: '’',
+    lsquo: '‘',
+    ndash: '–',
 };
 
 export function decodeHtmlEntities(text) {

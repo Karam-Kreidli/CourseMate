@@ -16,6 +16,7 @@ import { historyTerms, termLabel, fetchHistoryCounts } from '@/lib/courseHistory
 import { decodeHtmlEntities } from '@/lib/text';
 import { downloadSchedulePng, copySchedulePng } from '@/lib/schedulePng';
 import { downloadScheduleIcs } from '@/lib/scheduleIcs';
+import RoomLink from '@/components/RoomLink';
 import styles from './schedule.module.css';
 
 // ===== TIME PARSING UTILITIES =====
@@ -2480,9 +2481,6 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                                     <div className={styles.detailContent}>
                                         <div className={styles.detailHeader}>
                                             <span className={styles.detailCourseName}>{courseNameMap[sec.course_id] || sec.course_id}</span>
-                                            {isSaved && (
-                                                <a className={styles.requestLink} href={`/post?type=request&course=${sec.course_id}&section=${sec.section_num}`}>Request</a>
-                                            )}
                                         </div>
                                         <div className={styles.detailMeta}>
                                             <span className={styles.detailSection}>{sec.section_num}</span>
@@ -2517,11 +2515,16 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                                             {sec.location && (
                                                 <>
                                                     <span className={styles.detailSep}>•</span>
-                                                    <span className={styles.detailRoom}>{sec.location}</span>
+                                                    <RoomLink room={sec.location} className={styles.detailRoom} />
                                                 </>
                                             )}
                                         </div>
                                     </div>
+                                    {/* Its own column at the row's right edge, beside both lines: up in
+                                        the title line it sat right above the room's Map button. */}
+                                    {isSaved && (
+                                        <a className={styles.requestLink} href={`/post?type=request&course=${sec.course_id}&section=${sec.section_num}`}>Request</a>
+                                    )}
                                 </div>
                             ));
                         })}

@@ -7,6 +7,7 @@ import { HistoryIcon, ChevronLeftIcon } from '@/components/Icons';
 import {
     historyTerms, termLabel, fetchCourseHistory, startGrid, meetingText, formatClock, CAMPUS_LABELS,
 } from '@/lib/courseHistory';
+import RoomLink from '@/components/RoomLink';
 import styles from './CourseHistory.module.css';
 
 // PostgREST's or() splits on commas and parentheses, and ilike treats % and _
@@ -315,7 +316,7 @@ function TermDetail({ course, history, term, onPickTerm, onBack }) {
                                 <span>{s.instructor || 'Instructor not listed'}</span>
                                 {s.campus && <span className={`${styles.campus} ${styles[`campus_${s.campus}`] || ''}`}>{CAMPUS_LABELS[s.campus] || s.campus}</span>}
                             </div>
-                            {s.location && <div className={styles.sectionRoom}>{s.location}</div>}
+                            {s.location && <div className={styles.sectionRoom}><RoomLink room={s.location} /></div>}
                             {hasSeats && (
                                 <div className={styles.fillRow}>
                                     <div className={styles.fillTrack}><div className={styles.fillBar} style={{ width: `${pct}%` }}></div></div>

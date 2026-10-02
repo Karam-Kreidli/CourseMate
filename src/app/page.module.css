@@ -824,6 +824,17 @@
     .sectionCrn {
         font-size: 0.62rem;
     }
+
+    /* The instructor and the room's Map chip don't both fit on one line
+       here: the chip wraps under the name instead of squeezing it away. */
+    .sectionWho {
+        flex-wrap: wrap;
+        row-gap: 3px;
+    }
+
+    .sectionWho .sectionDot {
+        display: none;
+    }
 }
 
 @media (min-width: 768px) {

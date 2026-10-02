@@ -1,0 +1,348 @@
+/* ===== Admin Map tab =====
+   Builds on admin.module.css; this is only what the places editor adds. */
+
+/* ----- Sidebar ----- */
+
+.buildingList {
+    max-height: 52vh;
+    overflow-y: auto;
+    margin-top: 8px;
+}
+
+.navEntry {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.navCode {
+    flex: none;
+    min-width: 34px;
+    padding: 2px 5px;
+    border-radius: var(--radius-xs);
+    /* Tinted from the text colour, so it reads on the green selected row too. */
+    background: color-mix(in srgb, currentColor 14%, transparent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.navName {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.navSplit {
+    height: 1px;
+    margin: 6px 4px;
+    background: var(--border-color);
+}
+
+/* ----- Main list ----- */
+
+.mainHead {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 12px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.mainTitle {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.rowLogo {
+    flex: none;
+    width: 64px;
+    height: 36px;
+    object-fit: contain;
+    border-radius: var(--radius-xs);
+    background: #fff;
+}
+
+/* ----- Editor dialog ----- */
+
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 40px 16px;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.55);
+}
+
+.dialog {
+    width: 100%;
+    max-width: 720px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px;
+    border-radius: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-xl);
+    color: var(--text-primary);
+}
+
+.dialogHead,
+.dialogFoot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.dialogFoot {
+    justify-content: flex-end;
+}
+
+.section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-color);
+}
+
+.section:first-of-type {
+    padding-top: 0;
+    border-top: 0;
+}
+
+.sectionHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.sectionTitle {
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.optional {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.grid2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+/* Building gets the room it needs; the room code is short. */
+.grid2Wide {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 10px;
+}
+
+.textarea {
+    resize: vertical;
+    font-family: inherit;
+}
+
+.check {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.linkBtn {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--color-accent-dark);
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.linkBtn:hover {
+    text-decoration: underline;
+}
+
+.iconBtn {
+    width: 24px;
+    height: 24px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+/* ----- Hours ----- */
+
+.hours {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.hoursRow {
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    min-height: 34px;
+}
+
+.hoursDay {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.hoursRanges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.hoursRange {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.hoursTo,
+.hoursClosed {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+}
+
+.timeInput {
+    padding: 5px 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 0.85rem;
+}
+
+.hoursActions {
+    display: flex;
+    gap: 16px;
+    padding-left: 50px;
+}
+
+/* ----- Logo ----- */
+
+.logoRow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.logoPreview,
+.logoEmpty {
+    width: 120px;
+    height: 58px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+}
+
+.logoPreview {
+    object-fit: contain;
+    background: #fff;
+}
+
+.logoEmpty {
+    display: grid;
+    place-items: center;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+/* ----- Pin picker ----- */
+
+.picker {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pickerBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.pickerActions {
+    display: flex;
+    gap: 14px;
+}
+
+.pickerScroll {
+    height: 360px;
+    overflow: auto;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    background: #f5f2eb;
+}
+
+.pickerMap {
+    position: relative;
+    margin: 0 auto;
+    cursor: crosshair;
+    user-select: none;
+}
+
+.pickerMap img {
+    display: block;
+    pointer-events: none;
+}
+
+.pickerBuilding {
+    position: absolute;
+    border: 2px dashed var(--color-accent-dark);
+    border-radius: 4px;
+    background: rgba(0, 195, 137, 0.12);
+    pointer-events: none;
+}
+
+/* A teardrop pin whose point is the chosen spot. */
+.pickerPin {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    /* Turned 45 degrees, the point sits 4.5px below the box: lift it onto the spot. */
+    margin: -26.5px 0 0 -11px;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    transform-origin: 50% 50%;
+    background: #e5484d;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+}
+
+@media (max-width: 640px) {
+    .grid2,
+    .grid2Wide {
+        grid-template-columns: 1fr;
+    }
+}

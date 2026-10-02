@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useSemester } from '@/lib/SemesterContext';
 import { decodeHtmlEntities } from '@/lib/text';
 import { OFFICE_HOUR_DAYS, formatClock, fetchOfficeHours, layoutOfficeHours } from '@/lib/officeHours';
+import RoomLink from '@/components/RoomLink';
 import styles from './InstructorFinder.module.css';
 
 // ===== TIME PARSING UTILITIES (reused from schedule) =====
@@ -399,7 +400,7 @@ export default function InstructorFinder() {
                                 <div className={styles.resultsHeader}>
                                     <div>
                                         <div className={styles.instructorName}>{decodeHtmlEntities(selectedInstructor)}</div>
-                                        {officeLocation && <div className={styles.instructorOffice}>{officeLocation}</div>}
+                                        {officeLocation && <div className={styles.instructorOffice}><RoomLink room={officeLocation} /></div>}
                                     </div>
                                 </div>
 
