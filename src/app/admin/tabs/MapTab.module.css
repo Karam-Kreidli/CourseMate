@@ -59,6 +59,55 @@
     color: var(--text-primary);
 }
 
+/* Type filter: one chip per kind of place, in the kind's own colour once on. */
+.kindChips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 4px 0 8px;
+}
+
+.kindChip {
+    --kind: var(--color-accent);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px 4px 5px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+/* "All types" has no icon, so it doesn't need the icon's tighter left edge. */
+.kindChip:first-child {
+    padding-left: 12px;
+}
+
+.kindChip:hover {
+    border-color: color-mix(in srgb, var(--kind) 55%, var(--border-color));
+}
+
+.kindChipOn {
+    border-color: var(--kind);
+    background: color-mix(in srgb, var(--kind) 14%, transparent);
+    color: var(--text-primary);
+}
+
+.kindCount {
+    min-width: 18px;
+    padding: 0 5px;
+    border-radius: var(--radius-full);
+    background: color-mix(in srgb, currentColor 12%, transparent);
+    font-size: 0.7rem;
+    text-align: center;
+}
+
 .rowLogo {
     flex: none;
     width: 64px;

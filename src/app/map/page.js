@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Children, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -20,6 +20,77 @@ const CampusScene = dynamic(() => import('./CampusScene'), {
     ssr: false,
     loading: () => <div className={styles.loading}>Loading the campus…</div>,
 });
+
+/**
+ * The filter chips in one row that scrolls sideways, as Google Maps does it.
+ * There are more chips than fit, so the row says so: arrows on whichever side
+ * has more (on screens with a mouse), a fade at a cut edge, and the wheel
+ * scrolls it sideways. `after` stays put at the row's end.
+ */
+function ChipRow({ label, children, after }) {
+    const ref = useRef(null);
+    const [more, setMore] = useState({ left: false, right: false });
+    // Re-measured when chips come or go, not on every render of the page.
+    const chipCount = Children.count(children);
+
+    useEffect(() => {
+        const row = ref.current;
+        if (!row) return undefined;
+        const measure = () => setMore({
+            left: row.scrollLeft > 1,
+            right: row.scrollLeft + row.clientWidth < row.scrollWidth - 1,
+        });
+        // A vertical wheel moves the row sideways. React's own wheel handler
+        // is passive, so it couldn't stop the page scrolling at the same time.
+        const onWheel = (e) => {
+            if (row.scrollWidth <= row.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+            e.preventDefault();
+            row.scrollLeft += e.deltaY;
+        };
+        measure();
+        row.addEventListener('scroll', measure, { passive: true });
+        row.addEventListener('wheel', onWheel, { passive: false });
+        const resize = new ResizeObserver(measure);
+        resize.observe(row);
+        for (const chip of row.children) resize.observe(chip);
+        return () => {
+            row.removeEventListener('scroll', measure);
+            row.removeEventListener('wheel', onWheel);
+            resize.disconnect();
+        };
+    }, [chipCount]);
+
+    const page = (dir) => {
+        const row = ref.current;
+        row.scrollBy({ left: dir * row.clientWidth * 0.7, behavior: 'smooth' });
+    };
+
+    return (
+        <div className={styles.filtersBar}>
+            <div className={styles.filtersTrack}>
+                <div
+                    ref={ref}
+                    className={`${styles.filters} ${more.left ? styles.fadeLeft : ''} ${more.right ? styles.fadeRight : ''}`}
+                    role="group"
+                    aria-label={label}
+                >
+                    {children}
+                </div>
+                {more.left && (
+                    <button type="button" className={`${styles.filterArrow} ${styles.filterArrowLeft}`} onClick={() => page(-1)} aria-label="Earlier filters">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+                    </button>
+                )}
+                {more.right && (
+                    <button type="button" className={`${styles.filterArrow} ${styles.filterArrowRight}`} onClick={() => page(1)} aria-label="More filters">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+                    </button>
+                )}
+            </div>
+            {after}
+        </div>
+    );
+}
 
 const ZONE_BUTTONS = [
     { zone: 'all', label: 'Campus' },
@@ -470,7 +541,14 @@ function CampusMap() {
                         ))}
                     </div>
                     {kindsPresent.length > 0 && (
-                        <div className={styles.filters} role="group" aria-label="Show places on the map">
+                        <ChipRow
+                            label="Show places on the map"
+                            after={activeKinds.size > 0 && (
+                                <button type="button" className={styles.filterClear} onClick={() => { setActiveKinds(new Set()); }}>
+                                    Clear
+                                </button>
+                            )}
+                        >
                             {kindsPresent.map(kind => {
                                 const on = activeKinds.has(kind);
                                 const count = places.filter(p => p.kind === kind).length;
@@ -481,7 +559,12 @@ function CampusMap() {
                                         className={`${styles.filter} ${on ? styles.filterOn : ''}`}
                                         style={{ '--kind': PLACE_KINDS[kind].color }}
                                         aria-pressed={on}
-                                        onClick={() => toggleKind(kind)}
+                                        onClick={(e) => {
+                                            toggleKind(kind);
+                                            // Clear appearing narrows the row; keep this chip in full view.
+                                            const chip = e.currentTarget;
+                                            requestAnimationFrame(() => chip.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' }));
+                                        }}
                                     >
                                         <PlaceIcon kind={kind} size={22} solid={on} />
                                         {PLACE_KINDS[kind].plural}
@@ -489,12 +572,7 @@ function CampusMap() {
                                     </button>
                                 );
                             })}
-                            {activeKinds.size > 0 && (
-                                <button type="button" className={styles.filterClear} onClick={() => { setActiveKinds(new Set()); }}>
-                                    Clear
-                                </button>
-                            )}
-                        </div>
+                        </ChipRow>
                     )}
                 </div>
 

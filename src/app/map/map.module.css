@@ -172,13 +172,94 @@
 
 /* ----- Filter chips: show every place of a kind ----- */
 
-.filters {
+/* The row of chips on its own line, with Clear held at its end. */
+.filtersBar {
     flex-basis: 100%;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.filtersTrack {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+.filters {
     display: flex;
     gap: 6px;
     overflow-x: auto;
     scrollbar-width: none;
     padding: 2px;
+    /* A chip scrolled into view clears the arrow over the row's edge. */
+    scroll-padding-inline: 40px;
+}
+
+/* A cut edge fades out, so a chip half off the row reads as "more this way". */
+.fadeRight {
+    mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent);
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent);
+}
+
+.fadeLeft {
+    mask-image: linear-gradient(to left, #000 calc(100% - 56px), transparent);
+    -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 56px), transparent);
+}
+
+.fadeLeft.fadeRight {
+    mask-image: linear-gradient(to right, transparent, #000 56px, #000 calc(100% - 56px), transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 56px, #000 calc(100% - 56px), transparent);
+}
+
+.filterArrow {
+    position: absolute;
+    top: 50%;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    margin-top: -15px;
+    padding: 0;
+    border-radius: 50%;
+    border: 1px solid var(--glass-border);
+    background: var(--glass-bg-dense);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    box-shadow: var(--shadow-md);
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.filterArrow:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}
+
+.filterArrow svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.filterArrowLeft {
+    left: 0;
+}
+
+.filterArrowRight {
+    right: 0;
+}
+
+/* On a touchscreen the row is swiped; the fade alone says there's more. */
+@media (hover: none) {
+    .filterArrow {
+        display: none;
+    }
 }
 
 .filters::-webkit-scrollbar {
@@ -243,10 +324,14 @@
 
 .filterClear {
     flex: none;
-    padding: 4px 10px;
-    border: 0;
+    padding: 6px 12px;
+    border: 1px solid var(--glass-border);
     border-radius: var(--radius-full);
-    background: none;
+    /* Over the map rather than a plain card, so it needs a backing to read. */
+    background: var(--glass-bg-dense);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    box-shadow: var(--shadow-sm);
     color: var(--text-secondary);
     font: inherit;
     font-size: 0.82rem;
