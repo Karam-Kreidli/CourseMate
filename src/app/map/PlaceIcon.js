@@ -38,6 +38,36 @@ const PATHS = {
             <path d="M9 11V6a3 3 0 0 1 6 0v5" />
         </>
     ),
+    // A machine with its window of snacks, a coin slot and the tray below.
+    vending: (
+        <>
+            <rect x="5" y="2.5" width="14" height="19" rx="1.5" />
+            <path d="M8 6h6v8H8zM16.5 7v2M8.5 18h5" />
+        </>
+    ),
+    // A columned bank front under its pediment.
+    bank: (
+        <>
+            <path d="M3 9 12 4l9 5z" />
+            <path d="M4 20h16M6 12v5M10 12v5M14 12v5M18 12v5" />
+        </>
+    ),
+    pharmacy: (
+        <>
+            <rect x="3.5" y="3.5" width="17" height="17" rx="4" />
+            <path d="M12 8v8M8 12h8" />
+        </>
+    ),
+    // A ball with its seams.
+    sports: (
+        <>
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 3v18M3 12h18M5.6 5.6c2.4 2.6 2.4 10.2 0 12.8M18.4 5.6c-2.4 2.6-2.4 10.2 0 12.8" />
+        </>
+    ),
+    charging: (
+        <path d="M13 2.5 5 13.5h6.5l-1 8 8-11H12z" />
+    ),
     service: (
         <>
             <circle cx="12" cy="12" r="9" />
