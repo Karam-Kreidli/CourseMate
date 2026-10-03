@@ -76,9 +76,15 @@ export function focusOnPoints(points, { panelBelow = false } = {}) {
     for (const [x, y] of points) box.expandByPoint(new THREE.Vector2(x, y));
     const c = box.getCenter(new THREE.Vector2());
     const s = box.getSize(new THREE.Vector2());
-    const distance = THREE.MathUtils.clamp(Math.max(s.x, s.y) * 1.5 + 40, 62, 420);
+    // Up to the whole-campus view, so places at opposite ends (the two
+    // mosques, A15 and E10) still fit together.
+    const wanted = Math.max(s.x, s.y) * 1.5 + 40;
+    const distance = THREE.MathUtils.clamp(wanted, 62, OVERVIEW_DISTANCE + 20);
     const target = toWorld([c.x, c.y]);
-    if (panelBelow) target.z += distance * 0.22;
+    // Room for the panel under them. Zoomed all the way out there isn't room
+    // to spare, but the tilt still crowds the near (south) end, so lean a
+    // little that way instead.
+    if (panelBelow) target.z += distance * (wanted < OVERVIEW_DISTANCE ? 0.22 : 0.1);
     return { target, distance };
 }
 

@@ -15,6 +15,7 @@ export const PLACE_KINDS = {
     vending: { label: 'Vending machine', plural: 'Vending machines', color: '#16A34A' },
     pharmacy: { label: 'Pharmacy', plural: 'Pharmacies', color: '#DC2626' },
     library: { label: 'Library', plural: 'Libraries', color: '#0D9488' },
+    prayer: { label: 'Prayer', plural: 'Prayer', color: '#4D7C0F' },
     sports: { label: 'Sports', plural: 'Sports', color: '#C026D3' },
     charging: { label: 'Charging station', plural: 'Charging', color: '#CA8A04' },
     security: { label: 'Security', plural: 'Security', color: '#1E3A8A' },
