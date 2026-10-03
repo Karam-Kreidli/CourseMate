@@ -58,6 +58,13 @@ const PATHS = {
             <path d="M12 8v8M8 12h8" />
         </>
     ),
+    // The same domed hall and minaret as the mosque signs on the map's roofs.
+    prayer: (
+        <>
+            <path d="M3 21v-8h1c-.5-5.5 6-4 6-8.5 0 4.5 6.5 3 6 8.5h1v8z" />
+            <path d="M8.5 21v-3.5q1.5-3 3 0V21M18.5 21V8l1.25-4.5L21 8v13" />
+        </>
+    ),
     // A ball with its seams.
     sports: (
         <>
