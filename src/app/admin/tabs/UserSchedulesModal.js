@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import styles from '../admin.module.css';
 
-const ALL_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu'];
+// The whole week, as the PNG export orders it; only days with classes show.
+const ALL_DAYS = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'];
 const BG_COLORS = [
     'rgba(59,130,246,0.15)', 'rgba(16,185,129,0.15)', 'rgba(245,158,11,0.15)', 'rgba(239,68,68,0.15)',
@@ -34,14 +35,17 @@ function parseTimeToMinutes(s) {
     return 0;
 }
 
+// "Mon/Wed 14:00-15:15", or a few of those joined by commas when the
+// meetings differ ("Tue 14:00-14:50, Thu 15:30-18:00").
 function parseClassTime(s) {
     if (!s) return [];
-    const m = s.match(/^(.+?)\s+(\d{1,2}:\d{2}(?:\s*[AP]M)?)\s*-\s*(\d{1,2}:\d{2}(?:\s*[AP]M)?)$/i);
-    if (!m) return [];
-    const days = parseDays(m[1]);
-    const start = parseTimeToMinutes(m[2]);
-    const end = parseTimeToMinutes(m[3]);
-    return days.map(day => ({ day, start, end }));
+    return s.split(',').flatMap(part => {
+        const m = part.trim().match(/^(.+?)\s+(\d{1,2}:\d{2}(?:\s*[AP]M)?)\s*-\s*(\d{1,2}:\d{2}(?:\s*[AP]M)?)$/i);
+        if (!m) return [];
+        const start = parseTimeToMinutes(m[2]);
+        const end = parseTimeToMinutes(m[3]);
+        return parseDays(m[1]).map(day => ({ day, start, end }));
+    });
 }
 
 function formatTimeShort(min) {
@@ -51,7 +55,12 @@ function formatTimeShort(min) {
     return `${dh} ${period}`;
 }
 
-function Timetable({ schedule, courseMap }) {
+/**
+ * A week grid of `schedule`, [{ courseId, sections: [{ class_time, section_num }] }],
+ * one colour per course. Classes that overlap (cross-listed sections in one
+ * room) share their slot side by side.
+ */
+export function Timetable({ schedule, courseMap }) {
     const blocks = [];
     schedule.forEach((group, gIdx) => {
         group.sections.forEach(sec => {
@@ -60,6 +69,11 @@ function Timetable({ schedule, courseMap }) {
             });
         });
     });
+    for (const b of blocks) {
+        const clash = blocks.filter(o => o.day === b.day && o.start < b.end && b.start < o.end);
+        b.lane = clash.indexOf(b);
+        b.lanes = clash.length;
+    }
 
     if (blocks.length === 0) {
         return <div className={styles.empty}>No time slots could be parsed.</div>;
@@ -98,8 +112,8 @@ function Timetable({ schedule, courseMap }) {
                                     key={i}
                                     style={{
                                         position: 'absolute',
-                                        left: 2,
-                                        right: 2,
+                                        left: `calc(${(block.lane / block.lanes) * 100}% + 2px)`,
+                                        width: `calc(${100 / block.lanes}% - 4px)`,
                                         top: (block.start - startHour * 60) * PX_PER_MIN,
                                         height: (block.end - block.start) * PX_PER_MIN,
                                         background: BG_COLORS[block.colorIdx],
