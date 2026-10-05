@@ -10,6 +10,7 @@ import postsTab from './tabs/PostsTab';
 import semestersTab from './tabs/SemestersTab';
 import majorsTab from './tabs/MajorsTab';
 import coursesTab from './tabs/CoursesTab';
+import roomsTab from './tabs/RoomsTab';
 import announcementsTab from './tabs/AnnouncementsTab';
 import mapTab from './tabs/MapTab';
 import styles from './admin.module.css';
@@ -21,6 +22,7 @@ const TABS = [
     { id: 'semesters', label: 'Semesters', module: semestersTab },
     { id: 'majors', label: 'Majors', module: majorsTab },
     { id: 'courses', label: 'Courses', module: coursesTab },
+    { id: 'rooms', label: 'Rooms', module: roomsTab },
     { id: 'announcements', label: 'Announcements', module: announcementsTab },
     { id: 'map', label: 'Map', module: mapTab },
 ];
