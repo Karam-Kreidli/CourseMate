@@ -820,9 +820,13 @@
     .workspace {
         flex-direction: column;
     }
+    /* Two rows here (brand and controls, then the tabs), so the bar grows to
+       hold them instead of letting the tabs spill under the first card. */
     .topbar {
         flex-wrap: wrap;
         gap: 10px;
+        height: auto;
+        padding: 10px 12px;
     }
     .topbarBrand { flex: 0 0 auto; }
     .topTabs {
@@ -854,13 +858,31 @@
         flex-direction: row;
         flex-wrap: wrap;
     }
+    /* Each as wide as its own label, so long major names aren't cut short,
+       and the rows they wrap into stretch to the edge. */
     .navBtn {
-        flex: 1;
-        min-width: 100px;
-        justify-content: center;
+        flex: 1 1 auto;
+        width: auto;
+        max-width: 100%;
+        gap: 8px;
     }
     .navBtn:hover { transform: none; }
     .navBtnActive { transform: none; }
+}
+
+/* A phone: the way out is just its icon, so the theme swatches and it fit
+   beside the brand. */
+@media (max-width: 480px) {
+    .topbarDivider { display: none; }
+    .exitLink { padding: 8px; }
+    .exitLabel {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
 }
 
 /* Registration window on the semesters tab.

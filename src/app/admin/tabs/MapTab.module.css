@@ -9,6 +9,14 @@
     margin-top: 8px;
 }
 
+/* Buildings stay one to a row on a phone too: side by side, their names
+   were cut down to a letter. */
+@media (max-width: 900px) {
+    button.navWide {
+        flex-basis: 100%;
+    }
+}
+
 .navEntry {
     display: flex;
     align-items: center;

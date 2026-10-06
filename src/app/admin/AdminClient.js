@@ -64,7 +64,7 @@ export default function AdminClient() {
                         <ThemeToggle compact />
                         <span className={styles.topbarDivider} aria-hidden="true" />
                         <Link href="/" className={styles.exitLink}>
-                            Exit admin
+                            <span className={styles.exitLabel}>Exit admin</span>
                             <svg viewBox="0 0 24 24" aria-hidden="true">
                                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                                 <polyline points="16 17 21 12 16 7" />
