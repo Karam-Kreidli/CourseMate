@@ -124,7 +124,7 @@ function MapSidebar() {
         <button
             key={id}
             type="button"
-            className={`${styles.navBtn} ${selected === id ? styles.navBtnActive : ''}`}
+            className={`${styles.navBtn} ${own.navWide} ${selected === id ? styles.navBtnActive : ''}`}
             onClick={() => setSelected(id)}
         >
             <span className={own.navEntry}>
