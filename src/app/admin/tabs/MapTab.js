@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import campus from '@/app/map/campus.json';
 import { buildingInfo } from '@/app/map/buildings';
 import { PLACE_KINDS, openStatus } from '@/app/map/places';
@@ -211,6 +212,8 @@ function MapMain() {
     const kinds = Object.keys(PLACE_KINDS).filter(k => k === kind || inScope.some(p => p.kind === k));
     const info = isBuilding ? BUILDINGS.find(b => b.id === selected) : null;
     const title = selected === ALL ? 'All places' : selected === PINS_ONLY ? 'Pins outside buildings' : buildingLabel(selected);
+    // A new place starts in the building and type being looked at.
+    const addPlace = () => setEditing({ building_id: isBuilding ? selected : null, ...(kind && { kind }) });
 
     const chip = (k, label, count) => {
         const on = kind === k;
@@ -242,8 +245,8 @@ function MapMain() {
                     </div>
                 </div>
                 <button
-                    className={`${styles.btn} ${styles.btnPrimary}`}
-                    onClick={() => setEditing({ building_id: isBuilding ? selected : null, ...(kind && { kind }) })}
+                    className={`${styles.btn} ${styles.btnPrimary} ${own.addBtn}`}
+                    onClick={addPlace}
                 >
                     Add place
                 </button>
@@ -274,9 +277,18 @@ function MapMain() {
                     </span>
                 </div>
             ) : (
-                <div className={styles.feedList}>
+                <div className={`${styles.feedList} ${own.placeList}`}>
                     {shown.map(p => <PlaceRow key={p.id} place={p} />)}
                 </div>
+            )}
+
+            {/* The same button, floating, for screens where the header is far
+                down the page. CSS shows one or the other. */}
+            {createPortal(
+                <button className={`${styles.btn} ${styles.btnPrimary} ${own.addFab}`} onClick={addPlace}>
+                    Add place
+                </button>,
+                document.body,
             )}
 
             {editing && (
