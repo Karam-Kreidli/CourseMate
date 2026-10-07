@@ -4,7 +4,9 @@
     min-height: 100dvh;
     background: var(--auth-bg);
     position: relative;
-    overflow-x: hidden;
+    /* clip, not hidden: hidden would make this a scroll box and stop the
+       sidebar sticking on a phone held sideways. */
+    overflow-x: clip;
     display: flex;
     align-items: flex-start;
     justify-content: center;
@@ -682,6 +684,7 @@
     color: var(--text-secondary);
     letter-spacing: 0.02em;
     text-transform: uppercase;
+    white-space: nowrap;
 }
 
 .badgeActive { background: rgba(16, 185, 129, 0.15); color: var(--status-active); border-color: transparent; }
@@ -868,6 +871,49 @@
     }
     .navBtn:hover { transform: none; }
     .navBtnActive { transform: none; }
+}
+
+/* A phone on its side: wide enough for the sidebar beside the content, as on
+   a desktop, so the list isn't a long scroll below the filters. The sidebar
+   holds still while the page scrolls. */
+@media (max-width: 900px) and (min-width: 640px) and (orientation: landscape) {
+    .workspace {
+        flex-direction: row;
+        align-items: flex-start;
+    }
+    .sidebar {
+        width: 240px;
+        position: sticky;
+        top: 14px;
+        max-height: calc(100dvh - 28px);
+        overflow-y: auto;
+    }
+    .navList {
+        flex-direction: column;
+        flex-wrap: nowrap;
+    }
+    .navBtn {
+        flex: none;
+        width: 100%;
+    }
+}
+
+/* A phone: a row's buttons move under it, so the title and details get the
+   whole width instead of a sliver beside Edit, Hide and Delete. */
+@media (max-width: 640px) {
+    .row {
+        flex-wrap: wrap;
+        align-items: flex-start;
+        row-gap: 8px;
+    }
+    .rowMeta { white-space: normal; }
+    .rowActions {
+        flex-basis: 100%;
+        justify-content: flex-end;
+        padding-top: 8px;
+        border-top: 1px solid var(--border-color);
+    }
+    .rowActions .btn { padding: 6px 12px; }
 }
 
 /* A phone: the way out is just its icon, so the theme swatches and it fit

@@ -17,6 +17,17 @@
     }
 }
 
+/* A phone on its side has the sidebar beside the list, scrolling on its own,
+   so the building list doesn't need a scroll box of its own inside it. */
+@media (max-width: 900px) and (min-width: 640px) and (orientation: landscape) {
+    button.navWide {
+        flex-basis: auto;
+    }
+    .buildingList {
+        max-height: none;
+    }
+}
+
 .navEntry {
     display: flex;
     align-items: center;
@@ -59,6 +70,45 @@
     padding-bottom: 12px;
     margin-bottom: 4px;
     border-bottom: 1px solid var(--border-color);
+}
+
+/* The title side gives way, so a long description wraps instead of pushing
+   Add place off the edge. */
+.mainHead > div:first-child {
+    flex: 1;
+    min-width: 0;
+}
+
+.mainHead .addBtn {
+    flex: none;
+}
+
+/* Below the desktop layout the building list comes first and the header
+   can sit a long scroll down, so Add place floats in the corner instead.
+   It's rendered on the body: the card's backdrop blur would pin a fixed
+   child to the card rather than the screen. */
+.addFab {
+    display: none;
+}
+
+@media (max-width: 900px) {
+    .mainHead .addBtn {
+        display: none;
+    }
+    /* Room under the last place, so the button never sits on its Delete. */
+    .placeList {
+        padding-bottom: 64px;
+    }
+    .addFab {
+        display: inline-flex;
+        position: fixed;
+        right: 16px;
+        bottom: calc(16px + env(safe-area-inset-bottom));
+        z-index: 50;
+        padding: 12px 20px;
+        border-radius: var(--radius-full);
+        box-shadow: var(--shadow-accent-lg);
+    }
 }
 
 .mainTitle {
