@@ -37,7 +37,7 @@ function parseTimeToMinutes(s) {
 
 // "Mon/Wed 14:00-15:15", or a few of those joined by commas when the
 // meetings differ ("Tue 14:00-14:50, Thu 15:30-18:00").
-function parseClassTime(s) {
+export function parseClassTime(s) {
     if (!s) return [];
     return s.split(',').flatMap(part => {
         const m = part.trim().match(/^(.+?)\s+(\d{1,2}:\d{2}(?:\s*[AP]M)?)\s*-\s*(\d{1,2}:\d{2}(?:\s*[AP]M)?)$/i);
