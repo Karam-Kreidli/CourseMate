@@ -257,14 +257,10 @@ function ProfileContent() {
         const { data: { user } } = await supabase.auth.getUser();
 
         if (editForm.student_id !== profile.student_id) {
-            const { data: existing } = await supabase
-                .from('profiles')
-                .select('id')
-                .eq('student_id', editForm.student_id)
-                .neq('id', user.id)
-                .single();
+            // Other students' profiles aren't readable, so the database checks.
+            const { data: taken } = await supabase.rpc('student_id_taken', { p_student_id: editForm.student_id });
 
-            if (existing) {
+            if (taken) {
                 setErrors({ ...newErrors, student_id: 'This Student ID is already taken' });
                 setSaving(false);
                 return;

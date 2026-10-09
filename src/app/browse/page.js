@@ -168,7 +168,7 @@ export default function BrowsePage() {
                 .from('posts')
                 .select(`
           *,
-          profile:profiles!posts_user_id_fkey(id, name, student_id)
+          profile:profiles_public!posts_user_id_fkey(id, name, student_id)
         `)
                 .in('status', ['active', 'pending'])
                 .gt('expires_at', new Date().toISOString())
