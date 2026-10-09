@@ -7,11 +7,12 @@ import { createClient } from '@/lib/supabase/client';
 import { campusFilter } from '@/lib/campus';
 import { seatStatus } from '@/lib/seats';
 import { useSemester } from '@/lib/SemesterContext';
+import { getGuest, setGuest, clearGuest, guestProfile, refuse } from '@/lib/guest';
 import PageShell from '@/components/PageShell';
 import PageHeader from '@/components/PageHeader';
 import InstructorFinder from '@/components/InstructorFinder';
 import CourseHistory, { HistorySheet } from '@/components/CourseHistory';
-import { ScheduleIcon, UserCheckIcon, DownloadIcon, CopyIcon, CheckIcon, CalendarPlusIcon, HistoryIcon } from '@/components/Icons';
+import { ScheduleIcon, UserCheckIcon, DownloadIcon, CopyIcon, CheckIcon, CalendarPlusIcon, HistoryIcon, LockIcon } from '@/components/Icons';
 import { historyTerms, termLabel, fetchHistoryCounts } from '@/lib/courseHistory';
 import { decodeHtmlEntities } from '@/lib/text';
 import { downloadSchedulePng, copySchedulePng } from '@/lib/schedulePng';
@@ -667,17 +668,24 @@ export default function SchedulePage() {
     // where the term is already set at mount) and re-fires when the term
     // changes — instead of relying on a stale selectedTerm captured in checkAuth.
     useEffect(() => {
-        if (!profile) return;
+        if (!profile || profile.isGuest) return;
         fetchDbSavedSchedules(profile, selectedTerm);
     }, [profile, selectedTerm]);
 
     const checkAuth = async () => {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) { router.push('/auth'); return; }
-        const { data: profileData } = await supabase
-            .from('profiles').select('*').eq('id', user.id).single();
-        const isComplete = profileData?.name && profileData?.student_id && profileData?.phone;
-        if (!isComplete || !profileData?.major) { router.push('/profile?selectMajor=true'); return; }
+        let profileData;
+        if (user) {
+            clearGuest();
+            ({ data: profileData } = await supabase
+                .from('profiles').select('*').eq('id', user.id).single());
+            const isComplete = profileData?.name && profileData?.student_id && profileData?.phone;
+            if (!isComplete || !profileData?.major) { router.push('/profile?selectMajor=true'); return; }
+        } else {
+            const guest = getGuest();
+            if (!guest) { router.push('/auth'); return; }
+            profileData = guestProfile(guest);
+        }
 
         // Fetch major info
         let majorData;
@@ -888,13 +896,16 @@ export default function SchedulePage() {
 
     const restoreSelectedCourses = async (prof) => {
         try {
-            const { data: cartData } = await supabase
-                .from('profiles')
-                .select('schedule_cart')
-                .eq('id', prof.id)
-                .single();
-
-            const rawCart = cartData?.schedule_cart;
+            // A guest's cart is kept in this browser, beside their major and campus.
+            let rawCart = getGuest()?.cart;
+            if (!prof.isGuest) {
+                const { data: cartData } = await supabase
+                    .from('profiles')
+                    .select('schedule_cart')
+                    .eq('id', prof.id)
+                    .single();
+                rawCart = cartData?.schedule_cart;
+            }
             if (!rawCart) return [];
 
             // Determine the active term — selectedTerm may not be ready yet on first load
@@ -989,6 +1000,16 @@ export default function SchedulePage() {
         // Don't save on initial mount — wait for restore to finish
         const activeTerm = selectedTerm;
         const timer = setTimeout(async () => {
+            if (profile.isGuest) {
+                const guest = getGuest();
+                if (!guest) return;
+                const cart = { ...guest.cart };
+                if (selectedCourses.length > 0) cart[activeTerm] = { courses: selectedCourses, xor: [...xorCourseIds] };
+                else delete cart[activeTerm];
+                setGuest({ ...guest, cart });
+                return;
+            }
+
             // Read current cart object, update only the current term's key
             const { data: current } = await supabase
                 .from('profiles')
@@ -1015,6 +1036,18 @@ export default function SchedulePage() {
         }, 1000);
         return () => clearTimeout(timer);
     }, [selectedCourses, xorCourseIds, profile, selectedTerm]);
+
+    // Guest mode: the campus a profile would supply, picked on the page instead.
+    // Reloads the cart's sections for it, as a term change does.
+    const switchGuestCampus = (gender) => {
+        if (gender === profile.gender) return;
+        const next = { ...profile, gender };
+        setGuest({ ...getGuest(), gender });
+        setProfile(next);
+        setAllSections({});
+        setResults(null);
+        for (const c of selectedCourses) fetchSectionsForCourse(c.course_id, next);
+    };
 
     const fetchCourses = async (userMajor) => {
         if (!userMajor) return;
@@ -1725,6 +1758,26 @@ export default function SchedulePage() {
                 <main className={styles.main} hidden={mode !== 'build'}>
                     {error && <div className={styles.error}>{error}</div>}
 
+                    {/* A signed-in student's campus comes from their profile. A
+                        guest has none, so they pick which sections to see. */}
+                    {profile.isGuest && (
+                        <div className={`${styles.card} ${styles.section}`}>
+                            <div className={styles.sectionTitle}>Campus</div>
+                            <div className={styles.toggleRow}>
+                                {[['male', "Men's campus"], ['female', "Women's campus"]].map(([g, label]) => (
+                                    <button
+                                        key={g}
+                                        type="button"
+                                        className={`${styles.toggleBtn} ${profile.gender === g ? styles.toggleBtnActive : ''}`}
+                                        onClick={() => switchGuestCampus(g)}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* SAVED SCHEDULES WIDGET */}
                     {dbSavedSchedules.length > 0 && (
                         <div className={styles.section}>
@@ -2129,7 +2182,8 @@ export default function SchedulePage() {
                                             courseNameMap={courseNameMap}
                                             courseCreditsMap={courseCreditsMap}
                                             selectedCourses={selectedCourses}
-                                            onSave={isSaved ? null : (name) => handleSaveSchedule(result, name)}
+                                            onSave={isSaved || profile.isGuest ? null : (name) => handleSaveSchedule(result, name)}
+                                            guest={profile.isGuest}
                                             onUnsave={isSaved ? () => handleDeleteSavedSchedule(dbId) : null}
                                             isSaved={isSaved}
                                             initiallyCollapsed={false}
@@ -2177,7 +2231,7 @@ export default function SchedulePage() {
 
 // ===== SCHEDULE CARD COMPONENT =====
 
-function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedCourses, onSave, onUnsave, isSaved, initiallyCollapsed = false, isSavingSchedule = false }) {
+function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedCourses, onSave, onUnsave, isSaved, initiallyCollapsed = false, isSavingSchedule = false, guest = false }) {
     const { schedule, score, warnings } = result;
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [cardOpen, setCardOpen] = useState(!initiallyCollapsed);
@@ -2534,6 +2588,15 @@ function ScheduleCard({ result, rank, courseNameMap, courseCreditsMap, selectedC
                 {onSave && !isSaved && (
                     <div className={styles.saveFooter}>
                         <button className={styles.saveBtn} onClick={() => setNaming(true)} disabled={isSavingSchedule}>
+                            Save Schedule
+                        </button>
+                    </div>
+                )}
+
+                {guest && (
+                    <div className={styles.saveFooter}>
+                        <button type="button" className={`${styles.unsaveBtn} ${styles.lockedSaveBtn}`} onClick={refuse} aria-disabled="true">
+                            <LockIcon width={14} height={14} />
                             Save Schedule
                         </button>
                     </div>

@@ -919,3 +919,20 @@ a:hover {
 .font-bold { font-weight: 700; }
 .text-muted { color: var(--text-muted); }
 .hidden { display: none; }
+
+/* Guest mode: a locked control shaking off a tap (lib/guest.js refuse).
+   `translate` rather than transform, so it adds to an element's own transform
+   (the raised post button) instead of replacing it. */
+.guest-refuse {
+    animation: guest-refuse 0.4s ease-in-out;
+}
+
+@keyframes guest-refuse {
+    0%, 100% { translate: 0; }
+    20%, 60% { translate: -6px 0; }
+    40%, 80% { translate: 6px 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .guest-refuse { animation: none; }
+}

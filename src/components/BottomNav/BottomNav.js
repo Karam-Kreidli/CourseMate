@@ -3,16 +3,18 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import useUnreadCount from '@/lib/useUnreadCount';
+import { useIsGuest, refuse } from '@/lib/guest';
 import styles from './BottomNav.module.css';
 
-import { HomeIcon, SearchIcon, ScheduleIcon, PlusIcon, ActivityIcon } from '../Icons';
+import { HomeIcon, SearchIcon, ScheduleIcon, PlusIcon, ActivityIcon, LockIcon } from '../Icons';
 
 // Post is deliberately absent: it is the raised centre button, not a tab.
+// `account` tabs are locked in guest mode.
 const NAV_ITEMS = [
     { href: '/', icon: <HomeIcon />, label: 'Home' },
-    { href: '/browse', icon: <SearchIcon />, label: 'Browse' },
+    { href: '/browse', icon: <SearchIcon />, label: 'Browse', account: true },
     { href: '/schedule', icon: <ScheduleIcon />, label: 'Schedule' },
-    { href: '/matches', icon: <ActivityIcon />, label: 'Activity' },
+    { href: '/matches', icon: <ActivityIcon />, label: 'Activity', account: true },
 ];
 
 // Sub-routes that should keep their parent tab lit. Home stays exact-match so
@@ -24,9 +26,28 @@ export default function BottomNav() {
     const pathname = usePathname();
     const unread = useUnreadCount('activity');
     const postActive = isActiveRoute(pathname, '/post');
+    const isGuest = useIsGuest();
 
     const renderItem = (item) => {
         const isActive = isActiveRoute(pathname, item.href);
+        if (isGuest && item.account) {
+            return (
+                <button
+                    key={item.href}
+                    type="button"
+                    className={`${styles.navItem} ${styles.locked}`}
+                    onClick={refuse}
+                    aria-disabled="true"
+                    aria-label={`${item.label}, needs an account`}
+                >
+                    <span className={styles.navIcon}>
+                        {item.icon}
+                        <LockIcon className={styles.lock} />
+                    </span>
+                    <span className={styles.navLabel}>{item.label}</span>
+                </button>
+            );
+        }
         return (
             <Link
                 key={item.href}
@@ -54,14 +75,26 @@ export default function BottomNav() {
 
             {/* Creating a post is the primary action, so it gets the centre
                 slot as a raised button rather than competing as a tab. */}
-            <Link
-                href="/post"
-                className={`${styles.fab} ${postActive ? styles.fabActive : ''}`}
-                aria-label="New post"
-                aria-current={postActive ? 'page' : undefined}
-            >
-                <PlusIcon />
-            </Link>
+            {isGuest ? (
+                <button
+                    type="button"
+                    className={`${styles.fab} ${styles.fabLocked}`}
+                    onClick={refuse}
+                    aria-disabled="true"
+                    aria-label="New post, needs an account"
+                >
+                    <LockIcon />
+                </button>
+            ) : (
+                <Link
+                    href="/post"
+                    className={`${styles.fab} ${postActive ? styles.fabActive : ''}`}
+                    aria-label="New post"
+                    aria-current={postActive ? 'page' : undefined}
+                >
+                    <PlusIcon />
+                </Link>
+            )}
 
             {renderItem(schedule)}
             {renderItem({ ...activity, badge: unread })}

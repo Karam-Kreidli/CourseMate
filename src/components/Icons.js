@@ -181,6 +181,13 @@ export const ActivityIcon = (props) => (
     </IconWrapper>
 );
 
+export const LockIcon = (props) => (
+    <IconWrapper {...props}>
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </IconWrapper>
+);
+
 export const MapIcon = (props) => (
     <IconWrapper {...props}>
         <path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z" />
