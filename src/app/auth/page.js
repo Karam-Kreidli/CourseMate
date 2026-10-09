@@ -99,14 +99,10 @@ export default function AuthPage() {
                     throw new Error('Please select your gender');
                 }
 
-                // Check if University ID is already taken
-                const { data: existingProfile } = await supabase
-                    .from('profiles')
-                    .select('student_id')
-                    .eq('student_id', studentId)
-                    .single();
-
-                if (existingProfile) {
+                // Profiles aren't readable before sign-in, so ask the
+                // database whether the ID is taken rather than looking it up.
+                const { data: idTaken } = await supabase.rpc('student_id_taken', { p_student_id: studentId });
+                if (idTaken) {
                     throw new Error('This University ID is already registered.');
                 }
 
@@ -121,19 +117,6 @@ export default function AuthPage() {
                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
                 if (!emailRegex.test(email.trim())) {
                     throw new Error('Please enter a valid email address');
-                }
-
-                // Check if student ID is already taken (for signup)
-                if (!isLogin) {
-                    const { data: existingId } = await supabase
-                        .from('profiles')
-                        .select('id')
-                        .eq('student_id', studentId)
-                        .single();
-
-                    if (existingId) {
-                        throw new Error('This Student ID is already registered');
-                    }
                 }
 
                 const { data, error } = await supabase.auth.signUp({

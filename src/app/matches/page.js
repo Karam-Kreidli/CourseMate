@@ -132,7 +132,7 @@ export default function MatchesPage() {
         participants:match_participants(
             position, user_id, accepted, gives_section, gets_section,
             post:posts!match_participants_post_id_fkey(id, course_code, course_name, have_section, want_section, status),
-            profile:profiles!match_participants_user_id_fkey(id, name, student_id)
+            profile:profiles_public!match_participants_user_id_fkey(id, name, student_id)
         )`;
 
     const fetchMatches = async (userId) => {
