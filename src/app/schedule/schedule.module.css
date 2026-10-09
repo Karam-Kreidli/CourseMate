@@ -1613,3 +1613,12 @@
         padding: 10px 6px;
     }
 }
+
+/* Guest mode: Save, locked. */
+.lockedSaveBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: not-allowed;
+}

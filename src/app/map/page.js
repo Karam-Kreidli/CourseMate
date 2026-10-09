@@ -4,6 +4,7 @@ import { Children, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { getGuest, guestProfile } from '@/lib/guest';
 import { decodeHtmlEntities } from '@/lib/text';
 import { useSemester } from '@/lib/SemesterContext';
 import PageShell from '@/components/PageShell';
@@ -413,8 +414,11 @@ function CampusMap() {
         let cancelled = false;
         (async () => {
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user) { router.push('/auth'); return; }
-            const { data: profile } = await supabase.from('profiles').select('gender').eq('id', user.id).single();
+            const guest = user ? null : getGuest();
+            if (!user && !guest) { router.push('/auth'); return; }
+            const { data: profile } = guest
+                ? { data: guestProfile(guest) }
+                : await supabase.from('profiles').select('gender').eq('id', user.id).single();
             if (cancelled) return;
             setReady(true);
 

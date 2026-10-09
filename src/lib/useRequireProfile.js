@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { getGuest, clearGuest, guestProfile } from '@/lib/guest';
 
 export function useRequireProfile() {
     const router = useRouter();
@@ -32,9 +33,13 @@ export function useRequireProfile() {
             if (cancelled) return;
 
             if (!authUser) {
-                navigateWithTransition('/auth');
+                const guest = getGuest();
+                if (!guest) { navigateWithTransition('/auth'); return; }
+                setProfile(guestProfile(guest));
+                setReady(true);
                 return;
             }
+            clearGuest();
 
             const { data: profileData } = await supabase
                 .from('profiles')

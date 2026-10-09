@@ -7,6 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import styles from './AppMenu.module.css';
 import ThemeToggle from '@/components/ThemeToggle';
+import { useIsGuest, clearGuest, SIGN_UP_HREF } from '@/lib/guest';
 
 const MenuIcon = () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -62,6 +63,7 @@ export default function AppMenu() {
     const router = useRouter();
     const pathname = usePathname();
     const supabase = createClient();
+    const isGuest = useIsGuest();
 
     useEffect(() => {
         setMounted(true);
@@ -123,6 +125,13 @@ export default function AppMenu() {
     };
 
 
+    // A guest's "sign out": forget the major and campus they picked.
+    const exitGuest = () => {
+        setOpen(false);
+        clearGuest();
+        router.push('/auth');
+    };
+
     const signOut = async () => {
         setOpen(false);
         await supabase.auth.signOut();
@@ -147,11 +156,11 @@ export default function AppMenu() {
                 aria-label="Account menu"
             >
                 <div className={styles.identity}>
-                    <span className={styles.avatar}>{initialsOf(profile?.name)}</span>
+                    <span className={styles.avatar}>{initialsOf(isGuest ? 'Guest' : profile?.name)}</span>
                     <div className={styles.identityText}>
-                        <div className={styles.name}>{profile?.name || 'Your account'}</div>
+                        <div className={styles.name}>{isGuest ? 'Guest' : profile?.name || 'Your account'}</div>
                         <div className={styles.meta}>
-                            {[profile?.major, profile?.student_id].filter(Boolean).join(' · ') || 'CourseMate'}
+                            {isGuest ? 'No account' : [profile?.major, profile?.student_id].filter(Boolean).join(' · ') || 'CourseMate'}
                         </div>
                     </div>
                 </div>
@@ -159,10 +168,23 @@ export default function AppMenu() {
                 <div className={styles.rule} />
 
                 <div className={styles.rows}>
-                    <Link href="/profile" className={styles.row} role="menuitem">
-                        <PersonIcon />
-                        Profile &amp; settings
-                    </Link>
+                    {isGuest ? (
+                        <>
+                            <Link href={SIGN_UP_HREF} className={styles.row} role="menuitem">
+                                <PersonIcon />
+                                Create account
+                            </Link>
+                            <Link href="/auth" className={styles.row} role="menuitem">
+                                <SignOutIcon />
+                                Sign in
+                            </Link>
+                        </>
+                    ) : (
+                        <Link href="/profile" className={styles.row} role="menuitem">
+                            <PersonIcon />
+                            Profile &amp; settings
+                        </Link>
+                    )}
 
                     <div className={`${styles.row} ${styles.themeRow}`}>
                         <MoonIcon />
@@ -179,10 +201,10 @@ export default function AppMenu() {
                         type="button"
                         className={`${styles.row} ${styles.danger}`}
                         role="menuitem"
-                        onClick={signOut}
+                        onClick={isGuest ? exitGuest : signOut}
                     >
                         <SignOutIcon />
-                        Sign out
+                        {isGuest ? 'Exit guest mode' : 'Sign out'}
                     </button>
                 </div>
             </div>

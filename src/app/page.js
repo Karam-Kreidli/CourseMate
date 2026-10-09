@@ -7,6 +7,7 @@ import { campusFilter } from '@/lib/campus';
 import { seatStatus } from '@/lib/seats';
 import { useSemester } from '@/lib/SemesterContext';
 import { useRequireProfile } from '@/lib/useRequireProfile';
+import { refuse } from '@/lib/guest';
 import BottomNav from '@/components/BottomNav';
 import TopBar from '@/components/TopBar';
 import AppMenu from '@/components/AppMenu';
@@ -24,6 +25,7 @@ import {
     SearchIcon,
     MapIcon,
     ProfileIcon,
+    LockIcon,
 } from '@/components/Icons';
 import { decodeHtmlEntities } from '@/lib/text';
 import styles from './page.module.css';
@@ -59,6 +61,31 @@ const ChevronIcon = (props) => (
     </svg>
 );
 
+// A home tile. In guest mode a locked one stays, blurred under a lock, and a
+// tap only shakes it.
+function QuickAction({ href, icon, label, sub, locked = false }) {
+    const body = (
+        <>
+            <span className={styles.quickActionIcon}>{icon}</span>
+            <span className={styles.quickActionLabel}>{label}</span>
+            <span className={styles.quickActionSub}>{sub}</span>
+        </>
+    );
+    if (!locked) return <Link href={href} className={styles.quickAction}>{body}</Link>;
+    return (
+        <button
+            type="button"
+            className={`${styles.quickAction} ${styles.quickActionLocked}`}
+            onClick={refuse}
+            aria-disabled="true"
+            aria-label={`${label}, needs an account`}
+        >
+            {body}
+            <LockIcon className={styles.lockCenter} width={22} height={22} />
+        </button>
+    );
+}
+
 function relativeTime(iso) {
     if (!iso) return null;
     const then = new Date(iso).getTime();
@@ -76,6 +103,8 @@ function relativeTime(iso) {
 
 export default function DashboardPage() {
     const { user, profile, ready, transitioning } = useRequireProfile();
+    // A guest has a major and a campus but no account (see lib/guest).
+    const isGuest = !!profile?.isGuest;
     const { semesters, selectedTerm } = useSemester();
 
     // Group A: user-scoped, runs once profile is ready
@@ -138,7 +167,7 @@ export default function DashboardPage() {
     }, [ready, profile?.major]);
 
     useEffect(() => {
-        if (!ready || !user || !selectedTerm || !majorCourses || !univElectives) return;
+        if (!ready || !selectedTerm || !majorCourses || !univElectives) return;
         const supabase = createClient();
         let cancelled = false;
 
@@ -151,21 +180,24 @@ export default function DashboardPage() {
             ...univElectives.map(c => c.course_id),
         ]));
 
+        // A guest owns no posts, matches or saved schedules.
+        const none = Promise.resolve({ data: [], count: 0 });
+
         (async () => {
             const [postsRes, matchesRes, schedRes, sectionsRes] = await Promise.all([
-                supabase
+                !user ? none : supabase
                     .from('posts')
                     .select('id', { count: 'exact', head: true })
                     .eq('user_id', user.id)
                     .in('status', ['active', 'pending'])
                     .gt('expires_at', new Date().toISOString()),
-                supabase
+                !user ? none : supabase
                     .from('match_participants')
                     .select('match_id, matches!inner(status, term_code)', { count: 'exact', head: true })
                     .eq('user_id', user.id)
                     .eq('matches.status', 'pending')
                     .eq('matches.term_code', selectedTerm),
-                supabase
+                !user ? none : supabase
                     .from('saved_schedules')
                     .select('id, created_at, schedule_data')
                     .eq('user_id', user.id)
@@ -277,7 +309,7 @@ export default function DashboardPage() {
 
     const firstName = (profile?.name || '').trim().split(/\s+/)[0] || 'there';
     const currentSemesterName = semesters.find(s => s.term_code === selectedTerm)?.name || '';
-    const showProfileBanner = ready && profile && profileCompletion.pct < 100;
+    const showProfileBanner = ready && profile && !isGuest && profileCompletion.pct < 100;
 
     return (
         <div className={styles.page}>
@@ -323,26 +355,32 @@ export default function DashboardPage() {
 
                 {/* ===== Quick actions ===== */}
                 <div className={styles.quickActions}>
-                    <Link href="/post" className={styles.quickAction}>
-                        <span className={styles.quickActionIcon}><PlusIcon width={20} height={20} /></span>
-                        <span className={styles.quickActionLabel}>Create post</span>
-                        <span className={styles.quickActionSub}>Swap, give away, or request a section</span>
-                    </Link>
-                    <Link href="/schedule" className={styles.quickAction}>
-                        <span className={styles.quickActionIcon}><ScheduleIcon width={20} height={20} /></span>
-                        <span className={styles.quickActionLabel}>Build schedule</span>
-                        <span className={styles.quickActionSub}>Generate timetables for {currentSemesterName || 'the term'}</span>
-                    </Link>
-                    <Link href="/browse" className={styles.quickAction}>
-                        <span className={styles.quickActionIcon}><SearchIcon width={20} height={20} /></span>
-                        <span className={styles.quickActionLabel}>Browse</span>
-                        <span className={styles.quickActionSub}>See active posts from your major</span>
-                    </Link>
-                    <Link href="/schedule?mode=instructor" className={styles.quickAction}>
-                        <span className={styles.quickActionIcon}><UserCheckIcon width={20} height={20} /></span>
-                        <span className={styles.quickActionLabel}>Find instructor</span>
-                        <span className={styles.quickActionSub}>Compare schedules across faculty</span>
-                    </Link>
+                    <QuickAction
+                        href="/post"
+                        icon={<PlusIcon width={20} height={20} />}
+                        label="Create post"
+                        sub="Swap, give away, or request a section"
+                        locked={isGuest}
+                    />
+                    <QuickAction
+                        href="/schedule"
+                        icon={<ScheduleIcon width={20} height={20} />}
+                        label="Build schedule"
+                        sub={`Generate timetables for ${currentSemesterName || 'the term'}`}
+                    />
+                    <QuickAction
+                        href="/browse"
+                        icon={<SearchIcon width={20} height={20} />}
+                        label="Browse"
+                        sub="See active posts from your major"
+                        locked={isGuest}
+                    />
+                    <QuickAction
+                        href="/schedule?mode=instructor"
+                        icon={<UserCheckIcon width={20} height={20} />}
+                        label="Find instructor"
+                        sub="Compare schedules across faculty"
+                    />
                 </div>
 
                 {/* The way into the campus map: a strip of the 3D map itself. */}
@@ -362,6 +400,7 @@ export default function DashboardPage() {
                         actionLabel="Open Schedule"
                         actionHref="/schedule"
                         loading={termLoading}
+                        locked={isGuest && 'Sign up to save schedules'}
                     >
                         <div className={styles.statRow}>
                             <StatBig
@@ -391,6 +430,7 @@ export default function DashboardPage() {
                         actionLabel="Open Activity"
                         actionHref="/matches"
                         loading={termLoading}
+                        locked={isGuest && 'Sign up to post and match'}
                     >
                         <div className={styles.statRow}>
                             <StatBig

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { EyeIcon, EyeOffIcon } from '@/components/Icons';
+import { setGuest, clearGuest } from '@/lib/guest';
 import styles from './auth.module.css';
 
 export default function AuthPage() {
@@ -26,6 +27,8 @@ export default function AuthPage() {
     const [isForgotPassword, setIsForgotPassword] = useState(false);
     const [resetSent, setResetSent] = useState(false);
     const [transitioning, setTransitioning] = useState(false);
+    // Guest entry: a major and a campus instead of an account.
+    const [isGuestEntry, setIsGuestEntry] = useState(false);
     const router = useRouter();
     const supabase = createClient();
 
@@ -36,6 +39,11 @@ export default function AuthPage() {
             router.refresh();
         }, 420);
     };
+
+    // Locked features send guests to /auth?signup=1, straight to the sign-up form.
+    useEffect(() => {
+        if (new URLSearchParams(window.location.search).has('signup')) setIsLogin(false);
+    }, []);
 
     // Fetch available majors on mount
     useEffect(() => {
@@ -63,6 +71,7 @@ export default function AuthPage() {
                 });
 
                 if (error) throw error;
+                clearGuest();
                 navigateWithTransition('/');
             } else {
                 // Signup - validate all fields
@@ -164,6 +173,7 @@ export default function AuthPage() {
                     console.error('Profile update error:', profileError);
                 }
 
+                clearGuest();
                 navigateWithTransition('/');
             }
         } catch (err) {
@@ -197,6 +207,16 @@ export default function AuthPage() {
         }
     };
 
+    const enterAsGuest = (e) => {
+        e.preventDefault();
+        if (!major || !gender) {
+            setError('Pick a major and a campus');
+            return;
+        }
+        setGuest({ major, gender });
+        navigateWithTransition('/');
+    };
+
     const toggleMode = () => {
         setIsLogin(!isLogin);
         setError('');
@@ -224,8 +244,45 @@ export default function AuthPage() {
                     <p className={styles.subtitle}>University course section exchange</p>
                 </div>
 
-                {/* Forgot Password Form */}
-                {isForgotPassword ? (
+                {isGuestEntry ? (
+                    <>
+                        {/* The schedule builder lists a major's courses and only
+                            the sections open to a campus, so a guest still has to
+                            say which. Nothing is stored beyond this browser. */}
+                        <form onSubmit={enterAsGuest} className={styles.form}>
+                            <div className={styles.resetSentText} style={{ marginBottom: '16px' }}>
+                                Look around without an account. Saving schedules and posting need one.
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label className={styles.label}>Major</label>
+                                <select value={major} onChange={(e) => setMajor(e.target.value)} className={styles.input} required>
+                                    <option value="">Select your major</option>
+                                    {majors.map(m => (
+                                        <option key={m.code} value={m.code}>{m.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label className={styles.label}>Campus</label>
+                                <select value={gender} onChange={(e) => setGender(e.target.value)} className={styles.input} required>
+                                    <option value="">Select your campus</option>
+                                    <option value="male">Men&apos;s campus</option>
+                                    <option value="female">Women&apos;s campus</option>
+                                </select>
+                            </div>
+
+                            {error && <div className={styles.error}>{error}</div>}
+
+                            <button type="submit" className={styles.submitBtn}>Continue as guest</button>
+                        </form>
+
+                        <div className={styles.toggle} style={{ marginTop: '16px' }}>
+                            <button type="button" onClick={() => { setIsGuestEntry(false); setError(''); }} className={styles.toggleBtn}>
+                                Back to Sign In
+                            </button>
+                        </div>
+                    </>
+                ) : isForgotPassword ? (
                     <>
                         {resetSent ? (
                             <div className={styles.resetSentMessage}>
@@ -359,6 +416,11 @@ export default function AuthPage() {
                             </span>
                             <button type="button" onClick={toggleMode} className={styles.toggleBtn} disabled={loading}>
                                 {isLogin ? 'Sign Up' : 'Sign In'}
+                            </button>
+                        </div>
+                        <div className={styles.toggle} style={{ marginTop: '12px' }}>
+                            <button type="button" onClick={() => { setIsGuestEntry(true); setError(''); }} className={styles.toggleBtn} disabled={loading}>
+                                Continue as guest
                             </button>
                         </div>
                     </>

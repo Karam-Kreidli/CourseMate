@@ -6,14 +6,15 @@ import { usePathname } from 'next/navigation';
 import useUnreadCount from '@/lib/useUnreadCount';
 import AppMenu from '@/components/AppMenu';
 import AlertsBell from '@/components/AlertsBell';
-import { HomeIcon, SearchIcon, ScheduleIcon, PlusIcon, ActivityIcon } from '../Icons';
+import { useIsGuest, refuse } from '@/lib/guest';
+import { HomeIcon, SearchIcon, ScheduleIcon, PlusIcon, ActivityIcon, LockIcon } from '../Icons';
 import styles from './TopBar.module.css';
 
 const NAV_ITEMS = [
     { href: '/', icon: <HomeIcon />, label: 'Home' },
-    { href: '/browse', icon: <SearchIcon />, label: 'Browse' },
+    { href: '/browse', icon: <SearchIcon />, label: 'Browse', account: true },
     { href: '/schedule', icon: <ScheduleIcon />, label: 'Schedule' },
-    { href: '/matches', icon: <ActivityIcon />, label: 'Activity' },
+    { href: '/matches', icon: <ActivityIcon />, label: 'Activity', account: true },
 ];
 
 const isActiveRoute = (pathname, href) =>
@@ -27,6 +28,7 @@ const isActiveRoute = (pathname, href) =>
 export default function TopBar() {
     const pathname = usePathname();
     const unread = useUnreadCount('activity');
+    const isGuest = useIsGuest();
 
     return (
         <header className={styles.topBar}>
@@ -41,6 +43,22 @@ export default function TopBar() {
                 {NAV_ITEMS.map(item => {
                     const isActive = isActiveRoute(pathname, item.href);
                     const badge = item.href === '/matches' ? unread : 0;
+                    if (isGuest && item.account) {
+                        return (
+                            <button
+                                key={item.href}
+                                type="button"
+                                className={`${styles.navItem} ${styles.locked}`}
+                                onClick={refuse}
+                                aria-disabled="true"
+                                aria-label={`${item.label}, needs an account`}
+                            >
+                                {item.icon}
+                                {item.label}
+                                <LockIcon className={styles.lock} />
+                            </button>
+                        );
+                    }
                     return (
                         <Link
                             key={item.href}
@@ -59,10 +77,23 @@ export default function TopBar() {
             </nav>
 
             <div className={styles.actions}>
-                <Link href="/post" className={styles.newPost}>
-                    <PlusIcon />
-                    New post
-                </Link>
+                {isGuest ? (
+                    <button
+                        type="button"
+                        className={`${styles.newPost} ${styles.newPostLocked}`}
+                        onClick={refuse}
+                        aria-disabled="true"
+                        aria-label="New post, needs an account"
+                    >
+                        <LockIcon />
+                        New post
+                    </button>
+                ) : (
+                    <Link href="/post" className={styles.newPost}>
+                        <PlusIcon />
+                        New post
+                    </Link>
+                )}
                 <AlertsBell />
                 <AppMenu />
             </div>
