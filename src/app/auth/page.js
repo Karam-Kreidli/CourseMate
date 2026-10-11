@@ -24,7 +24,6 @@ export default function AuthPage() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [isForgotPassword, setIsForgotPassword] = useState(false);
-    const [resetSent, setResetSent] = useState(false);
     const [transitioning, setTransitioning] = useState(false);
     const router = useRouter();
     const supabase = createClient();
@@ -184,12 +183,18 @@ export default function AuthPage() {
                 throw new Error('Please enter a valid email address');
             }
 
-            const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-                redirectTo: `${window.location.origin}/auth/callback`,
+            // Our own route sends the email (code plus link); see
+            // api/auth/forgot-password for why it isn't Supabase's.
+            const res = await fetch('/api/auth/forgot-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email.trim() }),
             });
-
-            if (error) throw error;
-            setResetSent(true);
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(body.error || 'Could not send the email. Try again.');
+            }
+            router.push(`/auth/reset-password?email=${encodeURIComponent(email.trim())}`);
         } catch (err) {
             setError(err.message);
         } finally {
@@ -209,7 +214,6 @@ export default function AuthPage() {
         setMajor('');
         setGender('');
         setIsForgotPassword(false);
-        setResetSent(false);
     };
 
     return (
@@ -227,41 +231,27 @@ export default function AuthPage() {
                 {/* Forgot Password Form */}
                 {isForgotPassword ? (
                     <>
-                        {resetSent ? (
-                            <div className={styles.resetSentMessage}>
-                                <div className={styles.resetSentTitle}>Check your email</div>
-                                <div className={styles.resetSentText}>
-                                    We sent a password reset link to <strong>{email}</strong>. Check your inbox and follow the link to reset your password.
-                                </div>
-                                <button type="button" className={styles.submitBtn} onClick={() => { setIsForgotPassword(false); setResetSent(false); setEmail(''); setError(''); }} style={{ marginTop: '16px' }}>
-                                    Back to Sign In
-                                </button>
+                        <form onSubmit={handleForgotPassword} className={styles.form}>
+                            <div className={styles.resetSentText} style={{ marginBottom: '16px' }}>
+                                Enter the email you signed up with and we will send you a code to reset your password.
                             </div>
-                        ) : (
-                            <form onSubmit={handleForgotPassword} className={styles.form}>
-                                <div className={styles.resetSentText} style={{ marginBottom: '16px' }}>
-                                    Enter your email address and we will send you a link to reset your password.
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label className={styles.label}>Email</label>
-                                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={styles.input} placeholder="Enter your email" required disabled={loading} />
-                                </div>
-
-                                {error && <div className={styles.error}>{error}</div>}
-
-                                <button type="submit" className={styles.submitBtn} disabled={loading}>
-                                    {loading ? <span className={styles.spinner} /> : 'Send Reset Link'}
-                                </button>
-                            </form>
-                        )}
-
-                        {!resetSent && (
-                            <div className={styles.toggle} style={{ marginTop: '16px' }}>
-                                <button type="button" onClick={() => { setIsForgotPassword(false); setError(''); }} className={styles.toggleBtn} disabled={loading}>
-                                    Back to Sign In
-                                </button>
+                            <div className={styles.formGroup}>
+                                <label className={styles.label}>Email</label>
+                                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={styles.input} placeholder="Enter your email" required disabled={loading} />
                             </div>
-                        )}
+
+                            {error && <div className={styles.error}>{error}</div>}
+
+                            <button type="submit" className={styles.submitBtn} disabled={loading}>
+                                {loading ? <span className={styles.spinner} /> : 'Send Code'}
+                            </button>
+                        </form>
+
+                        <div className={styles.toggle} style={{ marginTop: '16px' }}>
+                            <button type="button" onClick={() => { setIsForgotPassword(false); setError(''); }} className={styles.toggleBtn} disabled={loading}>
+                                Back to Sign In
+                            </button>
+                        </div>
                     </>
                 ) : (
                     <>
