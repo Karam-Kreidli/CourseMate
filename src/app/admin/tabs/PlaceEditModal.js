@@ -292,6 +292,7 @@ export default function PlaceEditModal({
                         {isCreate
                             ? 'Only the name and where it is are needed. An admin checks every suggestion before it goes on the map.'
                             : 'Change whatever is out of date, like the opening hours. An admin checks it before the map changes.'}
+                        {' '}Only admins see who sent it; on the map it stays anonymous.
                     </div>
                 )}
 

@@ -11,6 +11,11 @@ const MAX_NOTE = 500;
  * A student suggests a new place for the map, or a change to one already on
  * it (place_id). It waits in map_place_suggestions until an admin accepts or
  * rejects it; nothing reaches the map from here.
+ *
+ * Who sent it stays between the student and the admins: user_id lives only in
+ * map_place_suggestions (RLS on, no policies, so only the service role reads
+ * it), accepting copies the place's own fields into map_places and nothing
+ * else, and this answers with no more than success.
  */
 export async function POST(request) {
     const supabase = await createClient();

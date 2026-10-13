@@ -8,5 +8,5 @@ export async function POST(request) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Sign in to suggest a place' }, { status: 401 });
-    return uploadMapImage(request, 'suggestions/');
+    return uploadMapImage(request);
 }
