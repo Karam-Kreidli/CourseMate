@@ -11,9 +11,10 @@ import styles from './map.module.css';
  *
  * startOpen unfolds the hours and scrolls the card into view: it is the place
  * a search or a pin asked for. bare drops the name, for a panel that already
- * has it as its title.
+ * has it as its title. onSuggestEdit, when given, offers a student a way to
+ * report what's out of date.
  */
-export default function PlaceCard({ place, startOpen = false, bare = false }) {
+export default function PlaceCard({ place, startOpen = false, bare = false, onSuggestEdit }) {
     const [showHours, setShowHours] = useState(startOpen);
     const card = useRef(null);
 
@@ -81,6 +82,12 @@ export default function PlaceCard({ place, startOpen = false, bare = false }) {
                         </a>
                     )}
                 </div>
+            )}
+
+            {onSuggestEdit && (
+                <button type="button" className={styles.suggestEdit} onClick={() => onSuggestEdit(place)}>
+                    Out of date? Suggest a change
+                </button>
             )}
         </li>
     );

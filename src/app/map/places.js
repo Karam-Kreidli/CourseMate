@@ -4,6 +4,7 @@
  * by the map, the admin Map tab and the API, so it must not touch the DOM.
  */
 
+import campus from './campus.json';
 import { buildingOfRoom } from './buildings';
 
 // In the order the map's filter chips list them. `plural` names the chip.
@@ -139,6 +140,13 @@ function text(value, max, field) {
     return trimmed;
 }
 
+/** What normalizePlace checks a place against: the buildings and size of the map. */
+export const MAP_BOUNDS = {
+    buildingIds: new Set(campus.buildings.filter(b => b.kind !== 'walkway').map(b => b.id)),
+    width: campus.width,
+    height: campus.height,
+};
+
 /**
  * A place from the admin form, checked and cleaned for the database. Throws
  * an Error whose message can go straight back to the admin.
@@ -211,4 +219,41 @@ export function normalizePlace(input, map) {
     place.sort_order = Number.isInteger(Number(input.sort_order)) ? Number(input.sort_order) : 0;
 
     return place;
+}
+
+/**
+ * What a student can suggest, with the name the admin's review shows for it.
+ * The rest (shown or hidden, order, sign) is the admin's call.
+ */
+export const SUGGESTED_FIELDS = {
+    name: 'Name',
+    kind: 'Kind',
+    building_id: 'Building',
+    room: 'Room',
+    description: 'Description',
+    location_note: 'Where inside',
+    email: 'Email',
+    phone: 'Phone',
+    link_url: 'Link',
+    link_label: 'Link text',
+    hours: 'Opening hours',
+    hours_note: 'Hours note',
+    logo_url: 'Logo',
+    pin: 'Pin on the map',
+};
+
+// The value of one suggested field, comparable with ===. Hours go day by day,
+// since jsonb doesn't keep the order the keys were written in.
+function fieldValue(place, key) {
+    if (key === 'pin') return place.pin_x == null ? '' : `${place.pin_x},${place.pin_y}`;
+    if (key === 'hours') {
+        if (!place.hours) return '';
+        return DAYS.map(([day]) => (place.hours[day] || []).map(r => r.join('-')).join(',')).join('|');
+    }
+    return place[key] == null ? '' : String(place[key]);
+}
+
+/** The keys of SUGGESTED_FIELDS that differ between two places. */
+export function placeChanges(before, after) {
+    return Object.keys(SUGGESTED_FIELDS).filter(key => fieldValue(before, key) !== fieldValue(after, key));
 }

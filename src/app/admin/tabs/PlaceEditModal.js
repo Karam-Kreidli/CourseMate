@@ -174,14 +174,34 @@ function PinPicker({ pin, buildingId, onChange }) {
     );
 }
 
-export default function PlaceEditModal({ place, buildings, onClose, onSave }) {
+/**
+ * The form for one place. The admin Map tab uses it to add and edit places,
+ * and to review what students suggest (title, intro, submitLabel, onReject).
+ *
+ * variant="suggest" is the student's version on the map: the same fields, but
+ * without the admin's own (shown or hidden, order, sign), with a note for the
+ * admin, and logos uploaded where suggestions keep theirs.
+ */
+export default function PlaceEditModal({
+    place,
+    buildings,
+    onClose,
+    onSave,
+    variant = 'admin',
+    title,
+    intro,
+    submitLabel,
+    onReject,
+}) {
     const isCreate = !place.id;
+    const suggesting = variant === 'suggest';
     const [draft, setDraft] = useState(() => {
         const start = { ...BLANK, ...place };
         for (const key of Object.keys(BLANK)) if (start[key] == null && typeof BLANK[key] === 'string') start[key] = '';
         return start;
     });
     const [saving, setSaving] = useState(false);
+    const [rejecting, setRejecting] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [err, setErr] = useState('');
 
@@ -208,7 +228,7 @@ export default function PlaceEditModal({ place, buildings, onClose, onSave }) {
         try {
             const form = new FormData();
             form.append('file', file);
-            const res = await fetch('/api/admin/map-places/upload-image', { method: 'POST', body: form });
+            const res = await fetch(suggesting ? '/api/map-suggestions/upload-image' : '/api/admin/map-places/upload-image', { method: 'POST', body: form });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(data.error || 'Upload failed');
             set('logo_url', data.url);
@@ -239,17 +259,42 @@ export default function PlaceEditModal({ place, buildings, onClose, onSave }) {
         }
     };
 
+    const handleReject = async () => {
+        setErr('');
+        setRejecting(true);
+        try {
+            await onReject();
+        } catch (e) {
+            setErr(e.message);
+            setRejecting(false);
+        }
+    };
+
+    const heading = title || (suggesting
+        ? (isCreate ? 'Suggest a place' : `Suggest a change to ${place.name}`)
+        : (isCreate ? 'Add place' : `Edit ${place.name}`));
+    const busy = saving || uploading || rejecting;
+
     const status = (() => {
         try { return openStatus(normalizeHours(draft.hours)); } catch { return null; }
     })();
 
     return (
         <div className={own.overlay} onClick={onClose}>
-            <div className={own.dialog} onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={isCreate ? 'Add place' : 'Edit place'}>
+            <div className={own.dialog} onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={heading}>
                 <div className={own.dialogHead}>
-                    <div className={own.mainTitle}>{isCreate ? 'Add place' : `Edit ${place.name}`}</div>
+                    <div className={own.mainTitle}>{heading}</div>
                     <button type="button" className={styles.btn} onClick={onClose}>Close</button>
                 </div>
+                {intro}
+                {suggesting && (
+                    <div className={styles.rowMeta}>
+                        {isCreate
+                            ? 'Only the name and where it is are needed. An admin checks every suggestion before it goes on the map.'
+                            : 'Change whatever is out of date, like the opening hours. An admin checks it before the map changes.'}
+                        {' '}Only admins see who sent it; on the map it stays anonymous.
+                    </div>
+                )}
 
                 <section className={own.section}>
                     <div className={own.grid2}>
@@ -360,7 +405,7 @@ export default function PlaceEditModal({ place, buildings, onClose, onSave }) {
                             <button type="button" className={own.linkBtn} onClick={() => { set('logo_url', ''); set('show_sign', false); }}>Remove</button>
                         )}
                     </div>
-                    <label className={own.check}>
+                    {!suggesting && <label className={own.check}>
                         <input
                             type="checkbox"
                             checked={draft.show_sign}
@@ -368,7 +413,7 @@ export default function PlaceEditModal({ place, buildings, onClose, onSave }) {
                             onChange={e => set('show_sign', e.target.checked)}
                         />
                         Stand the logo as a sign over the {draft.building_id ? 'building' : 'pin'} on the map
-                    </label>
+                    </label>}
                 </section>
 
                 <section className={own.section}>
@@ -380,7 +425,21 @@ export default function PlaceEditModal({ place, buildings, onClose, onSave }) {
                     />
                 </section>
 
-                <section className={own.section}>
+                {suggesting ? (
+                    <section className={own.section}>
+                        <label className={styles.fieldGroup}>
+                            <span className={styles.fieldLabel}>Anything the admin should know <span className={own.optional}>(optional)</span></span>
+                            <textarea
+                                className={`${styles.input} ${own.textarea}`}
+                                rows={2}
+                                maxLength={500}
+                                value={draft.note || ''}
+                                onChange={e => set('note', e.target.value)}
+                                placeholder={isCreate ? 'It opened this semester, next to the bookshop' : 'The sign on the door says they close at 14:00 now'}
+                            />
+                        </label>
+                    </section>
+                ) : <section className={own.section}>
                     <div className={own.grid2}>
                         <label className={own.check}>
                             <input type="checkbox" checked={draft.is_visible} onChange={e => set('is_visible', e.target.checked)} />
@@ -391,13 +450,20 @@ export default function PlaceEditModal({ place, buildings, onClose, onSave }) {
                             <input className={styles.input} type="number" value={draft.sort_order} onChange={e => set('sort_order', e.target.value)} />
                         </label>
                     </div>
-                </section>
+                </section>}
 
                 {err && <div className={styles.error}>{err}</div>}
                 <div className={own.dialogFoot}>
                     <button type="button" className={`${styles.btn} ${styles.btnGhost}`} onClick={onClose}>Cancel</button>
-                    <button type="button" className={`${styles.btn} ${styles.btnPrimary}`} disabled={saving || uploading} onClick={handleSave}>
-                        {saving ? 'Saving…' : isCreate ? 'Add to the map' : 'Save'}
+                    {onReject && (
+                        <button type="button" className={`${styles.btn} ${styles.btnDanger}`} disabled={busy} onClick={handleReject}>
+                            {rejecting ? 'Rejecting…' : 'Reject'}
+                        </button>
+                    )}
+                    <button type="button" className={`${styles.btn} ${styles.btnPrimary}`} disabled={busy} onClick={handleSave}>
+                        {saving
+                            ? (suggesting ? 'Sending…' : 'Saving…')
+                            : submitLabel || (suggesting ? 'Send suggestion' : isCreate ? 'Add to the map' : 'Save')}
                     </button>
                 </div>
             </div>
