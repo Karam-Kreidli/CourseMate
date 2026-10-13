@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { createPortal } from 'react-dom';
 import campus from '@/app/map/campus.json';
 import { buildingInfo } from '@/app/map/buildings';
-import { PLACE_KINDS, openStatus } from '@/app/map/places';
+import { PLACE_KINDS, SUGGESTED_FIELDS, openStatus, placeChanges } from '@/app/map/places';
 import PlaceIcon from '@/app/map/PlaceIcon';
 import PlaceEditModal from './PlaceEditModal';
 import styles from '../admin.module.css';
@@ -18,6 +18,7 @@ const BUILDINGS = campus.buildings
 // Sidebar entries that aren't one building.
 const ALL = '__all';
 const PINS_ONLY = '__pins';
+const SUGGESTIONS = '__suggestions';
 
 function buildingLabel(id) {
     const b = BUILDINGS.find(x => x.id === id);
@@ -37,15 +38,23 @@ function MapProvider({ children }) {
     const [query, setQuery] = useState('');
     // The place in the editor: a row, a fresh draft ({}), or null when closed.
     const [editing, setEditing] = useState(null);
+    // What students have suggested, waiting for review, and the one open in
+    // the review form.
+    const [suggestions, setSuggestions] = useState([]);
+    const [reviewing, setReviewing] = useState(null);
 
     const load = useCallback(async () => {
         setLoading(true);
         setError('');
         try {
-            const res = await fetch('/api/admin/map-places');
-            if (!res.ok) throw new Error(await res.text());
-            const data = await res.json();
-            setPlaces(data.places || []);
+            const [placesRes, suggestionsRes] = await Promise.all([
+                fetch('/api/admin/map-places'),
+                fetch('/api/admin/map-suggestions'),
+            ]);
+            if (!placesRes.ok) throw new Error(await placesRes.text());
+            if (!suggestionsRes.ok) throw new Error(await suggestionsRes.text());
+            setPlaces((await placesRes.json()).places || []);
+            setSuggestions((await suggestionsRes.json()).suggestions || []);
         } catch (e) {
             setError(e.message);
         } finally {
@@ -96,11 +105,39 @@ function MapProvider({ children }) {
         }
     };
 
+    const review = async (suggestion, action, draft) => {
+        const res = await fetch('/api/admin/map-suggestions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: suggestion.id, action, place: draft }),
+        });
+        const data = await res.json().catch(() => ({}));
+        // Already reviewed elsewhere: it leaves the queue either way.
+        if (res.status !== 409 && !res.ok) throw new Error(data.error || 'Something went wrong');
+        setSuggestions(prev => prev.filter(s => s.id !== suggestion.id));
+        if (data.place) {
+            setPlaces(prev => (prev.some(p => p.id === data.place.id)
+                ? prev.map(p => (p.id === data.place.id ? data.place : p))
+                : [...prev, data.place]));
+        }
+        if (res.status === 409) alert(data.error);
+    };
+
+    const reject = async (suggestion) => {
+        if (!confirm(`Reject the suggestion "${suggestion.data.name}"?`)) return;
+        try {
+            await review(suggestion, 'reject');
+        } catch (e) {
+            alert(e.message);
+        }
+    };
+
     return (
         <Ctx.Provider value={{
             places, loading, error, counts,
             selected, setSelected, kind, setKind, query, setQuery,
             editing, setEditing, save, toggleVisible, remove,
+            suggestions, reviewing, setReviewing, review, reject,
         }}>
             {children}
         </Ctx.Provider>
@@ -110,7 +147,7 @@ function MapProvider({ children }) {
 function MapSidebar() {
     const ctx = useContext(Ctx);
     if (!ctx) return null;
-    const { places, counts, selected, setSelected, query, setQuery } = ctx;
+    const { places, counts, selected, setSelected, query, setQuery, suggestions } = ctx;
 
     const q = query.trim().toLowerCase();
     const matching = BUILDINGS.filter(b => !q
@@ -121,7 +158,7 @@ function MapSidebar() {
     const without = matching.filter(b => !counts[b.id]);
     const pinsOnly = places.filter(p => !p.building_id).length;
 
-    const entry = (id, label, count, code) => (
+    const entry = (id, label, count, code, accent) => (
         <button
             key={id}
             type="button"
@@ -132,7 +169,7 @@ function MapSidebar() {
                 {code && <span className={own.navCode}>{code}</span>}
                 <span className={own.navName}>{label}</span>
             </span>
-            {count > 0 && <span className={styles.navCount}>{count}</span>}
+            {count > 0 && <span className={`${styles.navCount} ${accent ? own.navCountAccent : ''}`}>{count}</span>}
         </button>
     );
 
@@ -142,6 +179,7 @@ function MapSidebar() {
             <div className={styles.navList}>
                 {entry(ALL, 'All places', places.length)}
                 {entry(PINS_ONLY, 'Pins outside buildings', pinsOnly)}
+                {entry(SUGGESTIONS, 'Suggestions from students', suggestions.length, null, true)}
             </div>
 
             <p className={styles.sectionTitle} style={{ marginTop: 14 }}>Buildings</p>
@@ -196,10 +234,123 @@ function PlaceRow({ place }) {
     );
 }
 
+const timeAgo = (iso) => {
+    const mins = Math.round((Date.now() - new Date(iso)) / 60000);
+    if (mins < 60) return `${Math.max(mins, 1)} min ago`;
+    if (mins < 60 * 24) return `${Math.round(mins / 60)} h ago`;
+    return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+};
+
+const submitterName = (s) => s.submitter?.name || s.submitter?.email || 'A student';
+
+function SuggestionRow({ suggestion }) {
+    const { places, setReviewing, reject } = useContext(Ctx);
+    const { data } = suggestion;
+    const current = suggestion.place_id && places.find(p => p.id === suggestion.place_id);
+    const changed = current ? placeChanges(current, data) : [];
+    return (
+        <div className={styles.row}>
+            {data.logo_url
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={data.logo_url} alt="" className={own.rowLogo} />
+                : <PlaceIcon kind={data.kind} size={36} />}
+            <div className={styles.rowMain}>
+                <div className={styles.rowTitle}>
+                    {data.name}
+                    <span className={`${styles.badge} ${styles.badgeAccent}`}>{current ? 'change' : 'new place'}</span>
+                    <span className={styles.badge}>{PLACE_KINDS[data.kind]?.label}</span>
+                </div>
+                <div className={styles.rowMeta}>
+                    {current
+                        ? `Changes ${changed.map(k => SUGGESTED_FIELDS[k].toLowerCase()).join(', ') || 'nothing any more'}`
+                        : [data.building_id ? buildingLabel(data.building_id) : 'Pin outside buildings', data.room && `Room ${data.room}`].filter(Boolean).join(' · ')}
+                </div>
+                <div className={styles.rowMeta}>
+                    {submitterName(suggestion)} · {timeAgo(suggestion.created_at)}
+                </div>
+                {suggestion.note && <div className={own.suggestionNote}>&ldquo;{suggestion.note}&rdquo;</div>}
+            </div>
+            <div className={styles.rowActions}>
+                <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={() => setReviewing(suggestion)}>Review</button>
+                <button className={`${styles.btn} ${styles.btnDanger}`} onClick={() => reject(suggestion)}>Reject</button>
+            </div>
+        </div>
+    );
+}
+
+/**
+ * The review form: the suggestion laid over the place as it is now (or a new
+ * place), for the admin to correct and accept, or reject.
+ */
+function SuggestionReview() {
+    const { places, reviewing, setReviewing, review } = useContext(Ctx);
+    const current = reviewing.place_id && places.find(p => p.id === reviewing.place_id);
+    const changed = current ? placeChanges(current, reviewing.data) : [];
+    const close = () => setReviewing(null);
+    return (
+        <PlaceEditModal
+            place={current ? { ...current, ...reviewing.data } : { ...reviewing.data, is_visible: true }}
+            buildings={BUILDINGS}
+            title={current ? `Suggested change to ${current.name}` : 'Suggested place'}
+            submitLabel={current ? 'Accept change' : 'Accept and add to the map'}
+            intro={(
+                <div className={own.reviewIntro}>
+                    <div>
+                        From <strong>{submitterName(reviewing)}</strong>
+                        {reviewing.submitter?.email && reviewing.submitter.name && <> ({reviewing.submitter.email})</>}
+                        {' · '}{timeAgo(reviewing.created_at)}
+                    </div>
+                    {current && (
+                        <div>Changed: {changed.map(k => SUGGESTED_FIELDS[k]).join(', ') || 'nothing (the map already matches)'}</div>
+                    )}
+                    {reviewing.note && <div className={own.suggestionNote}>&ldquo;{reviewing.note}&rdquo;</div>}
+                    <div>Fix anything that&apos;s off before accepting.</div>
+                </div>
+            )}
+            onClose={close}
+            onSave={async (draft) => { await review(reviewing, 'accept', draft); close(); }}
+            onReject={async () => { await review(reviewing, 'reject'); close(); }}
+        />
+    );
+}
+
+function SuggestionsMain() {
+    const { suggestions, loading, error, reviewing } = useContext(Ctx);
+    return (
+        <div className={styles.feedCard}>
+            <div className={own.mainHead}>
+                <div>
+                    <div className={own.mainTitle}>Suggestions from students</div>
+                    <div className={styles.rowMeta}>New places and changes to existing ones. Nothing shows on the map until you accept it.</div>
+                </div>
+            </div>
+            {error && <div className={styles.error}>{error}</div>}
+            {loading ? (
+                <div className={styles.loading}><div className={styles.spinner} />Loading suggestions...</div>
+            ) : suggestions.length === 0 ? (
+                <div className={styles.empty}>
+                    <div className={styles.emptyTitle}>No suggestions waiting</div>
+                    <span>Students can suggest places and changes from the campus map.</span>
+                </div>
+            ) : (
+                <div className={`${styles.feedList} ${own.placeList}`}>
+                    {suggestions.map(s => <SuggestionRow key={s.id} suggestion={s} />)}
+                </div>
+            )}
+            {reviewing && <SuggestionReview />}
+        </div>
+    );
+}
+
 function MapMain() {
     const ctx = useContext(Ctx);
     if (!ctx) return null;
-    const { places, loading, error, selected, kind, setKind, editing, setEditing, save } = ctx;
+    if (ctx.selected === SUGGESTIONS) return <SuggestionsMain />;
+    return <PlacesMain />;
+}
+
+function PlacesMain() {
+    const { places, loading, error, selected, kind, setKind, editing, setEditing, save } = useContext(Ctx);
 
     const isBuilding = selected !== ALL && selected !== PINS_ONLY;
     // What the sidebar picked; the type chips narrow it further.

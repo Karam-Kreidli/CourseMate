@@ -1,19 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getAdminUser, createAdminClient } from '@/lib/admin';
-import campus from '@/app/map/campus.json';
-import { normalizePlace } from '@/app/map/places';
-
-// What a place may point at: a building the map draws, a pin on the map.
-const MAP = {
-    buildingIds: new Set(campus.buildings.filter(b => b.kind !== 'walkway').map(b => b.id)),
-    width: campus.width,
-    height: campus.height,
-};
+import { MAP_BOUNDS, normalizePlace } from '@/app/map/places';
 
 async function readPlace(request) {
     const body = await request.json().catch(() => null);
     if (!body || typeof body !== 'object') throw new Error('Expected a place');
-    return { id: body.id, place: normalizePlace(body, MAP) };
+    return { id: body.id, place: normalizePlace(body, MAP_BOUNDS) };
 }
 
 // Every place, hidden ones included, for the admin Map tab.

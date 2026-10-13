@@ -180,7 +180,8 @@
 .overlay {
     position: fixed;
     inset: 0;
-    z-index: 100;
+    /* Over the app's bottom nav too, where students open it from the map. */
+    z-index: 1100;
     display: flex;
     justify-content: center;
     align-items: flex-start;
@@ -452,4 +453,29 @@
     .grid2Wide {
         grid-template-columns: 1fr;
     }
+}
+
+/* Suggestions from students */
+.navCountAccent {
+    background: var(--color-accent);
+    color: #fff;
+}
+
+.suggestionNote {
+    margin-top: 4px;
+    font-size: 13px;
+    font-style: italic;
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+}
+
+.reviewIntro {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--color-accent-muted);
+    font-size: 13px;
+    color: var(--text-primary);
 }

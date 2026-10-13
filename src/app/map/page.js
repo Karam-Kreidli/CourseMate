@@ -1,6 +1,7 @@
 'use client';
 
 import { Children, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -14,6 +15,7 @@ import { buildingOfRoom, floorOfRoom, fromOldCode } from './buildings';
 import { PLACE_KINDS, openStatus } from './places';
 import PlaceCard from './PlaceCard';
 import PlaceIcon from './PlaceIcon';
+import PlaceEditModal from '@/app/admin/tabs/PlaceEditModal';
 import styles from './map.module.css';
 
 // WebGL only exists in the browser.
@@ -113,6 +115,8 @@ function focusForPlace(place) {
 }
 
 const INFOS = Object.fromEntries(BUILDING_IDS.map(id => [id, sizedInfo(findBuilding(id))]));
+// The buildings a suggested place can be in, as the place form lists them.
+const FORM_BUILDINGS = BUILDING_IDS.map(id => ({ id, code: INFOS[id].code, name: INFOS[id].name }));
 
 /** The 2019/2020 code a query uses ("M10", or the "M10" of "M10-102"), if any. */
 function oldCodeIn(query) {
@@ -205,7 +209,7 @@ function ResultsPanel({ places, kinds, onPick, onClear }) {
     );
 }
 
-function BuildingPanel({ id, term, places, openPlace, room, onClose }) {
+function BuildingPanel({ id, term, places, openPlace, room, onClose, onSuggest }) {
     const info = INFOS[id];
     const [classes, setClasses] = useState(null);
 
@@ -271,9 +275,17 @@ function BuildingPanel({ id, term, places, openPlace, room, onClose }) {
                 <section className={styles.insideSection}>
                     <h3>Inside</h3>
                     <ul className={styles.places}>
-                        {places.map(p => <PlaceCard key={p.id} place={p} startOpen={p.id === openPlace} />)}
+                        {places.map(p => (
+                            <PlaceCard key={p.id} place={p} startOpen={p.id === openPlace} onSuggestEdit={onSuggest} />
+                        ))}
                     </ul>
                 </section>
+            )}
+
+            {onSuggest && (
+                <button type="button" className={styles.suggestHere} onClick={() => onSuggest({ building_id: id })}>
+                    + Suggest a place in this building
+                </button>
             )}
 
             {!info.name && (
@@ -308,7 +320,7 @@ function BuildingPanel({ id, term, places, openPlace, room, onClose }) {
 }
 
 /** A place that isn't inside a building, like a corridor coffee shop. */
-function PlacePanel({ place, onClose }) {
+function PlacePanel({ place, onClose, onSuggest }) {
     return (
         <aside className={styles.panel} aria-label={place.name}>
             <div className={styles.panelHead}>
@@ -323,7 +335,7 @@ function PlacePanel({ place, onClose }) {
                 <button type="button" className={styles.close} onClick={onClose} aria-label="Close">×</button>
             </div>
             <ul className={styles.places}>
-                <PlaceCard place={place} startOpen bare />
+                <PlaceCard place={place} startOpen bare onSuggestEdit={onSuggest} />
             </ul>
         </aside>
     );
@@ -354,6 +366,12 @@ function CampusMap() {
     // The room a link elsewhere in the app came for (?room=A3-007), shown in
     // its building's panel until another building is picked.
     const [linkedRoom, setLinkedRoom] = useState(null);
+    // Signed-in students can suggest places; guests can only look.
+    const [canSuggest, setCanSuggest] = useState(false);
+    // The place in the suggestion form: a draft for a new one ({}), a place
+    // already on the map to change, or null when closed.
+    const [suggesting, setSuggesting] = useState(null);
+    const [thanks, setThanks] = useState('');
 
     const results = useMemo(() => searchMap(query, places), [query, places]);
     const renamedFrom = oldCodeIn(query);
@@ -421,6 +439,7 @@ function CampusMap() {
                 : await supabase.from('profiles').select('gender').eq('id', user.id).single();
             if (cancelled) return;
             setReady(true);
+            setCanSuggest(!!user);
 
             // A link can name a building (?b=A3) or a room (?room=A3-007).
             // Otherwise the map glides in to the student's own side of campus.
@@ -453,6 +472,27 @@ function CampusMap() {
         select(id);
     };
 
+    useEffect(() => {
+        if (!thanks) return undefined;
+        const t = setTimeout(() => setThanks(''), 5000);
+        return () => clearTimeout(t);
+    }, [thanks]);
+
+    const suggest = canSuggest ? setSuggesting : undefined;
+
+    const sendSuggestion = async (draft) => {
+        const { id, ...fields } = draft;
+        const res = await fetch('/api/map-suggestions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...fields, place_id: id || null }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Something went wrong');
+        setSuggesting(null);
+        setThanks(id ? 'Thanks! An admin will check your change.' : 'Thanks! An admin will check your place before it goes on the map.');
+    };
+
     const pickPlace = (place) => {
         setQuery('');
         selectPlace(place);
@@ -465,7 +505,13 @@ function CampusMap() {
 
     return (
         <PageShell width="wide">
-            <PageHeader title="Campus map" subtitle="Tap a building to see what's in it" />
+            <PageHeader title="Campus map" subtitle="Tap a building to see what's in it">
+                {canSuggest && (
+                    <button type="button" className={styles.suggestBtn} onClick={() => setSuggesting({ building_id: selected || null })}>
+                        Suggest a place
+                    </button>
+                )}
+            </PageHeader>
 
             <div className={styles.mapCard}>
                 {ready && (
@@ -623,9 +669,10 @@ function CampusMap() {
                         openPlace={openPlace}
                         room={linkedRoom}
                         onClose={() => select(null)}
+                        onSuggest={suggest}
                     />
                 )}
-                {soloPlace && <PlacePanel key={soloPlace.id} place={soloPlace} onClose={() => setOpenPlace(null)} />}
+                {soloPlace && <PlacePanel key={soloPlace.id} place={soloPlace} onClose={() => setOpenPlace(null)} onSuggest={suggest} />}
                 {!selected && !soloPlace && filtered.length > 0 && (
                     <ResultsPanel
                         places={filtered}
@@ -635,6 +682,19 @@ function CampusMap() {
                     />
                 )}
             </div>
+
+            {/* On body, so the map card's blur can't trap the fixed overlay. */}
+            {suggesting && createPortal(
+                <PlaceEditModal
+                    variant="suggest"
+                    place={suggesting}
+                    buildings={FORM_BUILDINGS}
+                    onClose={() => setSuggesting(null)}
+                    onSave={sendSuggestion}
+                />,
+                document.body,
+            )}
+            {thanks && <div className={styles.thanks} role="status">{thanks}</div>}
         </PageShell>
     );
 }
