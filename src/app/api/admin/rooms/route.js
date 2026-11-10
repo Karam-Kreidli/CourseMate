@@ -28,5 +28,13 @@ export async function GET() {
     const courseMap = {};
     for (const c of courses) courseMap[c.course_id] = { name: c.course_name };
 
-    return NextResponse.json({ sections: decodeSectionInstructors(sections), courseMap });
+    // Names for the term filter. The tab shows one semester at a time: two
+    // terms of classes in the same room read as a double-booking.
+    const { data: semesters, error: semesterError } = await supabase
+        .from('semesters')
+        .select('term_code, name')
+        .order('term_code', { ascending: false });
+    if (semesterError) return NextResponse.json({ error: semesterError.message }, { status: 500 });
+
+    return NextResponse.json({ sections: decodeSectionInstructors(sections), courseMap, semesters });
 }
