@@ -51,6 +51,9 @@ const Ctx = createContext(null);
 function RoomsProvider({ children }) {
     const [sections, setSections] = useState([]);
     const [courseMap, setCourseMap] = useState({});
+    const [semesters, setSemesters] = useState([]);
+    // Null until the admin picks one, so the default below follows the data.
+    const [pickedTerm, setPickedTerm] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [selected, setSelected] = useState(null);
@@ -67,6 +70,7 @@ function RoomsProvider({ children }) {
                 const data = await res.json();
                 setSections(data.sections || []);
                 setCourseMap(data.courseMap || {});
+                setSemesters(data.semesters || []);
             } catch (e) {
                 setError(e.message);
             } finally {
@@ -75,10 +79,32 @@ function RoomsProvider({ children }) {
         })();
     }, []);
 
+    // Only terms that actually have rooms. A semester with no sections has
+    // nothing to show here, and the retired ones never will. Newest first, so
+    // the default below is the term being registered for.
+    const termOptions = useMemo(() => {
+        const names = new Map(semesters.map(s => [s.term_code, s.name]));
+        return [...new Set(sections.map(s => s.term_code))]
+            .sort()
+            .reverse()
+            .map(code => ({ code, name: names.get(code) || code }));
+    }, [sections, semesters]);
+
+    const term = pickedTerm ?? termOptions[0]?.code ?? null;
+    const termName = termOptions.find(t => t.code === term)?.name || term;
+
+    // Everything below is one term's worth. Without this the week of a room
+    // used in both Fall and Spring showed both at once, which reads as a
+    // double-booking rather than two separate timetables.
+    const termSections = useMemo(
+        () => sections.filter(s => s.term_code === term),
+        [sections, term],
+    );
+
     // Room code to its sections, rooms in natural order (A3-007 before A12-004).
     const rooms = useMemo(() => {
         const byRoom = new Map();
-        for (const s of sections) {
+        for (const s of termSections) {
             const room = s.location.trim();
             if (!byRoom.has(room)) byRoom.set(room, []);
             byRoom.get(room).push(s);
@@ -87,7 +113,7 @@ function RoomsProvider({ children }) {
             list.sort((a, b) => a.course_id.localeCompare(b.course_id) || a.section_num.localeCompare(b.section_num, undefined, { numeric: true }));
         }
         return new Map([...byRoom].sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true })));
-    }, [sections]);
+    }, [termSections]);
 
     // Room code to its meetings in the week: [{ day: 'Mon', start, end }] in minutes.
     const meetings = useMemo(() => new Map(
@@ -103,6 +129,7 @@ function RoomsProvider({ children }) {
         <Ctx.Provider value={{
             rooms, meetings, courseMap, loading, error, selected, setSelected, openRoom,
             query, setQuery, mode, setMode, when, setWhen,
+            termOptions, term, termName, setTerm: setPickedTerm,
         }}>
             {children}
         </Ctx.Provider>
@@ -112,12 +139,33 @@ function RoomsProvider({ children }) {
 function RoomsSidebar() {
     const ctx = useContext(Ctx);
     if (!ctx) return null;
-    const { rooms, loading, selected, setSelected, query, setQuery, mode, setMode, when, setWhen } = ctx;
+    const {
+        rooms, loading, selected, setSelected, query, setQuery, mode, setMode, when, setWhen,
+        termOptions, term, setTerm,
+    } = ctx;
     const { matches, note } = roomSearch(query);
     const matching = [...rooms].filter(([room]) => matches(room));
 
     return (
         <div className={styles.sidebarCard}>
+            {/* No "all semesters" option on purpose: showing every term at once
+                is the overlap this filter exists to stop. */}
+            {termOptions.length > 1 && (
+                <>
+                    <p className={styles.sectionTitle}>Semester</p>
+                    <select
+                        className={styles.input}
+                        value={term || ''}
+                        onChange={e => setTerm(e.target.value)}
+                        style={{ marginBottom: 14 }}
+                    >
+                        {termOptions.map(t => (
+                            <option key={t.code} value={t.code}>{t.name}</option>
+                        ))}
+                    </select>
+                </>
+            )}
+
             <div className={rs.modeSwitch} role="group" aria-label="Rooms view">
                 {[['room', 'Find a room'], ['free', 'Free rooms']].map(([value, label]) => (
                     <button
@@ -197,7 +245,7 @@ function RoomsSidebar() {
 
 /** The rooms with no class in the chosen window, by building. */
 function FreeRooms() {
-    const { rooms, meetings, query, when, openRoom } = useContext(Ctx);
+    const { rooms, meetings, query, when, openRoom, termName } = useContext(Ctx);
     const from = toMinutes(when.from);
     const to = toMinutes(when.to);
     const dayName = DAYS.find(([key]) => key === when.day)?.[1];
@@ -233,7 +281,8 @@ function FreeRooms() {
                 <div>
                     <div className={own.mainTitle}>Free rooms</div>
                     <div className={styles.rowMeta}>
-                        {dayName}, {when.from} to {when.to} · {free.length} of {searched.length} rooms free
+                        {[termName, `${dayName}, ${when.from} to ${when.to}`, `${free.length} of ${searched.length} rooms free`]
+                            .filter(Boolean).join(' · ')}
                     </div>
                 </div>
             </div>
@@ -265,7 +314,7 @@ function FreeRooms() {
                 </div>
             )}
             <p className={rs.footnote}>
-                Only rooms with classes this term are known, so a room never booked for a class won&apos;t show up here.
+                Only rooms with classes in {termName} are known, so a room never booked for a class won&apos;t show up here.
             </p>
         </>
     );
@@ -274,7 +323,7 @@ function FreeRooms() {
 function RoomsMain() {
     const ctx = useContext(Ctx);
     if (!ctx) return null;
-    const { rooms, courseMap, loading, error, selected, mode } = ctx;
+    const { rooms, courseMap, loading, error, selected, mode, termName } = ctx;
     const list = (selected && rooms.get(selected)) || [];
 
     // One timetable colour per course, as on a student's schedule.
@@ -306,7 +355,15 @@ function RoomsMain() {
                         <div>
                             <div className={own.mainTitle}>{selected}</div>
                             <div className={styles.rowMeta}>
-                                {[building?.name, `${list.length} section${list.length === 1 ? '' : 's'} this term`].filter(Boolean).join(' · ')}
+                                {[
+                                    building?.name,
+                                    // Named, not "this term": switching semesters can leave a
+                                    // room selected that has nothing in the new one, and a bare
+                                    // "0 sections" looks like missing data rather than an answer.
+                                    list.length
+                                        ? `${list.length} section${list.length === 1 ? '' : 's'} in ${termName}`
+                                        : `No classes in ${termName}`,
+                                ].filter(Boolean).join(' · ')}
                             </div>
                         </div>
                         <RoomLink room={selected} />
