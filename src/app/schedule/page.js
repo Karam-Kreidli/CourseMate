@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { campusFilter } from '@/lib/campus';
+import { campusFilter, isMixed } from '@/lib/campus';
 import { seatStatus } from '@/lib/seats';
 import { useSemester } from '@/lib/SemesterContext';
 import { getGuest, setGuest, clearGuest, guestProfile, refuse } from '@/lib/guest';
@@ -264,7 +264,7 @@ function generateSchedules(courseGroups, prefs, courseNames) {
             // Mixed sections filter
             if (prefs.hideMixedSections) {
                 groups = groups.filter(g =>
-                    g.sections.every(s => s.campus !== 'main')
+                    g.sections.every(s => !isMixed(s))
                 );
             }
 
@@ -1995,7 +1995,7 @@ export default function SchedulePage() {
                                                     onChange={e => setPrefs(p => ({ ...p, hideMixedSections: e.target.checked }))}
                                                     style={{ width: '16px', height: '16px' }}
                                                 />
-                                                Hide mixed sections (main campus)
+                                                Hide mixed sections
                                             </label>
                                         </div>
 
