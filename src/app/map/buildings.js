@@ -108,8 +108,12 @@ const HEIGHTS = {
 export const HOUSING_HEIGHT = 1.3;
 export const UNNAMED_HEIGHT = 2.2;
 
-/** Everything the map shows about one building, whether or not the legend names it. */
+/**
+ * Everything the map shows about one building, whether or not the legend names it.
+ * Null when there is no building, as buildingOfRoom() gives for an off-campus room.
+ */
 export function buildingInfo(id) {
+    if (!id) return null;
     const known = BUILDINGS[id];
     const zone = id === 'HOSPITAL' ? 'E' : id[0];
     const kind = known?.kind || 'other';
@@ -196,10 +200,11 @@ export function floorOfRoom(room) {
 
 /**
  * "A3-007", "C14-W8-004" or an old-style "M10-102" to today's building id.
- * Null for anything that names no building.
+ * A bare building ("E1", which Banner gives when no room is set) counts too.
+ * Null for anything that names no building, such as Al-Dhaid's "DHW-137".
  */
 export function buildingOfRoom(room) {
-    const m = /^([A-HMW]\d{1,2}[A-H]?)-/i.exec((room || '').trim());
+    const m = /^([A-HMW]\d{1,2}[A-H]?)(?:-|$)/i.exec((room || '').trim());
     if (!m) return null;
     const code = m[1].toUpperCase();
     return fromOldCode(code)?.[0] || code;
