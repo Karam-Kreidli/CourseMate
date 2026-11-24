@@ -57,6 +57,7 @@ export default function AppMenu() {
     const [isDesktop, setIsDesktop] = useState(false);
     const [anchorRect, setAnchorRect] = useState(null);
     const [profile, setProfile] = useState(null);
+    const [signedOut, setSignedOut] = useState(false);
 
     const panelRef = useRef(null);
     const triggerRef = useRef(null);
@@ -64,6 +65,8 @@ export default function AppMenu() {
     const pathname = usePathname();
     const supabase = createClient();
     const isGuest = useIsGuest();
+    // Someone on a public page (the map) without an account or guest mode.
+    const visitor = signedOut && !isGuest;
 
     useEffect(() => {
         setMounted(true);
@@ -78,7 +81,8 @@ export default function AppMenu() {
         let cancelled = false;
         (async () => {
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user || cancelled) return;
+            if (cancelled) return;
+            if (!user) { setSignedOut(true); return; }
             const { data } = await supabase
                 .from('profiles')
                 .select('name, student_id, major')
@@ -158,9 +162,9 @@ export default function AppMenu() {
                 <div className={styles.identity}>
                     <span className={styles.avatar}>{initialsOf(isGuest ? 'Guest' : profile?.name)}</span>
                     <div className={styles.identityText}>
-                        <div className={styles.name}>{isGuest ? 'Guest' : profile?.name || 'Your account'}</div>
+                        <div className={styles.name}>{visitor ? 'Not signed in' : isGuest ? 'Guest' : profile?.name || 'Your account'}</div>
                         <div className={styles.meta}>
-                            {isGuest ? 'No account' : [profile?.major, profile?.student_id].filter(Boolean).join(' · ') || 'CourseMate'}
+                            {isGuest || visitor ? 'No account' : [profile?.major, profile?.student_id].filter(Boolean).join(' · ') || 'CourseMate'}
                         </div>
                     </div>
                 </div>
@@ -168,7 +172,7 @@ export default function AppMenu() {
                 <div className={styles.rule} />
 
                 <div className={styles.rows}>
-                    {isGuest ? (
+                    {isGuest || visitor ? (
                         <>
                             <Link href={SIGN_UP_HREF} className={styles.row} role="menuitem">
                                 <PersonIcon />
@@ -194,9 +198,9 @@ export default function AppMenu() {
                 </div>
 
                 <div className={styles.spacer} />
-                <div className={styles.rule} />
+                {!visitor && <div className={styles.rule} />}
 
-                <div className={styles.rows}>
+                {!visitor && <div className={styles.rows}>
                     <button
                         type="button"
                         className={`${styles.row} ${styles.danger}`}
@@ -206,7 +210,7 @@ export default function AppMenu() {
                         <SignOutIcon />
                         {isGuest ? 'Exit guest mode' : 'Sign out'}
                     </button>
-                </div>
+                </div>}
             </div>
         </>
     );
