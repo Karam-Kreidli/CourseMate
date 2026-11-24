@@ -295,9 +295,9 @@ function FreeRooms() {
             ) : (
                 <div className={styles.feedList}>
                     {[...byBuilding].map(([code, list]) => (
-                        <section key={code} className={rs.group}>
+                        <section key={code ?? 'other'} className={rs.group}>
                             <h3 className={rs.groupHead}>
-                                {code}
+                                {code ?? 'Other rooms'}
                                 {buildingInfo(code)?.name && <span> · {buildingInfo(code).name}</span>}
                                 <span className={rs.groupCount}>{list.length}</span>
                             </h3>
