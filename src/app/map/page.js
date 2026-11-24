@@ -3,7 +3,7 @@
 import { Children, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import dynamic from 'next/dynamic';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { getGuest, guestProfile } from '@/lib/guest';
 import { decodeHtmlEntities } from '@/lib/text';
@@ -342,7 +342,6 @@ function PlacePanel({ place, onClose, onSuggest }) {
 }
 
 function CampusMap() {
-    const router = useRouter();
     const params = useSearchParams();
     const { selectedTerm } = useSemester();
 
@@ -433,10 +432,10 @@ function CampusMap() {
         (async () => {
             const { data: { user } } = await supabase.auth.getUser();
             const guest = user ? null : getGuest();
-            if (!user && !guest) { router.push('/auth'); return; }
-            const { data: profile } = guest
-                ? { data: guestProfile(guest) }
-                : await supabase.from('profiles').select('gender').eq('id', user.id).single();
+            // Anyone can look at the map; a visitor just starts on the overview.
+            const { data: profile } = user
+                ? await supabase.from('profiles').select('gender').eq('id', user.id).single()
+                : { data: guest ? guestProfile(guest) : null };
             if (cancelled) return;
             setReady(true);
             setCanSuggest(!!user);
