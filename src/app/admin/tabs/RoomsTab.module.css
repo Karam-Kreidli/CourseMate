@@ -122,3 +122,28 @@
     font-size: 0.72rem;
     color: var(--text-muted);
 }
+
+/* Search runs on Enter or this button, never on typing: each search is a
+   round trip, and the tab no longer preloads every room. */
+.searchRow {
+    display: flex;
+    gap: 6px;
+}
+
+.searchBtn {
+    flex-shrink: 0;
+    padding: 0 14px;
+    border: none;
+    border-radius: var(--radius-md);
+    background: var(--color-accent);
+    color: var(--text-inverse);
+    font: inherit;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.searchBtn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}

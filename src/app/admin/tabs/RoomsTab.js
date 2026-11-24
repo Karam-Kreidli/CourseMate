@@ -54,57 +54,74 @@ function RoomsProvider({ children }) {
     const [semesters, setSemesters] = useState([]);
     // Null until the admin picks one, so the default below follows the data.
     const [pickedTerm, setPickedTerm] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [selected, setSelected] = useState(null);
     const [query, setQuery] = useState('');
     // 'room' shows one room's week; 'free' lists the rooms free at a time.
     const [mode, setMode] = useState('room');
     const [when, setWhen] = useState(campusNow);
+    // What the sections on hand were fetched for. Nothing is fetched until the
+    // admin searches: loading every room up front took several seconds before
+    // anything had been asked for.
+    const [fetched, setFetched] = useState(null);
 
+    // Opening the tab costs one small query: the semesters to pick from.
     useEffect(() => {
         (async () => {
             try {
                 const res = await fetch('/api/admin/rooms');
                 if (!res.ok) throw new Error(await res.text());
-                const data = await res.json();
-                setSections(data.sections || []);
-                setCourseMap(data.courseMap || {});
-                setSemesters(data.semesters || []);
+                setSemesters((await res.json()).semesters || []);
             } catch (e) {
                 setError(e.message);
-            } finally {
-                setLoading(false);
             }
         })();
     }, []);
 
-    // Only terms that actually have rooms. A semester with no sections has
-    // nothing to show here, and the retired ones never will. Newest first, so
-    // the default below is the term being registered for.
-    const termOptions = useMemo(() => {
-        const names = new Map(semesters.map(s => [s.term_code, s.name]));
-        return [...new Set(sections.map(s => s.term_code))]
-            .sort()
-            .reverse()
-            .map(code => ({ code, name: names.get(code) || code }));
-    }, [sections, semesters]);
+    // Newest first, so the default is the term being registered for.
+    const termOptions = useMemo(
+        () => semesters.map(s => ({ code: s.term_code, name: s.name || s.term_code })),
+        [semesters],
+    );
 
     const term = pickedTerm ?? termOptions[0]?.code ?? null;
     const termName = termOptions.find(t => t.code === term)?.name || term;
 
-    // Everything below is one term's worth. Without this the week of a room
-    // used in both Fall and Spring showed both at once, which reads as a
-    // double-booking rather than two separate timetables.
-    const termSections = useMemo(
-        () => sections.filter(s => s.term_code === term),
-        [sections, term],
-    );
+    // One term at a time: a room used in both Fall and Spring would otherwise
+    // show both weeks at once, which reads as a double-booking. The server
+    // narrows by the query; the exact matching below still applies.
+    const search = async (forTerm = term, q = query) => {
+        if (!forTerm) return;
+        setLoading(true);
+        setError('');
+        try {
+            const params = new URLSearchParams({ term: forTerm, q: q.trim() });
+            const res = await fetch(`/api/admin/rooms?${params}`);
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            setSections(data.sections || []);
+            setCourseMap(data.courseMap || {});
+            setFetched({ term: forTerm, q: q.trim() });
+        } catch (e) {
+            setError(e.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // A new semester re-runs the last search rather than dropping it, so the
+    // selected room's week comes back for the term just picked.
+    const setTerm = (next) => {
+        setPickedTerm(next);
+        if (fetched) search(next, fetched.q);
+        else setSections([]);
+    };
 
     // Room code to its sections, rooms in natural order (A3-007 before A12-004).
     const rooms = useMemo(() => {
         const byRoom = new Map();
-        for (const s of termSections) {
+        for (const s of sections) {
             const room = s.location.trim();
             if (!byRoom.has(room)) byRoom.set(room, []);
             byRoom.get(room).push(s);
@@ -113,7 +130,7 @@ function RoomsProvider({ children }) {
             list.sort((a, b) => a.course_id.localeCompare(b.course_id) || a.section_num.localeCompare(b.section_num, undefined, { numeric: true }));
         }
         return new Map([...byRoom].sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true })));
-    }, [termSections]);
+    }, [sections]);
 
     // Room code to its meetings in the week: [{ day: 'Mon', start, end }] in minutes.
     const meetings = useMemo(() => new Map(
@@ -129,7 +146,7 @@ function RoomsProvider({ children }) {
         <Ctx.Provider value={{
             rooms, meetings, courseMap, loading, error, selected, setSelected, openRoom,
             query, setQuery, mode, setMode, when, setWhen,
-            termOptions, term, termName, setTerm: setPickedTerm,
+            termOptions, term, termName, setTerm, search, fetched,
         }}>
             {children}
         </Ctx.Provider>
@@ -141,7 +158,7 @@ function RoomsSidebar() {
     if (!ctx) return null;
     const {
         rooms, loading, selected, setSelected, query, setQuery, mode, setMode, when, setWhen,
-        termOptions, term, setTerm,
+        termOptions, term, setTerm, search, fetched,
     } = ctx;
     const { matches, note } = roomSearch(query);
     const matching = [...rooms].filter(([room]) => matches(room));
@@ -215,17 +232,34 @@ function RoomsSidebar() {
             )}
 
             {mode === 'room' && <p className={styles.sectionTitle}>Rooms</p>}
-            <input
-                className={styles.input}
-                placeholder={mode === 'free' ? 'All rooms, or A12, M10...' : 'Find a room, like A3-007 or M3-007'}
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-            />
+            <form
+                className={rs.searchRow}
+                onSubmit={e => { e.preventDefault(); search(); }}
+            >
+                <input
+                    className={styles.input}
+                    placeholder={mode === 'free' ? 'All rooms, or A12, M10...' : 'Find a room, like A3-007 or M3-007'}
+                    value={query}
+                    onChange={e => setQuery(e.target.value)}
+                />
+                <button
+                    type="submit"
+                    className={rs.searchBtn}
+                    disabled={loading || !term || (mode === 'room' && !query.trim())}
+                >
+                    {mode === 'free' ? 'Find' : 'Search'}
+                </button>
+            </form>
             {note && <div className={styles.rowMeta} style={{ marginTop: 6 }}>{note}</div>}
 
             {mode === 'room' && (
                 <div className={`${styles.navList} ${own.buildingList}`}>
-                    {!loading && matching.length === 0 && <div className={styles.rowMeta}>No room matches.</div>}
+                    {!fetched && !loading && (
+                        <div className={styles.rowMeta}>Search for a room to see its week.</div>
+                    )}
+                    {fetched && !loading && matching.length === 0 && (
+                        <div className={styles.rowMeta}>No room matches. Press Enter to search again.</div>
+                    )}
                     {matching.map(([room, list]) => (
                         <button
                             key={room}
@@ -245,10 +279,22 @@ function RoomsSidebar() {
 
 /** The rooms with no class in the chosen window, by building. */
 function FreeRooms() {
-    const { rooms, meetings, query, when, openRoom, termName } = useContext(Ctx);
+    const { rooms, meetings, query, when, openRoom, termName, term, fetched } = useContext(Ctx);
     const from = toMinutes(when.from);
     const to = toMinutes(when.to);
     const dayName = DAYS.find(([key]) => key === when.day)?.[1];
+
+    // The sections on hand were narrowed by the search that fetched them, so
+    // they only answer that search: rooms fetched for "A3" say nothing about
+    // whether a C1 room is free.
+    if (!fetched || fetched.term !== term || fetched.q !== query.trim()) {
+        return (
+            <div className={styles.empty}>
+                <div className={styles.emptyTitle}>Find free rooms</div>
+                <span>Pick a day and time, then press Find. Leave &ldquo;Where&rdquo; empty to check every room.</span>
+            </div>
+        );
+    }
 
     if (to <= from) {
         return (
